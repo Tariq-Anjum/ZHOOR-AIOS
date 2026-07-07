@@ -20,8 +20,10 @@ An open-source AI Operating System — modular, local-first, security-first, pro
 **Phase 0 — Documentation Baseline ✓**  
 All core architecture docs written: Constitution, System Overview, Layered Architecture, Core Components.
 
-**Phase 1 — Foundation — NOT STARTED**  
-No code exists yet. Ready to scaffold Python project, implement CLI + agent kernel loop + SQLite memory + LLM connector.
+**Phase 1 — Step 3B — Architecture Subsystem Docs ✓**  
+- Hermes Kernel ✓ Capability Router ✓ Workflow Planner ✓ Policy Engine ✓  
+- Provider Adapter ✓ Memory System ✓ Observability ✓  
+- **Next:** Tool Runtime (3B.8)
 
 ## How This Workspace Integrates
 

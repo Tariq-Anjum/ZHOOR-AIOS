@@ -22,7 +22,7 @@ owner: Hermes AIOS Project
 
 ## 🔨 In Progress
 
-- [ ] **[OBS-001] Obsidian vault** — `.obsidian/` config + Kanban board. First working review board.
+*No items in progress*
 
 ## ✅ Done (Phase 0 — Documentation)
 
@@ -33,6 +33,24 @@ owner: Hermes AIOS Project
 - [x] **[DOC-005] Core Components** — docs/architecture/SYSTEM_OVERVIEW/03_CORE_COMPONENTS.md v1.0.0 ✓
 - [x] **[DOC-006] MIT License** — LICENSE ✓
 - [x] **[DOC-007] Gitignore** — .gitignore ✓
+
+## ✅ Phase 1 — Architecture Docs (Step 3B)
+
+- [x] **[3B.1] Hermes Kernel** — Core orchestrator: intent → plan → execute loop ✓
+- [x] **[3B.2] Capability Router** — Capability-based provider/model selection ✓
+- [x] **[3B.3] Workflow Planner** — DAG-based execution graph planning ✓
+- [x] **[3B.4] Policy Engine** — Security policy enforcement before execution ✓
+- [x] **[3B.5] Provider Adapter** — Unified provider abstraction layer ✓
+- [x] **[3B.6] Memory System** — 5-layer memory (working/episodic/semantic/procedural/long-term) ✓
+- [x] **[3B.7] Observability** — Telemetry, tracing, metrics, cost tracking ✓
+- [x] **[OBS-001] Obsidian vault + Kanban** — `.obsidian/` config + boards ✓
+
+## 📋 Phase 1 — Architecture Docs (Next)
+
+- [ ] **[3B.8] Tool Runtime** — Execution environment, sandboxing, lifecycle, permissions
+- [ ] **[3B.9] Event Bus** — Inter-component pub/sub messaging
+- [ ] **[3B.10] Plugin Framework** — Third-party plugin system with sandboxed isolation
+- [ ] **[3B.11] Configuration System** — YAML/TOML config, env vars, secrets management
 
 ## 🧪 Review
 

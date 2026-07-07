@@ -1,0 +1,13 @@
+{
+  "promptDelete": false,
+  "alwaysUpdateLinks": true,
+  "attachmentFolderPath": "docs/assets",
+  "newFileLocation": "folder",
+  "newFileFolderPath": "docs/notes",
+  "readableLineLength": true,
+  "spellcheck": true,
+  "showFrontmatter": true,
+  "showLineNumber": true,
+  "useMarkdownLinks": true,
+  "communityPluginSortOrder": "download"
+}

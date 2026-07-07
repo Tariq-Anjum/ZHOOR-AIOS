@@ -1,0 +1,13 @@
+{
+  "active": true,
+  "enabled": true,
+  "templates": {
+    "folder": "docs/templates"
+  },
+  "daily-notes": {
+    "enabled": false
+  },
+  "starred": {
+    "enabled": false
+  }
+}

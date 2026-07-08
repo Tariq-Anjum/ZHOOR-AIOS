@@ -20,10 +20,17 @@ An open-source AI Operating System — modular, local-first, security-first, pro
 **Phase 0 — Documentation Baseline ✓**  
 All core architecture docs written: Constitution, System Overview, Layered Architecture, Core Components.
 
-**Phase 1 — Step 3B — Architecture Subsystem Docs ✓**  
-- Hermes Kernel ✓ Capability Router ✓ Workflow Planner ✓ Policy Engine ✓  
-- Provider Adapter ✓ Memory System ✓ Observability ✓  
-- **Next:** Tool Runtime (3B.8)
+**Phase 1 — Architecture (Complete) ✓**  
+All 11 core component docs: 03B_1 through 03B_11 (Kernel, Router, Planner, Policy, Provider, Memory, Observability, Tool Runtime, Event Bus, Plugin Framework, Configuration System)
+
+**Phase 2 — Infrastructure (Complete) ✓**  
+8 docs: 04 through 04_7 (Infrastructure Overview, Deployment, Storage, Networking, Security, Backup, Monitoring, Scaling)
+
+**Phase 3 — Implementation Planning (Complete) ✓**  
+8 docs: 05 through 05_7 (Roadmap, Repository Structure, Dependency Graph, API Contracts, Database Schema, Plugin SDK, Testing Handbook, Contributor Guide)
+
+**Phase 4 — Execution Architecture (In Progress)**  
+8 of 9 docs complete: 06 through 06_7. **Next:** 06_8 Failure Recovery Runtime
 
 ## How This Workspace Integrates
 

@@ -1,5 +1,4 @@
 ---
-
 title: "Layered Architecture"
 document: "SYSTEM_OVERVIEW"
 section: "02_LAYERED_ARCHITECTURE"
@@ -8,7 +7,7 @@ status: "Production Baseline"
 classification: "Architecture"
 owner: "Hermes AIOS Project"
 last_updated: "2026-07-06"
---------------------------
+---
 
 # Layered Architecture
 
@@ -394,12 +393,13 @@ These capabilities can be introduced by extending existing layers rather than cr
 * `00_METADATA.md`
 * `01_EXECUTIVE_SUMMARY.md`
 * `03_CORE_COMPONENTS.md`
-* `04_REQUEST_FLOW.md`
-* `05_DATA_FLOW.md`
-* `06_POLICY_ENGINE.md`
-* `07_MEMORY_ARCHITECTURE.md`
-* `08_PROVIDER_ABSTRACTION.md`
-* `09_OBSERVABILITY.md`
+* `03B_1_HERMES_KERNEL.md`
+* `03B_2_CAPABILITY_ROUTER.md`
+* `03B_3_WORKFLOW_PLANNER.md`
+* `03B_4_POLICY_ENGINE.md`
+* `03B_5_PROVIDER_ADAPTER.md`
+* `03B_6_MEMORY_SYSTEM.md`
+* `03B_7_OBSERVABILITY.md`
 
 ---
 

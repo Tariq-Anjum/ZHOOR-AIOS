@@ -45,12 +45,46 @@ owner: Hermes AIOS Project
 - [x] **[3B.7] Observability** — Telemetry, tracing, metrics, cost tracking ✓
 - [x] **[OBS-001] Obsidian vault + Kanban** — `.obsidian/` config + boards ✓
 
-## 📋 Phase 1 — Architecture Docs (Next)
+## ✅ Phase 1 — Architecture Docs (Complete)
 
-- [ ] **[3B.8] Tool Runtime** — Execution environment, sandboxing, lifecycle, permissions
-- [ ] **[3B.9] Event Bus** — Inter-component pub/sub messaging
-- [ ] **[3B.10] Plugin Framework** — Third-party plugin system with sandboxed isolation
-- [ ] **[3B.11] Configuration System** — YAML/TOML config, env vars, secrets management
+- [x] **[3B.8] Tool Runtime** — Execution environment, sandboxing, lifecycle, permissions ✓
+- [x] **[3B.9] Event Bus** — Inter-component pub/sub messaging ✓
+- [x] **[3B.10] Plugin Framework** — Third-party plugin system with sandboxed isolation ✓
+- [x] **[3B.11] Configuration System** — YAML/TOML config, env vars, secrets management ✓
+
+## ✅ Phase 2 — Infrastructure Docs (Complete)
+
+- [x] **[4.0] Infrastructure Overview** — Deployment architecture, runtime processes, storage layout ✓
+- [x] **[4.1] Deployment Architecture** — Profiles, topology, startup sequence, health checks ✓
+- [x] **[4.2] Storage Architecture** — SQLite, ChromaDB, object storage, cache, checkpoints ✓
+- [x] **[4.3] Networking Architecture** — IPC, API gateway, security zones, provider connectivity ✓
+- [x] **[4.4] Security Architecture** — Trust zones, auth, encryption, plugin security, audit ✓
+- [x] **[4.5] Backup and Recovery** — Backup types, restore order, RPO/RTO, integrity verification ✓
+- [x] **[4.6] Monitoring and Operations** — Health, alerts, dashboards, capacity, runbooks ✓
+- [x] **[4.7] Scaling Strategy** — Vertical/horizontal scaling, storage/provider/event bus scaling ✓
+
+## ✅ Phase 3 — Implementation Planning (Complete)
+
+- [x] **[5.0] Implementation Roadmap** — Milestones, tech stack, CI/CD, risks ✓
+- [x] **[5.1] Repository Structure** — Package layout, naming, dependency rules ✓
+- [x] **[5.2] Module Dependency Graph** — Layered dependencies, initialization order, forbidden imports ✓
+- [x] **[5.3] API Contracts** — Request/response models, versioning, streaming, error model ✓
+- [x] **[5.4] Database Schema** — Entities, ChromaDB collections, migrations, indexing ✓
+- [x] **[5.5] Plugin SDK** — Manifest, lifecycle, capability/tool registration, permissions ✓
+- [x] **[5.6] Testing Handbook** — Test pyramid, coverage, CI gates, regression, release validation ✓
+- [x] **[5.7] Contributor Guide** — Workflow, branching, ADRs, coding standards, governance ✓
+
+## 📋 Phase 4 — Execution Architecture (In Progress)
+
+- [x] **[6.0] Execution Architecture** — Request lifecycle, runtime components, state machine ✓
+- [x] **[6.1] Kernel Execution Lifecycle** — Startup, supervision, shutdown, recovery ✓
+- [x] **[6.2] Workflow Execution Engine** — DAG, task states, scheduling, checkpointing ✓
+- [x] **[6.3] Capability Routing Runtime** — Intent, complexity, provider scoring, local-first ✓
+- [x] **[6.4] Memory Execution Pipeline** — Retrieval, ranking, context assembly, embeddings ✓
+- [x] **[6.5] Tool Execution Lifecycle** — Discovery, sandbox, streaming, audit, cleanup ✓
+- [x] **[6.6] Provider Execution Pipeline** — Discovery, health, failover, normalization, telemetry ✓
+- [x] **[6.7] Event Processing Runtime** — Lifecycle, persistence, replay, backpressure, dead-letter ✓
+- [ ] **[6.8] Failure Recovery Runtime** — Failure classification, retry, checkpoint restoration, circuit breakers
 
 ## 🧪 Review
 

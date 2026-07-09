@@ -446,12 +446,14 @@ Async-First Runtime
 
 The Kernel standardizes on a single asyncio event loop with structured concurrency, allowing scalable orchestration while keeping execution predictable.
 
-Cross References
+---
 
-Previous
+# Cross References
 
-docs/implementation/09_IMPLEMENTATION_ROADMAP.md
+Previous:
 
-Next
+- `docs/implementation/09_IMPLEMENTATION_ROADMAP.md`
 
-docs/implementation/09_2_WORKFLOW_ENGINE_IMPLEMENTATION_PLAN.md
+Next:
+
+- `docs/implementation/09_2_WORKFLOW_ENGINE_IMPLEMENTATION_PLAN.md`

@@ -38,8 +38,10 @@ Before any downstream implementation card becomes `READY`, `ARC-03` must replace
 
 ## Assignment rules
 
-- Architecture/security acceptance stays with GPT-5.6 Sol plus human review.
+- Architecture/security acceptance stays with GPT-5.6 Sol plus human review. Sol runs through the Codex harness; the former Zed lane is retired.
 - Prefer a reviewer from a different model family; do not use model consensus as acceptance.
+- Review files are `<JOB-ID>-<reviewer-token>.md` (`sol`, `luna`, `qwen-max`, `qwen-flash`, `glm`, `muse`, `deepseek`, `owner`). The role — primary or independent-challenger — is recorded inside the report, never in the filename.
+- If a required lane is unavailable, substitute only per `ORCHESTRATOR_RUNBOOK.md` §Lane unavailability, record it in `DECISIONS.md`, and keep the card in `REVIEW` until the owed independent report exists.
 - Qwen3.8 Max is the challenger for protocol/security reasoning.
 - GLM 5.3 Flash and Muse Spark are default implementation agents.
 - Luna, Qwen3.8 Flash, and DeepSeek V4.1 Flash handle bounded fixtures, datasets, measurements, and routine review cost-effectively.
@@ -54,4 +56,6 @@ Before any downstream implementation card becomes `READY`, `ARC-03` must replace
 
 ## Current owner action
 
-Review this tranche, establish a named integration branch, commit it if accepted, assign `ARC-01` review, then unblock only one wave at a time.
+Done: tranche reviewed and committed on the named branch `integration/zhoor-adoption`; not pushed (push is owner-only).
+
+Next: assign the two independent `ARC-01` reports using `handoffs/NEXT_ACTIONS.md` — primary to GPT-5.6 Sol (Codex), independent challenger to Qwen3.8 Max (Pi). Adjudicate both, then flip `ARC-01` → `DONE` and `ARC-02` → `READY`. Unblock only one wave at a time.

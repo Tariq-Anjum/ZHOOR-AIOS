@@ -40,7 +40,7 @@ Legacy HERMES documents are reference material, not build instructions, unless a
 | `WORK_BOARD.md` | Current job status, dependencies, model recommendation, and write-set ownership |
 | `AGENT_OPERATING_RULES.md` | Safety, context, retry, approval, Git, and handoff rules |
 | `MODEL_AND_SKILL_MATRIX.md` | Cost-aware agent/model allocation and minimal skill stacks |
-| `ORCHESTRATOR_RUNBOOK.md` | Exact Pi/OpenCode/Codex/Sol lanes, wave order, assignment prompt, and resume protocol |
+| `ORCHESTRATOR_RUNBOOK.md` | Exact Pi/OpenCode/Codex lanes, wave order, lane-unavailability substitution, assignment prompt, and resume protocol |
 | `TARGET_SCAFFOLD.md` | Intended repository shape; it is not permission to create all directories at once |
 | `DECISIONS.md` | Adoption-level decisions and open gates |
 | `FINDINGS.md` | Facts discovered during the architecture audit |
@@ -52,16 +52,17 @@ Legacy HERMES documents are reference material, not build instructions, unless a
 ## Current state
 
 - Repository: documentation-only; no runtime source, package manifest, tests, or CI.
-- Git: checkout was at `origin/main` commit `dbffd08` in detached-HEAD state during this audit.
+- Git: the governance tranche is committed on the named branch `integration/zhoor-adoption` (audit base was `origin/main` at `dbffd08`). Not pushed — push is owner-only.
 - Architecture: ZHOOR v0.2 adopted; implementation not started.
-- Immediate gate: owner creates an integration branch and isolated worktrees for parallel jobs.
+- Lanes: GPT-5.6 Sol runs through Codex; the former Zed lane is retired. Substitution rules live in `ORCHESTRATOR_RUNBOOK.md` §Lane unavailability.
+- Immediate gate: `ARC-01` governance review — Sol (Codex) primary plus Qwen3.8 Max (Pi) independent challenger, adjudicated by the owner. Assignment prompts: `handoffs/NEXT_ACTIONS.md`.
 - First implementation gate: `ARC-02` gathers toolchain evidence; `ARC-03` selects the stack, pins paths/checks, and must finish before source scaffolding.
 - Needle/Jev: not required now. Needle may be measured only in approval-gated `BENCH-02` after deterministic datasets, traces, and audit exist. Jev is not a planned dependency.
 
 ## Human/orchestrator setup before parallel work
 
-1. Return the checkout to a named branch without discarding these planning changes.
-2. Commit this architecture/planning tranche as one reviewed documentation change.
+1. Done — the checkout is on the named branch `integration/zhoor-adoption`; planning changes were preserved.
+2. Done — the architecture/planning tranche is committed there as reviewed documentation changes.
 3. Create one isolated Git worktree and branch per concurrently assigned job. Never let multiple agents switch branches in one shared checkout.
 4. Assign only status-eligible cards whose dependencies are satisfied: `READY` for implementation or `REVIEW` for review.
 5. Do not mark downstream cards `READY` until ARC-03 has pinned concrete path globs and exact validation commands; ensure concurrent cards are mechanically disjoint.

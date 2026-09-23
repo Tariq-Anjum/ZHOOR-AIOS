@@ -1,4 +1,4 @@
-# Orchestrator runbook for Pi, OpenCode, Codex, and Sol
+# Orchestrator runbook for Pi, OpenCode, and Codex
 
 The human owner assigns jobs. Agents do not message one another; isolated worktrees, diffs/commits, tests, and handoffs coordinate work.
 
@@ -6,9 +6,9 @@ The human owner assigns jobs. Agents do not message one another; isolated worktr
 
 | Harness | Model | Primary cards | Review cards |
 |---|---|---|---|
-| Lead/Zed | GPT-5.6 Sol | ARC-03, AUD-01, AUD-02, CANARY-01 | SEC-01, GRANT-01, BENCH-01/02, AIOSD-01/02 |
+| Codex | GPT-5.6 Sol | ARC-01, ARC-03, AUD-01, AUD-02, CANARY-01 | ARC-02 (inside ARC-03), SEC-01, GRANT-01, BENCH-01/02, AIOSD-01/02 |
 | Pi | GLM 5.3 Flash | BASE-01, PRO-01, REG-01, WRK-02, AIOSD-02 | bounded implementation review |
-| Pi | Qwen3.8 Max | ARC-02, SEC-01, GRANT-01 | ARC-03 challenger, POL-01, WRK-02, EVAL-03 |
+| Pi | Qwen3.8 Max | ARC-02, SEC-01, GRANT-01 | ARC-01 challenger, ARC-03 challenger, POL-01, WRK-02, EVAL-03 |
 | Pi | Qwen3.8 Flash | EVAL-02 | registry/fixture bulk review |
 | OpenCode | Muse Spark 1.3 | TRC-01, WRK-01, BENCH-01, AIOSD-01 | bounded runtime review |
 | OpenCode | DeepSeek V4.1 Flash | EVAL-00, EVAL-03, BENCH-02, SHADOW-01 | TRC-01, EVAL-01, EVAL-04 |
@@ -16,11 +16,22 @@ The human owner assigns jobs. Agents do not message one another; isolated worktr
 
 Start only agents needed for the current wave.
 
+## Lane unavailability
+
+GPT-5.6 Sol runs through the Codex harness. The former `Lead/Zed` lane is retired (owner-reported Zed credit exhaustion); no card depends on the Zed harness.
+
+When a card requires the Sol lane and that lane is unavailable:
+
+1. The owner may substitute Qwen3.8 Max (Pi) as `interim-primary`, and the substitution must be recorded in `DECISIONS.md` before work starts.
+2. The independent challenge is then owed by a different model family — GPT-5.6 Luna (Codex), or GPT-5.6 Sol once the lane returns — before the card may become `DONE`.
+3. One model never writes both the primary and the challenger report for the same card, and an agent that helped author the artefact under review is never its only reviewer.
+4. Substitution never lowers an acceptance gate: architecture/security acceptance stays with Sol plus the human owner even if it is delivered later.
+
 ## Wave order
 
 | Wave | Cards | Parallel? | Gate |
 |---|---|---|---|
-| 0 | ARC-01 | no | Owner resolves review |
+| 0 | ARC-01 | no | Owner adjudicates two independent reports: Sol (Codex) primary + Qwen3.8 Max challenger |
 | 1 | ARC-02 | no | Evidence complete, no decision |
 | 2 | ARC-03 | no | Sol + Qwen challenger + owner accept ADR, paths, commands |
 | 3 | BASE-01 | no | Clean canonical checks |
@@ -63,7 +74,7 @@ Do not talk to other agents or edit WORK_BOARD.md. Commit: [yes/no]. Push: [yes/
 ## Review prompt
 
 ```text
-Review [JOB-ID] only. The board status is REVIEW. Read the card, immutable implementation handoff, acceptance criteria, and provided diff/commit. Load skill-router and karpathy-guidelines. Do not edit implementation or its handoff. Independently run the exact targeted/full checks. Write docs/planning/zhoor-adoption/handoffs/reviews/[JOB-ID]-[REVIEWER].md using templates/REVIEW_TEMPLATE.md. After two validation failures, stop and report blocked. Approval is evidence-based, never model consensus.
+Review [JOB-ID] only. The board status is REVIEW. Read the card, immutable implementation handoff, acceptance criteria, and provided diff/commit. Load skill-router and karpathy-guidelines. Do not edit implementation or its handoff. Independently run the exact targeted/full checks. Write docs/planning/zhoor-adoption/handoffs/reviews/[JOB-ID]-[REVIEWER].md using templates/REVIEW_TEMPLATE.md, where [REVIEWER] is your reviewer token (sol, luna, qwen-max, qwen-flash, glm, muse, deepseek, owner). Record your role (primary or independent-challenger), model/harness, and the exact commit you reviewed. An independent challenger does not read the primary report before writing its own. After two validation failures, stop and report blocked. Approval is evidence-based, never model consensus.
 ```
 
 ## Context reset/resume

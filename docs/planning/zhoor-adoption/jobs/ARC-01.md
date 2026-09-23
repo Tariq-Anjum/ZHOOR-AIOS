@@ -2,8 +2,9 @@
 
 
 **Depends on:** none  
-**Recommended:** GPT-5.6 Sol  
-**Independent challenger:** Qwen3.8 Max  
+**Recommended:** GPT-5.6 Sol (Codex harness) — primary reviewer  
+**Independent challenger:** Qwen3.8 Max (Pi harness)  
+**Acceptance:** human owner (wave 0 gate)  
 **Timebox:** one review session
 
 ## Objective
@@ -19,12 +20,14 @@ Verify that ADR-0001, the copied ZHOOR v0.2 architecture, constitution amendment
 
 ## Write scope
 
-- `docs/planning/zhoor-adoption/handoffs/reviews/ARC-01-primary.md` only.
-- Do not edit governance documents or create an implementation handoff during review.
+- Primary reviewer writes `docs/planning/zhoor-adoption/handoffs/reviews/ARC-01-sol.md` only.
+- Independent challenger writes `docs/planning/zhoor-adoption/handoffs/reviews/ARC-01-qwen-max.md` only, and does not read the primary report first.
+- Do not edit governance documents, job cards, or `WORK_BOARD.md`, and create no implementation handoff during review.
+- If the Sol lane is unavailable, `docs/planning/zhoor-adoption/ORCHESTRATOR_RUNBOOK.md` §Lane unavailability governs substitution; one model never writes both reports.
 
 ## Success condition
 
-A review report identifies every blocking inconsistency in authority, identity, scope, safety boundaries, or job dependencies; otherwise it explicitly approves the baseline.
+Each review report identifies every blocking inconsistency in authority, identity, scope, safety boundaries, or job dependencies; otherwise it explicitly approves the baseline. The owner adjudicates the two reports.
 
 ## Checks
 
@@ -34,6 +37,7 @@ A review report identifies every blocking inconsistency in authority, identity, 
 - Memory, policy, inference, and execution ownership do not overlap.
 - Board dependencies match the roadmap.
 - Every job is a bounded logical unit and every architecture/security change has independent review.
+- Lane and ownership naming agrees across `WORK_BOARD.md`, `ORCHESTRATOR_RUNBOOK.md`, `MODEL_AND_SKILL_MATRIX.md`, `DECISIONS.md`, and the cards, with no reference to a retired harness.
 
 ## Stop
 

@@ -13,6 +13,10 @@
 | D-007 | Every job uses `skill-router` and Karpathy guidance; one bounded logical unit per card, resumable only after interruption with the same handoff/attempt count. | Controls context, scope, hallucination, and cost. |
 | D-008 | Two failures on the same blocker require stop and handoff. | Prevents loops and wasted resources. |
 | D-009 | Parallel agents require isolated worktrees and disjoint write sets. | Prevents branch and file collisions. |
+| D-010 | GPT-5.6 Sol runs through the Codex harness; the `Lead/Zed` lane is retired. | Owner-reported Zed credit exhaustion. Architecture/security acceptance authority must not be stranded on an unavailable harness. |
+| D-011 | Owner-reported: the governance tranche on `integration/zhoor-adoption` was prepared without the Sol lane, with Qwen3.8 Max substituted. `ARC-01` must therefore be reviewed by Sol (Codex) as primary and Qwen3.8 Max as independent challenger before it becomes `DONE`. | Compensating control: authors of a tranche are never its only reviewers. |
+| D-012 | Review files are `<JOB-ID>-<reviewer-token>.md`; the role (primary, independent-challenger, interim-primary) is recorded inside the report, never in the filename. | A two-report card cannot have two `-primary` files, and filenames must stay unique per reviewer. |
+| D-013 | If a required lane is unavailable, substitution needs a recorded decision, an independent challenge from a different model family, and the card stays in `REVIEW` until that report exists. | Availability pressure must not silently remove independent review. |
 
 ## Open gates
 

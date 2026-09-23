@@ -18,7 +18,7 @@ Audit the merged protocol, registry, risk rules, traces, workers, and evaluation
 
 ## Write scope
 
-- `docs/planning/zhoor-adoption/handoffs/reviews/AUD-01-primary.md` only.
+- `docs/planning/zhoor-adoption/handoffs/reviews/AUD-01-sol.md` only.
 
 ## Required audit
 

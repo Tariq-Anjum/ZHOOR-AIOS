@@ -7,11 +7,14 @@
 ## Review ownership
 
 - Output path: `docs/planning/zhoor-adoption/handoffs/reviews/<JOB-ID>-<REVIEWER>.md`
+- `<REVIEWER>` token: `sol | luna | qwen-max | qwen-flash | glm | muse | deepseek | owner`
+- Role: `primary | independent-challenger | interim-primary` (a substitution must already be recorded in `../../DECISIONS.md`)
+- Model / harness: `<model> / <harness>`
 - Implementation and implementation handoff edited: `no`
 
 ## Scope reviewed
 
-- Commit/diff/files and acceptance criteria.
+- Branch, exact commit reviewed (`git rev-parse HEAD`), diff/files, and acceptance criteria.
 
 ## Blocking findings
 

@@ -2,6 +2,8 @@
 
 This is a development-agent allocation, not a ZHOOR runtime model policy. Exact model quality, price, context, and availability change; benchmark before changing assignments.
 
+Harness mapping (harness → model → cards) lives in `ORCHESTRATOR_RUNBOOK.md`. GPT-5.6 Sol runs through Codex; the former Zed lane is retired. When a required lane is unavailable, substitute only per the runbook's §Lane unavailability and record the deviation in `DECISIONS.md`.
+
 ## Mandatory stack for every agent
 
 1. `skill-router` — inspect the compact index and load only what the job requires.
@@ -32,6 +34,7 @@ This is a development-agent allocation, not a ZHOOR runtime model policy. Exact 
 | Jobs | Required additions beyond mandatory stack |
 |---|---|
 | ARC-02, ARC-03, AUD-01, AUD-02, CANARY-01 | `file-based-planning`; `wayfinder` only for orchestrator dependency changes. ARC-01 uses file planning only if review crosses sessions. |
+| ARC-01 (both reports) | No extra skill. Two independent reports from different model families: `sol` primary, `qwen-max` challenger. |
 | PRO-01, SEC-01 | OpenSpec workflow if already available; otherwise use repository schemas/tests directly. Do not install it just for the card. |
 | BASE-01, REG-01, POL-01, WRK-01, WRK-02, TRC-01, GRANT-01, AIOSD-01, AIOSD-02 | No extra skill unless the router finds one narrow engineering match |
 | EVAL-00 through EVAL-04, SHADOW-01, BENCH-01, BENCH-02 | `file-based-planning` for durable evaluation/benchmark findings; no model-judge skill |

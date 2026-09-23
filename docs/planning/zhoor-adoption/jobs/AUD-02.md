@@ -18,7 +18,7 @@ Decide whether evidence supports proposing one reversible capability canary. Aud
 
 ## Write scope
 
-- `docs/planning/zhoor-adoption/handoffs/reviews/AUD-02-primary.md`.
+- `docs/planning/zhoor-adoption/handoffs/reviews/AUD-02-sol.md`.
 - Optional draft recommendation inside that review; no production edits or implementation handoff.
 
 ## Required audit

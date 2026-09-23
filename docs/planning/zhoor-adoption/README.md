@@ -55,7 +55,7 @@ Legacy HERMES documents are reference material, not build instructions, unless a
 - Git: the governance tranche is committed on the named branch `integration/zhoor-adoption` (audit base was `origin/main` at `dbffd08`). Not pushed — push is owner-only.
 - Architecture: ZHOOR v0.2 adopted; implementation not started.
 - Lanes: GPT-5.6 Sol runs through Codex; the former Zed lane is retired. Substitution rules live in `ORCHESTRATOR_RUNBOOK.md` §Lane unavailability.
-- Immediate gate: `ARC-01` governance review — Sol (Codex) primary plus Qwen3.8 Max (Pi) independent challenger, adjudicated by the owner. Assignment prompts: `handoffs/NEXT_ACTIONS.md`.
+- Immediate gate: `ARC-01` governance review — Sol (Codex) primary plus GPT-5.6 Luna (Codex) independent challenger, adjudicated by the owner; Qwen3.8 Max is ineligible for that challenge because it authored the handoff/lane layer. Assignment prompts: `handoffs/NEXT_ACTIONS.md`.
 - First implementation gate: `ARC-02` gathers toolchain evidence; `ARC-03` selects the stack, pins paths/checks, and must finish before source scaffolding.
 - Needle/Jev: not required now. Needle may be measured only in approval-gated `BENCH-02` after deterministic datasets, traces, and audit exist. Jev is not a planned dependency.
 

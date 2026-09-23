@@ -31,7 +31,7 @@ When a card requires the Sol lane and that lane is unavailable:
 
 | Wave | Cards | Parallel? | Gate |
 |---|---|---|---|
-| 0 | ARC-01 | no | Owner adjudicates two independent reports: Sol (Codex) primary + Qwen3.8 Max challenger |
+| 0 | ARC-01 | no | Owner adjudicates two independent reports: Sol (Codex) primary + non-Qwen challenger (Luna recommended) |
 | 1 | ARC-02 | no | Evidence complete, no decision |
 | 2 | ARC-03 | no | Sol + Qwen challenger + owner accept ADR, paths, commands |
 | 3 | BASE-01 | no | Clean canonical checks |

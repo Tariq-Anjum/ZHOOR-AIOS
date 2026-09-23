@@ -170,17 +170,18 @@ Commit: no. Push: no.
 
 ## 2c. If the Codex / GPT-5.6 Sol lane is unavailable
 
-Do not silently collapse ARC-01 into a single Qwen3.8 Max report. Per
-[`../ORCHESTRATOR_RUNBOOK.md`](../ORCHESTRATOR_RUNBOOK.md) §Lane unavailability and `D-013`:
+Do not collapse `ARC-01` into a single report, and do not hand either role to Qwen3.8 Max — that model authored
+the handoff/lane layer under review. Per [`../ORCHESTRATOR_RUNBOOK.md`](../ORCHESTRATOR_RUNBOOK.md)
+§Lane unavailability and `D-013`:
 
-1. Owner records the substitution in [`../DECISIONS.md`](../DECISIONS.md) first.
-2. Qwen3.8 Max (Pi) runs section 2's prompt with `Role: interim-primary` in `ARC-01-qwen-max.md`.
-   Because Qwen3.8 Max is also the tranche's author, this route leaves **no** author-independent
-   reviewer until step 3 is completed.
-3. The independent challenge is then owed by a different model family — GPT-5.6 Luna (Codex)
-   writing `ARC-01-luna.md`, or Sol when the lane returns.
-4. `ARC-01` stays `REVIEW` until that second report exists. Architecture/security acceptance is
-   not lowered, only deferred.
+1. Preferred: hold `ARC-01` in `REVIEW` until the Sol lane returns. Nothing else is unblocked by it, and wave 1
+   (`ARC-02`) cannot start in the meantime anyway.
+2. If the owner needs the review now: GPT-5.6 Luna (Codex) runs section 1's prompt with `Role: interim-primary`,
+   writing `ARC-01-luna.md`; the owner records the substitution in [`../DECISIONS.md`](../DECISIONS.md); and the
+   Sol review is then owed as `ARC-01-sol.md` when the lane returns.
+3. Any other substitution requires an explicit owner waiver in `../DECISIONS.md` naming the conflict accepted.
+4. `ARC-01` stays `REVIEW` until the owed second report exists. Architecture/security acceptance is not lowered,
+   only deferred.
 
 ## 3. Owner checklist after the reports return
 

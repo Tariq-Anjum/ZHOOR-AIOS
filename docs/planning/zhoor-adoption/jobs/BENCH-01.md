@@ -1,0 +1,39 @@
+# BENCH-01 — Backend adapter and benchmark runner
+
+
+**Depends on:** AUD-01 approval  
+**Recommended:** Muse Spark 1.3  
+**Review:** GPT-5.6 Sol  
+**Timebox:** one adapter/runner implementation session; no measured candidate run
+
+## Objective
+
+Implement the thinnest replaceable backend adapter, mocks, and frozen benchmark runner/configuration for deterministic/index baselines and one approved local candidate. Do not perform the measured candidate run in this card.
+
+## Required context and skills
+
+- Load `skill-router`, `karpathy-guidelines`, and `file-based-planning`.
+- Read architecture sections 5–7 and 10, AUD-01, datasets, backend interface decision, and no unrelated raw discussions.
+- Karpathy application: benchmark a bounded hypothesis; do not build an inference server or fine-tune a model.
+
+## Write scope
+
+- Backend adapter interface, one approved adapter, mocks, and benchmark runner/configuration.
+- Runner tests and `docs/planning/zhoor-adoption/handoffs/BENCH-01.md`.
+- ARC-03 must replace this description with exact path globs before `READY`; Needle must remain an isolated optional BENCH-02 candidate.
+
+## Acceptance
+
+- Runner guarantees baselines and semantic candidate consume identical frozen cases and emits the fields needed for accuracy, abstention, semantic/schema errors, calibration, resource, latency, cost/privacy, timeout, and unavailable-backend analysis.
+- Mocks prove unavailable/deadline/schema-failure paths before any download or live run.
+- Runtime still works fully without the backend.
+- Semantic output cannot lower deterministic hard risk or authorize action.
+- Failed/unavailable/deadline-missed backend yields typed abstention/escalation.
+
+## Needle guardrail
+
+Needle is optional, not required. BENCH-01 performs no Needle installation. BENCH-02 may do so only with owner approval after verifying current upstream package/version and license, using a disposable environment, telemetry disabled, sanitized data, and no training extras/hosted services.
+
+## Stop
+
+After two installation/adapter failures, stop—do not churn versions. Never expose secrets or real transcripts. Backend promotion requires separate review.

@@ -10,6 +10,8 @@ last_updated: 2026-07-09
 
 # Implementation Roadmap
 
+> **Superseded for implementation:** Do not execute milestones M0–M9 from this legacy HERMES plan. Current ZHOOR work is dependency-gated in `../planning/zhoor-adoption/README.md` and `../planning/zhoor-adoption/WORK_BOARD.md`.
+
 ## Executive Summary
 
 Phases 1–6 defined what Hermes AIOS is and how it should be engineered. Phase 7 defines how Hermes AIOS will be built.

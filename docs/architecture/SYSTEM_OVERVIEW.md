@@ -9,9 +9,9 @@ version: 1.0.0
 
 # Hermes AIOS --- System Overview
 
-> **Note:** This is Version 1.0 of the System Overview. It establishes
-> the architectural baseline for Hermes AIOS and will evolve alongside
-> the implementation.
+> **Legacy reference:** ZHOOR is now the accepted architectural direction. Use `ZHOOR_ARCHITECTURE-v0.2.md`, `adr/ADR-0001-ADOPT-ZHOOR-DIRECTION.md`, and `../planning/zhoor-adoption/README.md` for current work. This document is non-normative where it conflicts with them.
+>
+> This Version 1.0 overview records the former HERMES-AIOS baseline.
 
 ## Executive Summary
 

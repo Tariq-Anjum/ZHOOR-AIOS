@@ -1,73 +1,70 @@
 ---
 document_id: HC-001
-last_updated: 2026-07-05
+last_updated: 2026-09-23
 owner: Hermes AIOS Project
 review_cycle: Quarterly
 status: Approved
-title: Hermes Constitution
-version: 1.0.0
+title: HERMES-AIOS / ZHOOR Transition Constitution
+version: 1.1.0
 ---
 
-# Hermes AIOS Constitution
+# HERMES-AIOS / ZHOOR Transition Constitution
 
 ## 1. Purpose
 
-This Constitution is the highest governing document for Hermes AIOS. All
-code, documentation, architecture decisions, and future contributions
-must conform to it.
+This Constitution governs the HERMES-AIOS repository during its transition to ZHOOR. ZHOOR is the accepted product and architectural direction; the repository name will change later. All code, documentation, architecture decisions, and contributions must conform to this Constitution and accepted ADRs.
 
 ## 2. Vision
 
-Build a modular, secure, local-first AI Operating System that can
-orchestrate multiple models and tools through capability-based
-reasoning.
+Build a secure, local-first decision fabric that helps agents and AIOS clients select bounded actions, evidence, models, skills, and escalation paths without giving probabilistic model output execution authority.
 
 ## 3. Mission
 
-Create an open-source AI platform that is privacy-first, extensible,
-provider independent, and suitable for personal and enterprise
-deployment.
+Create an open, provider-independent system that uses the cheapest reliable deterministic mechanism first, escalates only with recorded evidence, and separates recommendation, authorization, execution, memory, and evaluation.
 
 ## 4. Core Principles
 
-1.  Local-first whenever practical.
-2.  Security before convenience.
-3.  Architecture before implementation.
-4.  Interfaces before concrete providers.
-5.  Capability-based orchestration.
-6.  Multi-agent by architecture; single orchestrator initially.
-7.  Modular, replaceable components.
-8.  Documentation is part of the product.
-9.  Testing is mandatory.
-10. Open standards over vendor lock-in.
+1. Local-first whenever practical.
+2. Security before convenience.
+3. Deterministic rules and indexes before semantic models.
+4. Policy and evidence above model confidence.
+5. Architecture and executable contracts before implementation.
+6. Interfaces before concrete providers.
+7. Minimum context, tokens, code, and model for maximum useful work.
+8. Modular, replaceable components and backends.
+9. Traces, evaluation, abstention, and replay are part of the architecture.
+10. Documentation and tests are part of the product.
+11. Open standards over vendor lock-in.
+12. Autonomous capability is earned per risk class; it is never implied by model quality.
 
 ## 5. Architecture Principles
 
--   Stable kernel.
--   Provider abstraction layer.
--   Policy engine.
--   Capability router.
--   Workflow planner.
--   Intent classifier.
--   Memory abstraction.
--   Plugin registry.
--   Event bus.
--   Configuration system.
+- One typed Decision Runtime for protocol validation, budgets, routing, scheduling, calibration, cache, and trace capture.
+- Logical workers implemented as bounded schemas/configuration over shared replaceable backends.
+- Initial workers limited to deterministic `skill_router` and `risk_judge`.
+- Cost-ordered escalation: rule, index, tiny local semantic backend, stronger approved backend, reasoning model, human.
+- A deterministic Policy Engine separate from inference and execution.
+- `aiosd` as the sole planned privileged execution boundary.
+- Evidence provenance and trust tiers independent from model confidence.
+- Versioned contracts and replayable traces before model or capability expansion.
 
 ## 6. Security Principles
 
--   Hardened Command Parser is the trust boundary.
--   Least privilege for every tool.
--   Explicit policy enforcement.
--   Audit every privileged action.
--   Never expose secrets.
--   Validate all model outputs before execution.
+- Recommendation, authorization, and execution are separate trust boundaries.
+- A model never directly executes a capability or grants permission.
+- Policy denies or escalates by default when identity, evidence, scope, or provenance is insufficient.
+- `aiosd` authenticates callers, validates short-lived operation-bound grants and normalized arguments, executes only allowlisted capabilities, and emits receipts.
+- Least privilege applies to every capability.
+- Every privileged action is auditable and independently revalidated.
+- Secrets, unrestricted transcripts, and hidden model reasoning are excluded from traces.
+- Prompt text and external content cannot override policy or raise evidence trust.
 
 ## 7. Memory Principles
 
--   SQLite is the authoritative structured memory.
--   ChromaDB or equivalent vector store may augment semantic retrieval.
--   Memory backends must remain interchangeable.
+- `my-ai-brain` is the canonical durable Markdown memory authority.
+- ZHOOR stores only bounded active session state and sanitized trace/evaluation data.
+- OB1 may act as an optional governed mirror/evidence substrate, not canonical authority.
+- Retrieval and storage backends remain replaceable; a vector database is not a foundation requirement.
 
 ## 8. Provider Principles
 
@@ -91,10 +88,9 @@ documentation is the canonical source of truth.
 
 ## 11. Roadmap Principles
 
-Build in this order: 1. Foundation 2. Kernel 3. Memory 4. Routing 5.
-Tools 6. Agents 7. Optimization 8. Distributed execution
+Build in this order: 1. Governance and toolchain decision 2. Versioned protocol fixtures 3. Deterministic registry, policy, and traces 4. `skill_router` and `risk_judge` 5. Hand-labeled evaluation and audit 6. Optional backend benchmark 7. Shadow operation 8. Non-mutating `aiosd` introspection 9. Human-approved reversible canary proposal.
 
-Infrastructure should never precede a stable core.
+No model backend, workflow engine, plugin system, UI, canonical memory database, or mutating capability may precede the deterministic evaluated core.
 
 ## 12. Amendment Process
 
@@ -103,4 +99,4 @@ architectural, - repository review, - version increment.
 
 ------------------------------------------------------------------------
 
-Approved for Hermes AIOS Phase 1.
+Amended for the HERMES-AIOS to ZHOOR transition under ADR-0001.

@@ -7,6 +7,8 @@ owner: Hermes AIOS Project
 
 ---
 
+> **Legacy board:** retained for HERMES history. Do not assign new work from this board. Use `../planning/zhoor-adoption/WORK_BOARD.md` and its one-session job cards for ZHOOR.
+
 ## 🏗️ Backlog
 
 - [ ] **[SYS-001] Consolidate duplicate docs** — `SYSTEM_OVERVIEW.md` root duplicates subdir content. Decide single source or symlink.

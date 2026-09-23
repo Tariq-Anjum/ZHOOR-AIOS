@@ -1,0 +1,36 @@
+# SEC-01 — aiosd contract and attack fixtures
+
+
+**Depends on:** PRO-01  
+**Recommended:** Qwen3.8 Max  
+**Review:** GPT-5.6 Sol  
+**Timebox:** one contract/security session; no daemon
+
+## Objective
+
+Specify versioned `aiosd` request, short-lived single-operation grant, normalized argument binding, capability descriptor, and receipt contracts with positive and hostile fixtures. Do not implement execution.
+
+## Required context and skills
+
+- Load `skill-router` and `karpathy-guidelines`.
+- Use OpenSpec only if already available; do not install it.
+- Read ZHOOR architecture section 8, protocol contracts, and legacy threat categories only as checklist input.
+- Karpathy application: pin only v1 `capabilities.describe`; do not design shell/service/package/network capabilities.
+
+## Write scope
+
+- `schemas/aiosd/`, `fixtures/aiosd/`, contract tests, contract/threat notes, and `docs/planning/zhoor-adoption/handoffs/SEC-01.md`.
+- ARC-03 must confirm exact source/test path globs and validation commands before `READY`.
+- No daemon/server/executor source.
+
+## Acceptance
+
+- Grant binds ID, expiry, policy version, authenticated client identity, exact capability, normalized argument hash, resource scope, originating trace, and decision/evidence hashes.
+- Receipt records validated capability, caller, grant, argument hash, outcome, safe result reference, and timestamps.
+- Fixtures reject expiry/replay, caller mismatch, capability substitution, argument tampering, unknown fields/version, path traversal/symlink escape representation, oversized inputs, and missing provenance.
+- Contract is local Unix-socket oriented but transport framing is explicit.
+- Only `capabilities.describe` is eligible and non-mutating.
+
+## Stop
+
+Any unresolved cryptographic/key, privilege, multi-user, or path-canonicalization decision requires a security ADR/review. After two attempts, stop and record the exact ambiguity.

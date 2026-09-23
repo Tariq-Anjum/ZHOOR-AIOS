@@ -6,9 +6,10 @@ State at the time of writing: the governance tranche is committed on the branch 
 Sol lane has moved from Zed to **Codex** and the review-file naming is now reviewer-token based
 (`D-010`…`D-013` in [`../DECISIONS.md`](../DECISIONS.md)). `ARC-01` is `REVIEW`; every other card is `BLOCKED`.
 
-Authorship provenance: the artefact under review in wave 0 (`1904baf`, `148d103`, `2efdbd3`) was prepared by
-**Qwen3.8 Max in the Pi harness** (`PI_MODEL=qwen/qwen3.8-max-0902`), not by the Sol lane. This constrains who
-may act as independent challenger — see section 2.
+Authorship provenance of the wave-0 artefact, per commit: `1904baf` — GPT-5.6 Sol (Zed harness);
+`148d103` — Qwen3.8 Max (Pi), after Zed credits were exhausted; `2efdbd3` and `2f3270f` — Qwen3.8 Max (Pi),
+this session (`PI_MODEL=qwen/qwen3.8-max-0902`). The handoff/lane layer is therefore Qwen-authored, which
+constrains who may act as independent challenger — see section 2.
 
 ## 0. Baseline validation — already re-run, expected green
 
@@ -87,8 +88,9 @@ Commit: no. Push: no.
 
 May run in parallel with section 1.
 
-**Author conflict — resolve before assigning.** The tranche under review was prepared by Qwen3.8 Max (Pi), so a
-Qwen3.8 Max challenge is a self-review. This is the `ARC-01 challenger independence` open gate in
+**Author conflict — resolve before assigning.** The handoff/lane layer of the artefact under review
+(`148d103`, `2efdbd3`, `2f3270f`) was prepared by Qwen3.8 Max (Pi), so a Qwen3.8 Max challenge would partly be a
+self-review; `1904baf` itself was Sol-authored. This is the `ARC-01 challenger independence` open gate in
 [`../DECISIONS.md`](../DECISIONS.md).
 
 - **2a. Recommended — Codex / GPT-5.6 Luna** → writes `ARC-01-luna.md`. Non-Qwen, independent of the author,
@@ -107,9 +109,9 @@ Record the exact commit you reviewed (git rev-parse HEAD) in the report's Scope 
 Do NOT read docs/planning/zhoor-adoption/handoffs/reviews/ARC-01-sol.md — not before your own report
 is written. Your value is independence; the owner adjudicates the two reports.
 
-Author check: the artefact under review was prepared by Qwen3.8 Max (Pi). If you are Qwen3.8 Max, say so
-explicitly in the report's Review ownership section and note the owner waiver that authorizes it; otherwise
-record that you are independent of the author.
+Author check: the handoff/lane layer of the artefact under review was prepared by Qwen3.8 Max (Pi); commit
+1904baf was prepared by GPT-5.6 Sol. If you are Qwen3.8 Max, say so explicitly in the report's Review ownership
+section and note the owner waiver that authorizes it; otherwise record that you are independent of the author.
 
 Read, in order:
 1. docs/planning/zhoor-adoption/README.md

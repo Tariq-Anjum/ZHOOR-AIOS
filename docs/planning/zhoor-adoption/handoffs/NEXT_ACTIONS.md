@@ -215,9 +215,10 @@ Read in this order, then stop and wait for an assignment:
 Current wave: **0** (`ARC-01`). `ARC-02` is the only wave-1 card and stays `BLOCKED` until
 `ARC-01` is `DONE`.
 
-Lane summary: Codex/GPT-5.6 Sol — architecture and security acceptance; Pi/Qwen3.8 Max —
-independent challenger plus `ARC-02`, `SEC-01`, `GRANT-01`; Pi/GLM 5.3 Flash — bounded
-implementation and board/handoff edits; OpenCode and Codex/Luna lanes per the runbook table.
+Lane summary: Codex/GPT-5.6 Sol — architecture and security acceptance, `ARC-01` primary; Codex/GPT-5.6 Luna —
+`ARC-01` independent challenger plus bounded review; Pi/Qwen3.8 Max — independent challenger for cards it did not
+author, plus `ARC-02`, `SEC-01`, `GRANT-01`; Pi/GLM 5.3 Flash — bounded implementation and board/handoff edits;
+OpenCode lanes per the runbook table.
 
 Hard rules for every agent: no push, no branch switching, no board edits by workers, one card per
 session, two-failure stop, one handoff per card. Durable memory stays in `my-ai-brain`; record only

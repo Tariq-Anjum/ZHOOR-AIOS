@@ -34,7 +34,7 @@ Harness mapping (harness → model → cards) lives in `ORCHESTRATOR_RUNBOOK.md`
 | Jobs | Required additions beyond mandatory stack |
 |---|---|
 | ARC-02, ARC-03, AUD-01, AUD-02, CANARY-01 | `file-based-planning`; `wayfinder` only for orchestrator dependency changes. ARC-01 uses file planning only if review crosses sessions. |
-| ARC-01 (both reports) | No extra skill. Two independent reports from different model families: `sol` primary, `qwen-max` challenger. |
+| ARC-01 (both reports) | No extra skill. Two independent reports from different models: `sol` primary, plus a challenger from a non-Qwen model — `luna` recommended, because the handoff/lane layer under review is Qwen3.8 Max-authored. |
 | PRO-01, SEC-01 | OpenSpec workflow if already available; otherwise use repository schemas/tests directly. Do not install it just for the card. |
 | BASE-01, REG-01, POL-01, WRK-01, WRK-02, TRC-01, GRANT-01, AIOSD-01, AIOSD-02 | No extra skill unless the router finds one narrow engineering match |
 | EVAL-00 through EVAL-04, SHADOW-01, BENCH-01, BENCH-02 | `file-based-planning` for durable evaluation/benchmark findings; no model-judge skill |

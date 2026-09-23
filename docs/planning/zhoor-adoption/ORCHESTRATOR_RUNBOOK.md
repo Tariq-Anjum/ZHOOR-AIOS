@@ -8,11 +8,11 @@ The human owner assigns jobs. Agents do not message one another; isolated worktr
 |---|---|---|---|
 | Codex | GPT-5.6 Sol | ARC-01, ARC-03, AUD-01, AUD-02, CANARY-01 | ARC-02 (inside ARC-03), SEC-01, GRANT-01, BENCH-01/02, AIOSD-01/02 |
 | Pi | GLM 5.3 Flash | BASE-01, PRO-01, REG-01, WRK-02, AIOSD-02 | bounded implementation review |
-| Pi | Qwen3.8 Max | ARC-02, SEC-01, GRANT-01 | ARC-01 challenger, ARC-03 challenger, POL-01, WRK-02, EVAL-03 |
+| Pi | Qwen3.8 Max | ARC-02, SEC-01, GRANT-01 | ARC-01 challenger only by recorded owner waiver (author conflict), ARC-03 challenger, POL-01, WRK-02, EVAL-03 |
 | Pi | Qwen3.8 Flash | EVAL-02 | registry/fixture bulk review |
 | OpenCode | Muse Spark 1.3 | TRC-01, WRK-01, BENCH-01, AIOSD-01 | bounded runtime review |
 | OpenCode | DeepSeek V4.1 Flash | EVAL-00, EVAL-03, BENCH-02, SHADOW-01 | TRC-01, EVAL-01, EVAL-04 |
-| Codex | GPT-5.6 Luna | POL-01, EVAL-01, EVAL-04 | BASE-01, PRO-01, WRK-01, EVAL-02, SHADOW-01 |
+| Codex | GPT-5.6 Luna | POL-01, EVAL-01, EVAL-04 | ARC-01 challenger (recommended), BASE-01, PRO-01, WRK-01, EVAL-02, SHADOW-01 |
 
 Start only agents needed for the current wave.
 
@@ -22,7 +22,7 @@ GPT-5.6 Sol runs through the Codex harness. The former `Lead/Zed` lane is retire
 
 When a card requires the Sol lane and that lane is unavailable:
 
-1. The owner may substitute Qwen3.8 Max (Pi) as `interim-primary`, and the substitution must be recorded in `DECISIONS.md` before work starts.
+1. The owner may substitute Qwen3.8 Max (Pi) as `interim-primary` — unless that model authored the artefact under review — and the substitution must be recorded in `DECISIONS.md` before work starts.
 2. The independent challenge is then owed by a different model family — GPT-5.6 Luna (Codex), or GPT-5.6 Sol once the lane returns — before the card may become `DONE`.
 3. One model never writes both the primary and the challenger report for the same card, and an agent that helped author the artefact under review is never its only reviewer and never its independent challenger.
 4. Substitution never lowers an acceptance gate: architecture/security acceptance stays with Sol plus the human owner even if it is delivered later.

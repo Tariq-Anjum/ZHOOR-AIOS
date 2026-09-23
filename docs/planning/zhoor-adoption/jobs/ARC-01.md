@@ -3,7 +3,7 @@
 
 **Depends on:** none  
 **Recommended:** GPT-5.6 Sol (Codex harness) — primary reviewer  
-**Independent challenger:** Qwen3.8 Max (Pi harness)  
+**Independent challenger:** non-Qwen model — GPT-5.6 Luna (Codex harness) recommended; Qwen3.8 Max (Pi) only with a recorded owner waiver  
 **Acceptance:** human owner (wave 0 gate)  
 **Timebox:** one review session
 
@@ -21,7 +21,7 @@ Verify that ADR-0001, the copied ZHOOR v0.2 architecture, constitution amendment
 ## Write scope
 
 - Primary reviewer writes `docs/planning/zhoor-adoption/handoffs/reviews/ARC-01-sol.md` only.
-- Independent challenger writes `docs/planning/zhoor-adoption/handoffs/reviews/ARC-01-qwen-max.md` only, and does not read the primary report first.
+- Independent challenger writes `docs/planning/zhoor-adoption/handoffs/reviews/ARC-01-luna.md` (recommended) or `ARC-01-qwen-max.md` (waiver only), and does not read the primary report first.
 - Author conflict: the handoff/lane layer of the artefact under review (`148d103`, `2efdbd3`, `2f3270f`) was prepared by Qwen3.8 Max (Pi); `1904baf` was Sol-authored. A Qwen3.8 Max challenge is therefore partly a self-review — resolve the `ARC-01 challenger independence` open gate in `docs/planning/zhoor-adoption/DECISIONS.md` before assigning the challenger.
 - Do not edit governance documents, job cards, or `WORK_BOARD.md`, and create no implementation handoff during review.
 - If the Sol lane is unavailable, `docs/planning/zhoor-adoption/ORCHESTRATOR_RUNBOOK.md` §Lane unavailability governs substitution; one model never writes both reports.

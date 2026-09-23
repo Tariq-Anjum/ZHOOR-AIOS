@@ -10,7 +10,7 @@ Before any downstream implementation card becomes `READY`, `ARC-03` must replace
 
 | ID | Status | Depends on | Deliverable | Recommended implementer | Independent review | Planned exclusive area |
 |---|---|---|---|---|---|---|
-| ARC-01 | REVIEW | none | Governance baseline review | GPT-5.6 Sol | Qwen3.8 Max + owner | review handoff only |
+| ARC-01 | REVIEW | none | Governance baseline review | GPT-5.6 Sol | GPT-5.6 Luna + owner (Qwen3.8 Max only by recorded waiver — author conflict) | review handoff only |
 | ARC-02 | BLOCKED | ARC-01 | Reproducible Rust/Python/bounded-mixed evidence spike | Qwen3.8 Max | GPT-5.6 Sol in ARC-03 | isolated spike evidence |
 | ARC-03 | BLOCKED | ARC-02 | Toolchain ADR, canonical commands, pinned paths | GPT-5.6 Sol | Qwen3.8 Max + owner | ADR/toolchain docs/board/card path sections |
 | BASE-01 | BLOCKED | ARC-03 | Minimal verified project scaffold | GLM 5.3 Flash | GPT-5.6 Luna | root manifests/config, smoke source/test, CI |
@@ -58,4 +58,4 @@ Before any downstream implementation card becomes `READY`, `ARC-03` must replace
 
 Done: tranche reviewed and committed on the named branch `integration/zhoor-adoption`; not pushed (push is owner-only).
 
-Next: assign the two independent `ARC-01` reports using `handoffs/NEXT_ACTIONS.md` — primary to GPT-5.6 Sol (Codex), independent challenger to Qwen3.8 Max (Pi). Adjudicate both, then flip `ARC-01` → `DONE` and `ARC-02` → `READY`. Unblock only one wave at a time.
+Next: assign the two independent `ARC-01` reports using `handoffs/NEXT_ACTIONS.md` — primary to GPT-5.6 Sol (Codex), independent challenger to GPT-5.6 Luna (Codex), because Qwen3.8 Max authored the handoff/lane layer and is eligible only by a waiver recorded in `DECISIONS.md`. Adjudicate both, then flip `ARC-01` → `DONE` and `ARC-02` → `READY`. Unblock only one wave at a time.

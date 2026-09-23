@@ -6,6 +6,10 @@ State at the time of writing: the governance tranche is committed on the branch 
 Sol lane has moved from Zed to **Codex** and the review-file naming is now reviewer-token based
 (`D-010`…`D-013` in [`../DECISIONS.md`](../DECISIONS.md)). `ARC-01` is `REVIEW`; every other card is `BLOCKED`.
 
+Authorship provenance: the artefact under review in wave 0 (`1904baf`, `148d103`, `2efdbd3`) was prepared by
+**Qwen3.8 Max in the Pi harness** (`PI_MODEL=qwen/qwen3.8-max-0902`), not by the Sol lane. This constrains who
+may act as independent challenger — see section 2.
+
 ## 0. Baseline validation — already re-run, expected green
 
 | Check | Result |
@@ -79,9 +83,21 @@ At ~60% context, write the report and stop.
 Commit: no. Push: no.
 ```
 
-## 2. ARC-01 independent challenge — Pi / Qwen3.8 Max (herdr)
+## 2. ARC-01 independent challenge — choose the reviewer first
 
-May run in parallel with section 1. Paste into the Qwen3.8 Max session.
+May run in parallel with section 1.
+
+**Author conflict — resolve before assigning.** The tranche under review was prepared by Qwen3.8 Max (Pi), so a
+Qwen3.8 Max challenge is a self-review. This is the `ARC-01 challenger independence` open gate in
+[`../DECISIONS.md`](../DECISIONS.md).
+
+- **2a. Recommended — Codex / GPT-5.6 Luna** → writes `ARC-01-luna.md`. Non-Qwen, independent of the author,
+  and cheap enough for a review card. Same-family-as-primary (GPT-5.6) is accepted here because the primary and
+  challenger are different models and the author is neither.
+- **2b. Only with an explicit owner waiver recorded in `../DECISIONS.md` — Pi / Qwen3.8 Max (herdr)** → writes
+  `ARC-01-qwen-max.md`. Strongest review model available, but it is grading its own prior work.
+
+Substitute the marked lines for the chosen reviewer, then paste the block.
 
 ```text
 You are assigned ARC-01 (governance baseline review) as INDEPENDENT CHALLENGER only, in the repository
@@ -90,6 +106,10 @@ Record the exact commit you reviewed (git rev-parse HEAD) in the report's Scope 
 
 Do NOT read docs/planning/zhoor-adoption/handoffs/reviews/ARC-01-sol.md — not before your own report
 is written. Your value is independence; the owner adjudicates the two reports.
+
+Author check: the artefact under review was prepared by Qwen3.8 Max (Pi). If you are Qwen3.8 Max, say so
+explicitly in the report's Review ownership section and note the owner waiver that authorizes it; otherwise
+record that you are independent of the author.
 
 Read, in order:
 1. docs/planning/zhoor-adoption/README.md
@@ -108,9 +128,12 @@ Load skill-router and karpathy-guidelines: state assumptions, do not overbuild, 
 judge against the card's success condition. This is review, not implementation or redesign.
 
 Write scope — your single write is:
-docs/planning/zhoor-adoption/handoffs/reviews/ARC-01-qwen-max.md
+docs/planning/zhoor-adoption/handoffs/reviews/ARC-01-REVIEWER.md
 using docs/planning/zhoor-adoption/templates/REVIEW_TEMPLATE.md
-Set Role: independent-challenger, Model/harness: Qwen3.8 Max / Pi.
+Set Role: independent-challenger, Model/harness: MODEL / HARNESS.
+Before pasting, substitute either:
+  REVIEWER=luna      MODEL=GPT-5.6 Luna   HARNESS=Codex   (recommended, section 2a)
+  REVIEWER=qwen-max  MODEL=Qwen3.8 Max    HARNESS=Pi      (only with the recorded owner waiver, 2b)
 Verdict: approve | approve-with-nonblocking-notes | changes-required | blocked
 Do NOT edit any governance document, job card, the board, or another reviewer's file.
 
@@ -143,14 +166,15 @@ At ~60% context, write the report and stop.
 Commit: no. Push: no.
 ```
 
-## 2b. If the Codex / GPT-5.6 Sol lane is unavailable
+## 2c. If the Codex / GPT-5.6 Sol lane is unavailable
 
 Do not silently collapse ARC-01 into a single Qwen3.8 Max report. Per
 [`../ORCHESTRATOR_RUNBOOK.md`](../ORCHESTRATOR_RUNBOOK.md) §Lane unavailability and `D-013`:
 
 1. Owner records the substitution in [`../DECISIONS.md`](../DECISIONS.md) first.
-2. Qwen3.8 Max (Pi) runs section 2's prompt unchanged but sets `Role: interim-primary` in
-   `ARC-01-qwen-max.md`.
+2. Qwen3.8 Max (Pi) runs section 2's prompt with `Role: interim-primary` in `ARC-01-qwen-max.md`.
+   Because Qwen3.8 Max is also the tranche's author, this route leaves **no** author-independent
+   reviewer until step 3 is completed.
 3. The independent challenge is then owed by a different model family — GPT-5.6 Luna (Codex)
    writing `ARC-01-luna.md`, or Sol when the lane returns.
 4. `ARC-01` stays `REVIEW` until that second report exists. Architecture/security acceptance is
@@ -158,7 +182,8 @@ Do not silently collapse ARC-01 into a single Qwen3.8 Max report. Per
 
 ## 3. Owner checklist after the reports return
 
-1. Read `reviews/ARC-01-sol.md` and `reviews/ARC-01-qwen-max.md`.
+1. Read `reviews/ARC-01-sol.md` and the challenger report (`reviews/ARC-01-luna.md`, or
+   `reviews/ARC-01-qwen-max.md` if the owner waiver in section 2b was recorded).
 2. Adjudicate per [`reviews/README.md`](reviews/README.md): tests, deterministic evidence,
    architecture authority, then human judgment — never model voting or averaging.
 3. Both verdicts `approve` / `approve-with-nonblocking-notes` → tell Pi/GLM:

@@ -24,7 +24,7 @@ When a card requires the Sol lane and that lane is unavailable:
 
 1. The owner may substitute Qwen3.8 Max (Pi) as `interim-primary`, and the substitution must be recorded in `DECISIONS.md` before work starts.
 2. The independent challenge is then owed by a different model family — GPT-5.6 Luna (Codex), or GPT-5.6 Sol once the lane returns — before the card may become `DONE`.
-3. One model never writes both the primary and the challenger report for the same card, and an agent that helped author the artefact under review is never its only reviewer.
+3. One model never writes both the primary and the challenger report for the same card, and an agent that helped author the artefact under review is never its only reviewer and never its independent challenger.
 4. Substitution never lowers an acceptance gate: architecture/security acceptance stays with Sol plus the human owner even if it is delivered later.
 
 ## Wave order

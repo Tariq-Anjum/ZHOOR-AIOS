@@ -22,6 +22,7 @@ Verify that ADR-0001, the copied ZHOOR v0.2 architecture, constitution amendment
 
 - Primary reviewer writes `docs/planning/zhoor-adoption/handoffs/reviews/ARC-01-sol.md` only.
 - Independent challenger writes `docs/planning/zhoor-adoption/handoffs/reviews/ARC-01-qwen-max.md` only, and does not read the primary report first.
+- Author conflict: the tranche under review was prepared by Qwen3.8 Max (Pi), so a Qwen3.8 Max challenge is a self-review. Resolve the `ARC-01 challenger independence` open gate in `docs/planning/zhoor-adoption/DECISIONS.md` before assigning the challenger.
 - Do not edit governance documents, job cards, or `WORK_BOARD.md`, and create no implementation handoff during review.
 - If the Sol lane is unavailable, `docs/planning/zhoor-adoption/ORCHESTRATOR_RUNBOOK.md` §Lane unavailability governs substitution; one model never writes both reports.
 

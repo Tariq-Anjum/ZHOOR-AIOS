@@ -13,42 +13,35 @@ ZHOOR-AIOS/
 │   ├── evaluations/
 │   └── legacy/                      # optional later disposition, not required now
 ├── schemas/
-│   ├── protocol/                    # PRO-01: request/response/evidence wire schemas
-│   ├── registry/                    # REG-01 registry descriptor schemas
-│   ├── risk-policy/                 # POL-01 policy input/output schemas
-│   ├── trace/                       # TRC-01 trace wire schema
+│   ├── decision-request.v1.json
+│   ├── decision-response.v1.json
+│   ├── evidence-ref.v1.json
+│   ├── trace.v1.json
 │   └── aiosd/                       # SEC-01 only
 ├── fixtures/
 │   ├── protocol/{valid,invalid}/
 │   ├── skill-router/
 │   ├── risk-judge/
 │   └── aiosd/
-├── src/                             # thin root CLI only; no domain rules
-│   └── main.rs
-├── crates/                          # one Rust package per deterministic component
-│   ├── protocol/                    # PRO-01
-│   ├── registry/                    # REG-01
-│   ├── risk-policy/                 # POL-01
-│   ├── trace/                       # TRC-01
-│   ├── aiosd-contracts/             # SEC-01 contracts only
-│   ├── skill-router/                # WRK-01
-│   ├── risk-judge/                  # WRK-02
-│   ├── backend-adapter/             # BENCH-01, after AUD-01
-│   ├── shadow/                      # SHADOW-01
-│   ├── grant/                       # GRANT-01
-│   ├── aiosd-core/                  # AIOSD-01
-│   └── aiosd-unix/                  # AIOSD-02
-├── tools/eval/                      # offline Python stdlib tooling only
+├── src/                             # exact package/crate shape chosen by ARC-02
+│   ├── protocol/
+│   ├── registry/
+│   ├── policy/
+│   ├── trace/
+│   ├── workers/
+│   │   ├── skill_router/
+│   │   └── risk_judge/
+│   ├── backends/                    # created only in BENCH-01
+│   └── aiosd/                       # created only in AIOSD-01
 ├── eval/
+│   ├── harness/
 │   ├── datasets/
-│   ├── reports/
-│   └── benchmarks/
-├── tests/                           # root CLI smoke only
+│   └── reports/
+├── tests/
 ├── scripts/                         # only repeatable development commands
 ├── .github/workflows/
 ├── README.md
-├── Cargo.toml / Cargo.lock / rust-toolchain.toml
-└── toolchain policy proposed by ARC-03 in ADR-0003
+└── toolchain manifests chosen by ARC-02
 ```
 
 ## Required dependency direction
@@ -90,4 +83,4 @@ No initial public surface executes OS capabilities.
 
 ## Toolchain gate
 
-`ARC-02` gathered reproducible toolchain evidence only; it did not choose a production language or package layout. ARC-03 proposes the root CLI plus Rust workspace crates shown above, language-neutral schemas under `schemas/`, and Python only for offline development tooling. This illustrative scaffold follows proposed ADR-0003, which remains pending owner acceptance. Do not scaffold both production runtimes.
+`ARC-02` gathers reproducible toolchain evidence; `ARC-03` must choose the implementation language and exact layout, then pin card paths and validation commands. Rust is a strong candidate for the runtime/enforcement boundary; Python is useful for evaluation and rapid fixtures. The decision must minimize duplicate domain logic. Do not scaffold both production runtimes by default.

@@ -29,8 +29,11 @@ Implement versioned request, response, evidence-reference, confidence, dispositi
 ## Path ownership and validation
 
 Targeted: `./scripts/validate.sh --package zhoor-protocol` and `cargo test --offline --locked -p zhoor-protocol --test protocol_contract`.
+The `protocol_contract` suite must pin JSON Schema Draft 2020-12, validate every committed valid/invalid protocol fixture against the canonical schemas, and verify Rust acceptance/rejection agrees for those fixtures, including unknown fields, unsupported versions, and boundary/negative cases. Schema checking is test-only; no Python validator or production schema runtime is introduced.
 
 Full: `./scripts/validate.sh`.
+
+Lockfile timing: component workers do not edit or commit the root `Cargo.lock`. Before integration, run the package checks from `docs/development/ZHOOR_TOOLCHAIN.md` without `--locked` (keep `--offline`) and report any generated lockfile diff without staging it. After integrating the package source/manifests, the controller reconciles and reviews the single root lockfile update, then runs the locked targeted and full commands above on the integration candidate. This card is complete only after those post-integration checks pass.
 
 ## Acceptance
 

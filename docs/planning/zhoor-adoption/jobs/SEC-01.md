@@ -32,6 +32,8 @@ Targeted: `./scripts/validate.sh --package zhoor-aiosd-contracts` and `cargo tes
 
 Full: `./scripts/validate.sh`.
 
+Lockfile timing: component workers do not edit or commit the root `Cargo.lock`. Before integration, run the package checks from `docs/development/ZHOOR_TOOLCHAIN.md` without `--locked` (keep `--offline`) and report any generated lockfile diff without staging it. After integrating the package source/manifests, the controller reconciles and reviews the single root lockfile update, then runs the locked targeted and full commands above on the integration candidate. This card is complete only after those post-integration checks pass.
+
 ## Acceptance
 
 - Grant binds ID, expiry, policy version, authenticated client identity, exact capability, normalized argument hash, resource scope, originating trace, and decision/evidence hashes.

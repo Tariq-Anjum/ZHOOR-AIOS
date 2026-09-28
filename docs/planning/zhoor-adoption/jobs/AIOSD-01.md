@@ -30,6 +30,8 @@ Targeted: `./scripts/validate.sh --package zhoor-aiosd-core` and `cargo test --o
 
 Full: `./scripts/validate.sh`.
 
+Lockfile timing: component workers do not edit or commit the root `Cargo.lock`. Before integration, run the package checks from `docs/development/ZHOOR_TOOLCHAIN.md` without `--locked` (keep `--offline`) and report any generated lockfile diff without staging it. After integrating the package source/manifests, the controller reconciles and reviews the single root lockfile update, then runs the locked targeted and full commands above on the integration candidate. This card is complete only after those post-integration checks pass.
+
 ## Acceptance
 
 - Requires peer identity from a trusted adapter and never accepts identity from request fields.

@@ -10,6 +10,10 @@
 - Python boundary: Python 3.14.7 standard library only, for offline evaluation analysis, fixture/dataset generation, benchmark/report tooling, and developer utilities. It is development-only, is not packaged with production code, and must not be on the request path. No third-party Python package is approved. Keep scripts small and cover them with `compileall` and `unittest`; Rust production lint/type checks remain the blocking canonical lint/static checks.
 - Cargo dependency changes are reviewed and locked. Canonical validation is offline and uses the committed lockfile. No validation command downloads tools, models, or dependencies.
 
+## Root lockfile integration and validation timing
+
+`Cargo.lock` is integration-owned. Component cards must not edit or commit it. A component worker may run its pre-integration package checks with the exact package commands below, retaining `--offline` and omitting `--locked`; Cargo may update the local lockfile while resolving a newly added workspace member or an approved dependency. The worker reports that generated diff and does not stage it. After integrating the component source and manifest, the controller reviews and reconciles the root lockfile once on the integration candidate. The controller then runs the card's canonical locked targeted command and `./scripts/validate.sh`; a card is not complete until both pass on that reconciled integration candidate. CI and all post-integration validation always use the committed lockfile with `--locked`.
+
 ## Stable command interface
 
 `BASE-01` implements `scripts/validate.sh` with this exact interface:
@@ -38,7 +42,7 @@ Run from repository root after `BASE-01`:
 | Release build | `cargo build --workspace --release --offline --locked` |
 | CI-equivalent/full validation | `./scripts/validate.sh` |
 
-`cargo fmt --all` is for intentional formatting edits; validation and CI use the `--check` form. Package-targeted checks use `./scripts/validate.sh --package <name>`. The corresponding direct contract-test command for PRO-01 is `cargo test --offline --locked -p zhoor-protocol --test protocol_contract`; each implementation card names its own contract-test target below. If a card has no Rust package, its targeted Python or report check is stated in that card.
+`cargo fmt --all` is for intentional formatting edits; validation and CI use the `--check` form. Package-targeted post-integration checks use `./scripts/validate.sh --package <name>`. For pre-integration worker checks, use the corresponding Cargo commands with the package selector (`-p <name>`), retain `--offline`, and omit `--locked`; do not stage the resulting root lockfile diff. The corresponding direct contract-test command for PRO-01 is `cargo test --offline --locked -p zhoor-protocol --test protocol_contract`; each implementation card names its own contract-test target below. If a card has no Rust package, its targeted Python or report check is stated in that card.
 
 ## Python offline tooling commands
 

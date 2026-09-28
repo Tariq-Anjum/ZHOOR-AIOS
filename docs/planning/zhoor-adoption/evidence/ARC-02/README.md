@@ -1,5 +1,13 @@
 # ARC-02 evidence area
 
-This directory is the pre-ARC-03 write area for committed ARC-02 evidence and reproducibility artifacts. Any minimal source used for comparison must be marked non-production spike material. Disposable builds and experiments belong under `/tmp/zhoor-arc02/<RUN_ID>/`.
+NON-PRODUCTION ARC-02 comparison only. The Rust-first and Python-first programs implement the same small JSONL selection workload. The bounded mixed option keeps deterministic validation and selection in Rust; its Python harness forwards JSONL over stdin/stdout and owns only test/developer tooling. No production language or package decision is made here.
 
-ARC-02 produces toolchain evidence only. It makes no production language/package decision and creates no production scaffold. ARC-02 must receive a separate independent review before it is marked DONE; ARC-03 consumes accepted evidence and owns production adjudication and path pinning.
+Build artifacts, benchmark output, and disposable experiments belong under `/tmp/zhoor-arc02/ZHOOR-20260928-ARC02-TOOLCHAIN-01/`. No model, network call, OS mutation, privileged operation, or `aiosd` is part of the workload.
+
+Reproduce from the repository root:
+
+```sh
+ARC02_OUTDIR=/tmp/zhoor-arc02/ZHOOR-20260928-ARC02-TOOLCHAIN-01 python3 docs/planning/zhoor-adoption/evidence/ARC-02/scripts/reproduce.py
+```
+
+The script builds Rust offline, compiles and runs local socket probes, verifies identical responses for the shared fixtures, measures 30 cold starts and 120 warm requests per option, and writes measurements only under `ARC02_OUTDIR`.

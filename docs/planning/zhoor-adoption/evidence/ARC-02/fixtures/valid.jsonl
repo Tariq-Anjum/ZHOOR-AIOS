@@ -1,0 +1,12 @@
+{"schema_version":1,"request_id":"v01","operation":"select","goal":"choose one","candidates":[{"id":"beta","score":2},{"id":"alpha","score":4}]}
+{"schema_version":1,"request_id":"v02","operation":"select","goal":"highest score","candidates":[{"id":"low","score":-2},{"id":"high","score":9}]}
+{"schema_version":1,"request_id":"v03","operation":"select","goal":"stable tie","candidates":[{"id":"zeta","score":7},{"id":"alpha","score":7}]}
+{"schema_version":1,"request_id":"v04","operation":"select","goal":"empty means abstain","candidates":[]}
+{"schema_version":1,"request_id":"v05","operation":"select","goal":"negative values","candidates":[{"id":"n2","score":-2},{"id":"n8","score":-8}]}
+{"schema_version":1,"request_id":"v06","operation":"select","goal":"single item","candidates":[{"id":"only","score":0}]}
+{"schema_version":1,"request_id":"v07","operation":"select","goal":"zero tie","candidates":[{"id":"c","score":0},{"id":"b","score":0},{"id":"a","score":0}]}
+{"schema_version":1,"request_id":"v08","operation":"select","goal":"unicode \u2713","candidates":[{"id":"utf8","score":5}]}
+{"schema_version":1,"request_id":"v09","operation":"select","goal":"wide integer","candidates":[{"id":"wide","score":2147483648}]}
+{"schema_version":1,"request_id":"v10","operation":"select","goal":"stable tie two","candidates":[{"id":"b","score":3},{"id":"a","score":3}]}
+{"schema_version":1,"request_id":"v11","operation":"select","goal":"larger set","candidates":[{"id":"d","score":1},{"id":"c","score":2},{"id":"b","score":3},{"id":"a","score":4}]}
+{"schema_version":1,"request_id":"v12","operation":"select","goal":"equal maximum last","candidates":[{"id":"z","score":5},{"id":"m","score":5},{"id":"q","score":4}]}

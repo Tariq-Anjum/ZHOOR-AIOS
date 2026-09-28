@@ -1,0 +1,14 @@
+{"schema_version":2,"request_id":"i01","operation":"select","goal":"unknown version","candidates":[]}
+{"schema_version":1,"operation":"select","goal":"missing id","candidates":[]}
+{"schema_version":1,"request_id":7,"operation":"select","goal":"wrong id type","candidates":[]}
+{"schema_version":1,"request_id":"i04","operation":"mystery","goal":"unknown operation","candidates":[]}
+{"schema_version":1,"request_id":"i05","operation":"select","goal":"","candidates":[]}
+{"schema_version":1,"request_id":"i06","operation":"select","goal":4,"candidates":[]}
+{"schema_version":1,"request_id":"i07","operation":"select","goal":"wrong candidate container","candidates":"no"}
+{"schema_version":1,"request_id":"i08","operation":"select","goal":"wrong score type","candidates":[{"id":"a","score":1.5}]}
+{"schema_version":1,"request_id":"i09","operation":"select","goal":"empty candidate id","candidates":[{"id":"","score":1}]}
+{"schema_version":1,"request_id":"i10","operation":"select","goal":"missing score","candidates":[{"id":"a"}]}
+{"schema_version":1,"request_id":"i11","operation":"select","goal":"extra top field","candidates":[],"extra":true}
+{"schema_version":1,"request_id":"i12","operation":"select","goal":"extra candidate field","candidates":[{"id":"a","score":1,"extra":true}]}
+{"schema_version":1,"request_id":"i13","operation":"select","goal":"duplicate ids","candidates":[{"id":"a","score":1},{"id":"a","score":2}]}
+{"schema_version":

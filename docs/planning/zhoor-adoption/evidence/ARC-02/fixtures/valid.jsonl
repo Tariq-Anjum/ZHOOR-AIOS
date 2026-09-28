@@ -10,3 +10,5 @@
 {"schema_version":1,"request_id":"v10","operation":"select","goal":"stable tie two","candidates":[{"id":"b","score":3},{"id":"a","score":3}]}
 {"schema_version":1,"request_id":"v11","operation":"select","goal":"larger set","candidates":[{"id":"d","score":1},{"id":"c","score":2},{"id":"b","score":3},{"id":"a","score":4}]}
 {"schema_version":1,"request_id":"v12","operation":"select","goal":"equal maximum last","candidates":[{"id":"z","score":5},{"id":"m","score":5},{"id":"q","score":4}]}
+{"schema_version":1,"request_id":"v13","operation":"select","goal":"signed 64-bit maximum","candidates":[{"id":"max","score":9223372036854775807}]}
+{"schema_version":1,"request_id":"v14","operation":"select","goal":"signed 64-bit minimum","candidates":[{"id":"min","score":-9223372036854775808}]}

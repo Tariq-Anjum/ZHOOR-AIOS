@@ -2,9 +2,9 @@
 
 ## Assumptions and workload
 
-The target is this 16 GB-class CachyOS workstation. No toolchain, package, or benchmark utility was installed. The common version-1 request has exactly `schema_version`, `request_id`, `operation`, `goal`, and `candidates`. The rule chooses the highest integer score, resolving ties by lexicographically smallest candidate ID; an empty candidate list returns typed abstention. Unknown keys, wrong types, unsupported versions/operations, duplicate/empty IDs, and malformed JSON return typed errors.
+The target is this 16 GB-class CachyOS workstation. No toolchain, package, or benchmark utility was installed. The common version-1 request has exactly `schema_version`, `request_id`, `operation`, `goal`, and `candidates`. A score is a signed 64-bit integer in `[-9223372036854775808, 9223372036854775807]`; values outside that range are invalid. The rule chooses the highest score, resolving ties by lexicographically smallest candidate ID; an empty candidate list returns typed abstention. Unknown keys, wrong types, unsupported versions/operations, duplicate/empty IDs, and malformed JSON return typed errors.
 
-The 12 valid and 14 invalid fixtures are shared by all three options. Rust-first is one typed Rust process using Serde and Serde JSON. Python-first is one stdlib Python process using dataclasses and `json`. Bounded mixed runs the same Rust process behind a Python stdio harness; the harness has no decision logic. It introduces one subprocess boundary and no FFI/RPC framework.
+The 14 valid and 16 invalid fixtures are shared by all three options. They cover both valid signed 64-bit score endpoints and values just outside the range. Rust-first is one typed Rust process using Serde and Serde JSON. Python-first is one stdlib Python process using dataclasses and `json`. Bounded mixed runs the same Rust process behind a Python stdio harness; the harness has no decision logic. It introduces one subprocess boundary and no FFI/RPC framework.
 
 ## Measurement
 

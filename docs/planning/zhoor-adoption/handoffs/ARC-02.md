@@ -6,9 +6,10 @@ RUN_ID: `ZHOOR-20260928-ARC02-TOOLCHAIN-01`
 
 - Starting/base SHA: `4c0893e44eb7b38e74ccb504409cfc9c8be60749`
 - Evidence content commit: `dfaa17974410158e497a67e2386a9c7ec94294e3` (`docs(arc-02): add toolchain evidence spike`)
-- Current handoff is being added after that evidence commit; the independent review packet will pin the exact resulting SHA.
+- First frozen evidence/handoff SHA: `96d8a4139ba38a5c484b05afe8f10919ef61964a`. Independent review at this exact SHA found a score-range mismatch; report: `docs/planning/zhoor-adoption/handoffs/reviews/ARC-02-herdr-challenger.md`.
+- One focused correction now states the common score domain as signed 64-bit, enforces the upper/lower bounds in Python to match Rust `i64`, and adds valid endpoint plus invalid overflow/underflow fixtures. This handoff and corrected evidence are frozen together for exact-SHA re-review; the report will be `docs/planning/zhoor-adoption/handoffs/reviews/ARC-02-herdr-review.md`.
 - Evidence author lane: Herdr Pi 0.87.1, `openrouter/cohere/north-mini-code:free` (OpenRouter free tier); the final comparison source and results were completed and rerun by the Codex orchestrator after the worker's partial draft hit shared-capacity limits and contained a Python syntax error. No OpenAI or Anthropic model was routed through OpenRouter.
-- Board has not been changed during evidence collection/commit. Current card state remains ARC-02 READY; ARC-03 BLOCKED.
+- The board was unchanged during evidence collection and the evidence commit. After evidence freeze, the orchestrator isolated and committed only the ARC-02 READY→REVIEW status cell (`9cea56906ee1ecf5e4d647f9b60a3fe6ea668499`). Current state is ARC-02 REVIEW; ARC-03 BLOCKED.
 
 ## Environment
 
@@ -17,13 +18,12 @@ CachyOS rolling Linux, kernel `7.2.8-1-cachyos`, x86_64; AMD Ryzen 7 7840U, 16 l
 ## Reproduction commands
 
 From repository root, with no installation/network access:
-
 ```sh
-ARC02_OUTDIR=/tmp/zhoor-arc02/ZHOOR-20260928-ARC02-TOOLCHAIN-01/review-replay \
+ARC02_OUTDIR=/tmp/zhoor-arc02/ZHOOR-20260928-ARC02-TOOLCHAIN-01/corrected-rerun-2 \
   python3 docs/planning/zhoor-adoption/evidence/ARC-02/scripts/reproduce.py
 ```
 
-This builds the Rust spike offline, compiles/runs both peer-credential probes, compares all fixture responses across the three options, and records 30 fresh-process runs plus 120 warm requests per option. Run 3 completed successfully: 12 valid and 14 invalid fixtures; fixture verification took 0.088 seconds; fresh Rust build took 4.612 seconds. Its measurements are recorded in `results.md`; cold-start run-to-run spread is also shown there.
+This builds the Rust spike offline, compiles/runs both peer-credential probes, compares all fixture responses across the three options, and records 30 fresh-process runs plus 120 warm requests per option. The corrected full run completed with 14 valid and 16 invalid fixtures; fixture verification took 0.078 seconds; fresh Rust build took 5.228 seconds. Its measurement output is in `/tmp/zhoor-arc02/ZHOOR-20260928-ARC02-TOOLCHAIN-01/corrected-rerun-2/measurements.json`; corrected and earlier measurements are summarized in `evidence/ARC-02/results.md`.
 
 Existing Rust empirical context, separately from the spike:
 
@@ -46,6 +46,8 @@ Observed: 11 tests passed in 5.008 seconds; release build 4.707 seconds, artifac
 | Rust-first | 1.158 / 1.811 ms | 0.0098 / 0.0764 ms | 2,580 / 2,600 kB | 2 direct crates (`serde`, `serde_json`), 11 dependency packages in lockfile; Rust/Cargo/linker and cached crates for offline build; 641,592-byte release binary |
 | Python-first | 22.985 / 44.724 ms | 0.0163 / 0.1198 ms | 13,260 / 13,328 kB | Python 3 stdlib only; no third-party dependency or compiled app artifact; runtime source 2,303 bytes |
 | Bounded mixed | 44.217 / 84.376 ms | 0.0252 / 0.2843 ms | Python 16,136/16,136 kB; Rust child 2,560/2,644 kB | Same Rust core plus Python stdlib harness; Rust/Cargo at build and Python at run; two processes; harness 707 bytes |
+
+Corrected fourth run after the score-domain fix: cold p50/p95 was Rust 1.009/1.486 ms, Python 71.276/105.875 ms, mixed 129.931/191.034 ms. Warm p50/p95 was Rust 0.0193/0.0355 ms, Python 0.0213/0.1254 ms, mixed 0.0360/0.2268 ms. Idle/peak RSS was Rust 2,516/2,600 kB, Python 13,248/13,316 kB, and mixed parent 16,244/16,244 kB plus child 2,616/2,636 kB. The spread reinforces that these are noisy host observations, not performance guarantees.
 
 The timing method includes process/pipe overhead. Throughput is sequential only. RSS is process-level `/proc` data, not cgroup accounting. See the full required comparison matrix, test ergonomics, packaging details, security/dependency surface, and run-to-run measurements in `evidence/ARC-02/results.md`; methodology is in `evidence/ARC-02/methodology.md`.
 
@@ -70,4 +72,4 @@ Main uncertainty: the exercise is tiny, single-threaded, and stdio-based; runs s
 
 ## Validation
 
-`git diff --cached --check` passed for the evidence commit. `reproduce.py` passed three recorded fresh-target runs; all three options returned identical outputs for the shared fixtures. No protected canonical paths were staged or edited. The handoff is not a board transition and does not begin ARC-03.
+`reproduce.py` passed three original runs and a corrected fourth fresh-target run. After the reviewer identified the integer-range mismatch, the corrected 28-case fixture set returned identical outputs for all three options (84 outputs total). The independent reviewer’s initial report and exact boundary counterexample are preserved; corrected exact-SHA re-review is pending. Task-owned `git diff --check` passes. Full-worktree `git diff --check` reports pre-existing trailing whitespace in protected `jobs/*.md` files; no ARC-02-owned path reports whitespace errors. No protected canonical paths were staged or edited for evidence. ARC-02 remains in REVIEW and ARC-03 remains BLOCKED; no production decision is made.

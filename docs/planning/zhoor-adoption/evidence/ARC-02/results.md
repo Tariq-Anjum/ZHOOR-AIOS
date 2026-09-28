@@ -4,9 +4,9 @@ This is evidence for ARC-03 adjudication only. It is not a ZHOOR language/toolch
 
 ## Common exercise and validation
 
-All three options process the same versioned JSONL request: `schema_version=1`, nonempty request ID and goal, operation `select`, and a candidate array of string IDs with integer scores. They reject extra keys and malformed/wrongly typed inputs. The deterministic rule chooses the highest score, then the lexicographically smallest ID; empty candidates produce an explicit abstention. No model, network access, OS mutation, privileged operation, or `aiosd` is involved.
+All three options process the same versioned JSONL request: `schema_version=1`, nonempty request ID and goal, operation `select`, and a candidate array of string IDs with signed 64-bit integer scores (`-9223372036854775808` through `9223372036854775807`). Values outside that range are invalid. The deterministic rule chooses the highest score, then the lexicographically smallest ID; empty candidates produce an explicit abstention. No model, network access, OS mutation, privileged operation, or `aiosd` is involved.
 
-The shared fixture set has **12 valid** and **14 invalid** requests. Invalid cases cover unknown version/operation, missing and wrong-typed fields, invalid score/ID, unexpected fields, duplicate candidate IDs, and malformed JSON. The same expected outputs were compared across the three implementations. All 78 outputs (26 cases × 3 options) matched.
+The shared fixture set has **14 valid** and **16 invalid** requests. Valid fixtures include both signed 64-bit score endpoints; invalid fixtures include one value above the maximum and one below the minimum, plus unknown version/operation, missing and wrong-typed fields, invalid score/ID, unexpected fields, duplicate candidate IDs, and malformed JSON. All 84 outputs (28 cases × 3 options) matched across the three implementations. This corrected the numeric-domain divergence found in the first independent review: Python now rejects scores outside the same signed 64-bit range enforced by Rust's `i64` deserializer.
 
 ## Measurements
 
@@ -21,6 +21,18 @@ Each value is a separate run of 30 fresh processes, one valid request per proces
 | Bounded mixed | 99.113 / 144.677 ms | 35.433 / 41.828 ms | 44.217 / 84.376 ms |
 
 The variation between runs is material, especially for Python and mixed startup. No CPU isolation or load control was used. Treat these as evidence about this workstation and this tiny CLI exercise, not stable service SLOs.
+
+### Correction verification run
+
+After the numeric-domain correction, a fourth complete reproduction used a separate fresh target directory. The offline Rust build took 5.228 seconds; fixture comparison took 0.078 seconds. It compared 14 valid and 16 invalid fixtures across all three options. The additional performance sample is noisy and does not replace the three initial runs.
+
+| Option | Run 4 cold p50 / p95 | Run 4 warm p50 / p95 | Run 4 idle RSS / peak HWM |
+|---|---:|---:|---:|
+| Rust-first | 1.009 / 1.486 ms | 0.0193 / 0.0355 ms | 2,516 / 2,600 kB |
+| Python-first | 71.276 / 105.875 ms | 0.0213 / 0.1254 ms | 13,248 / 13,316 kB |
+| Bounded mixed | 129.931 / 191.034 ms | 0.0360 / 0.2268 ms | Python 16,244 / 16,244 kB; Rust child 2,616 / 2,636 kB |
+
+The Run 4 socket probes again returned peer PID/UID/GID on this host. The Rust release executable remained 641,592 bytes; the socket probe was 4,556,176 bytes. The reproduction command and the full machine-readable Run 4 output are recorded in the ARC-02 handoff and `/tmp/zhoor-arc02/ZHOOR-20260928-ARC02-TOOLCHAIN-01/corrected-rerun-2/measurements.json` respectively; the `/tmp` output is disposable and is not committed.
 
 ### Warm request path and process memory
 
@@ -61,13 +73,13 @@ Cell labels distinguish measurements, observations, and inferences.
 | Unix-domain sockets | **OBSERVED:** std `UnixListener`/`UnixStream` available on Unix. | **OBSERVED:** stdlib `socket.AF_UNIX` available. | **OBSERVED:** runtime socket belongs to Rust; Python harness uses stdin/stdout. |
 | Peer credentials | **OBSERVED:** std `peer_cred()` remains unstable on this compiler; Linux `getsockopt` FFI works but is unsafe and ABI-specific. | **OBSERVED:** stdlib `SO_PEERCRED` works without unsafe or extra packages on this Linux host. | **OBSERVED:** same Rust FFI/identity path as A; no Python identity code in runtime boundary. |
 | Packaging/deployment | **OBSERVED:** `cargo build --release --offline`, then run one native executable; build requires Rust/Cargo and cached crates. | **OBSERVED:** `python3 runtime.py`; requires Python, no packaging manager or third-party install for this spike. | **OBSERVED:** compile Rust core and ship Python harness; runtime creates two processes. |
-| Test ergonomics | **MEASURED:** shared 26-case set passed; script validates exact output equivalence. | **MEASURED:** same 26 cases passed; stdlib-only invocation. | **MEASURED:** same 26 cases passed end-to-end through subprocess pipes. |
+| Test ergonomics | **MEASURED:** shared 28-case set passed; script validates exact output equivalence. | **MEASURED:** same 28 cases passed; stdlib-only invocation. | **MEASURED:** same 28 cases passed end-to-end through subprocess pipes. |
 | Evaluation ergonomics | **INFERRED:** can implement an evaluator, but fixture/report tooling is less concise than the Python stdlib route. | **OBSERVED/INFERRED:** easiest direct fit for offline fixture manipulation and report generation in this spike. | **OBSERVED:** Python can own evaluation while invoking Rust; subprocess protocol/diagnostics must be maintained. |
 | Runtime dependencies | **OBSERVED:** 2 direct crates; 11 locked packages total including build/proc-macro dependencies. | **OBSERVED:** 0 third-party packages; Python standard library only. | **OBSERVED:** same Rust core dependencies plus Python stdlib; two runtimes/processes. |
 | Build dependencies | **OBSERVED:** Rust 1.98.1, Cargo 1.98.1, linker; offline crate sources cached. | **OBSERVED:** Python 3.14.7 only; no build step. | **OBSERVED:** Rust/Cargo and Python 3.14.7. |
-| Cold startup | **MEASURED:** p50 0.822 ms, p95 1.272 ms in run 2; first run p50 1.149 ms. | **MEASURED:** p50 22.252 ms, p95 23.602 ms in run 2; first run p50 32.486 ms with noisy p95. | **MEASURED:** p50 35.433 ms, p95 41.828 ms in run 2; first run p50 99.113 ms. |
-| Warm request latency | **MEASURED:** 0.0060 ms p50 / 0.0163 ms p95 over 120 sequential pipe requests. | **MEASURED:** 0.0136 / 0.1518 ms. | **MEASURED:** 0.0177 / 0.0766 ms. |
-| Peak/idle memory | **MEASURED:** 2,608 kB idle RSS; 2,628 kB `VmHWM`. | **MEASURED:** 13,244 kB idle; 13,312 kB `VmHWM`. | **MEASURED:** Python 16,236/16,236 kB and Rust child 2,572/2,656 kB idle/peak, reported separately. |
+| Cold startup | **MEASURED:** p50 0.822 ms, p95 1.272 ms in run 2; corrected run 4 p50/p95 1.009/1.486 ms. | **MEASURED:** p50 22.252 ms, p95 23.602 ms in run 2; corrected run 4 71.276/105.875 ms. | **MEASURED:** p50 35.433 ms, p95 41.828 ms in run 2; corrected run 4 129.931/191.034 ms. |
+| Warm request latency | **MEASURED:** run 2 0.0060/0.0163 ms and corrected run 4 0.0193/0.0355 ms p50/p95 over 120 sequential pipe requests. | **MEASURED:** run 2 0.0136/0.1518 ms and corrected run 4 0.0213/0.1254 ms. | **MEASURED:** run 2 0.0177/0.0766 ms and corrected run 4 0.0360/0.2268 ms. |
+| Peak/idle memory | **MEASURED:** run 2 2,608/2,628 kB and corrected run 4 2,516/2,600 kB idle RSS/`VmHWM`. | **MEASURED:** run 2 13,244/13,312 kB and corrected run 4 13,248/13,316 kB. | **MEASURED:** corrected run 4 Python 16,244/16,244 kB and Rust child 2,616/2,636 kB idle/peak, reported separately. |
 | Artifact/package size | **MEASURED:** 641,592-byte release binary; native ABI/system libraries remain target assumptions. | **MEASURED:** 2,303-byte runtime source, no compiled app artifact; interpreter installed separately. | **MEASURED:** same 641,592-byte core plus 707-byte harness source and Python runtime. |
 | Agent implementation complexity | **OBSERVED:** no controlled time/quality comparison. One discarded agent draft had errors; final source was controller-authored. | **OBSERVED:** same; no controlled time/quality comparison. | **OBSERVED:** same; no controlled time/quality comparison. |
 | Duplicated-domain-logic risk | **INFERRED:** one language can keep validation and rule in one typed core. | **INFERRED:** one language can keep validation and rule together, though checks are dynamic. | **OBSERVED:** this harness duplicates no rule; **INFERRED:** future edits must preserve the Rust/Python process contract, while avoiding duplicate decision rules. |

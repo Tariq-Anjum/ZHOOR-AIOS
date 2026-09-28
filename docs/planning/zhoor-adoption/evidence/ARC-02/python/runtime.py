@@ -5,6 +5,8 @@ import json
 import sys
 
 TOP_KEYS = {"schema_version", "request_id", "operation", "goal", "candidates"}
+SCORE_MIN = -(2**63)
+SCORE_MAX = 2**63 - 1
 
 @dataclass(frozen=True)
 class Candidate:
@@ -36,7 +38,13 @@ def process(line):
     for item in data["candidates"]:
         if not isinstance(item, dict) or set(item) != {"id", "score"}:
             return response("error", error="invalid_request")
-        if not isinstance(item["id"], str) or not item["id"] or type(item["score"]) is not int or item["id"] in ids:
+        if (
+            not isinstance(item["id"], str)
+            or not item["id"]
+            or type(item["score"]) is not int
+            or not SCORE_MIN <= item["score"] <= SCORE_MAX
+            or item["id"] in ids
+        ):
             return response("error", error="invalid_request")
         ids.add(item["id"])
         candidates.append(Candidate(item["id"], item["score"]))

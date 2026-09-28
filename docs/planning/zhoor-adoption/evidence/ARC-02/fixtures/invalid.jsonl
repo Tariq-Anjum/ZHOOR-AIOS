@@ -12,3 +12,5 @@
 {"schema_version":1,"request_id":"i12","operation":"select","goal":"extra candidate field","candidates":[{"id":"a","score":1,"extra":true}]}
 {"schema_version":1,"request_id":"i13","operation":"select","goal":"duplicate ids","candidates":[{"id":"a","score":1},{"id":"a","score":2}]}
 {"schema_version":
+{"schema_version":1,"request_id":"i15","operation":"select","goal":"above signed 64-bit maximum","candidates":[{"id":"overflow","score":9223372036854775808}]}
+{"schema_version":1,"request_id":"i16","operation":"select","goal":"below signed 64-bit minimum","candidates":[{"id":"underflow","score":-9223372036854775809}]}

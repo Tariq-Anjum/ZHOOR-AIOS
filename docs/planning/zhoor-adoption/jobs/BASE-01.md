@@ -22,7 +22,7 @@ Create only the toolchain, package, test, and CI skeleton required to run an emp
 - `src/**` and `tests/smoke.rs` for the minimal root CLI/package smoke only.
 - `.github/workflows/zhoor.yml`, `scripts/validate.sh`, and toolchain-required `.gitignore` lines only.
 - `docs/planning/zhoor-adoption/handoffs/BASE-01.md`.
-- The root workspace uses `crates/*` members so component cards do not edit root manifests. The committed lockfile is integration-owned; component workers use only already-locked dependencies and `--locked` validation.
+- The root workspace uses `crates/*` members so component cards do not edit root manifests. `Cargo.lock` is integration-owned: before integration, component workers run package checks offline without `--locked` and report any generated lockfile diff without staging or committing it. The controller reconciles and reviews `Cargo.lock` after integration, then runs the locked targeted and full checks before the card is complete.
 
 
 ## Path ownership and validation

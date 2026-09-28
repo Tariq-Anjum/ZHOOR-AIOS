@@ -31,12 +31,6 @@ Targeted: `./scripts/validate.sh --package zhoor-trace` and `cargo test --offlin
 
 Full: `./scripts/validate.sh`.
 
-## Path ownership and validation
-
-Targeted: `./scripts/validate.sh --package zhoor-trace` and `cargo test --offline --locked -p zhoor-trace --test trace_contract`.
-
-Full: `./scripts/validate.sh`.
-
 ## Acceptance
 
 - Records protocol/worker/model-or-deterministic/policy/registry versions, normalized hashes, route, confidence, evidence refs, timings, disposition, and error/receipt refs where applicable.

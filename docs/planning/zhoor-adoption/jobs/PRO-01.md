@@ -32,12 +32,6 @@ Targeted: `./scripts/validate.sh --package zhoor-protocol` and `cargo test --off
 
 Full: `./scripts/validate.sh`.
 
-## Path ownership and validation
-
-Targeted: `./scripts/validate.sh --package zhoor-protocol` and `cargo test --offline --locked -p zhoor-protocol --test protocol_contract`.
-
-Full: `./scripts/validate.sh`.
-
 ## Acceptance
 
 - Unknown versions and result/operation kinds fail closed with typed errors.

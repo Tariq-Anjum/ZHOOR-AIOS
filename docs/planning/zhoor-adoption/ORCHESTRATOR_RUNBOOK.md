@@ -101,3 +101,89 @@ Review [JOB-ID] only. The board status is REVIEW. Read the card, immutable imple
 - One implementer plus one reviewer; do not ask multiple models to duplicate implementation.
 - No Needle, Jev, BMAD, or OpenSpec installation in early waves.
 - End sessions after handoff; do not keep agents resident while blocked.
+
+## Continuity and source of truth
+
+Use this priority when records disagree:
+
+1. Git repository state.
+2. Accepted architecture and ADRs.
+3. This tracked runbook and other tracked project contracts.
+4. Local orchestration `STATE.md` checkpoint.
+5. Current runtime observations.
+6. Conversation memory, which is never required for recovery.
+
+The canonical implementation repository is determined from recorded project
+state and Git evidence, not from a directory name. Do not move or merge the
+separate `/mnt/MD/AI-tools/zhoor` material as part of ordinary implementation.
+Preserve pre-existing dirty and untracked paths; inspect status before work and
+stage only task-owned paths and hunks.
+
+ADR-0002 is a narrow exception for the completed rootless, read-only
+`system.info.read` slice. It does not authorize arbitrary capability growth,
+change the remaining ARC governance gates, or bypass the ordered evaluation,
+grant, `aiosd`, audit, and canary sequence. Any further deviation requires an
+explicit accepted ADR.
+
+## Runtime discovery and handshake
+
+Create a fresh run ID for every new orchestrator session and a unique task ID
+for each worker assignment. Workers identify the run, task, role, and reviewed
+SHA when applicable. Ignore responses from other run IDs.
+
+At each fresh run, discover live workers with `herdr --version` and
+`herdr agent list`. Never treat pane/session IDs as durable identity. Derive a
+current target from the live listing, then use `herdr agent get`, `read`, or
+`explain` when identity or state is ambiguous. Check installed command help;
+local Herdr help is the syntax authority. Complete a role-only handshake before
+assigning source review. Record observed model and provider separately; unknown
+provider, authentication, or billing details stay `UNKNOWN`.
+
+Send multiline assignments from a temporary packet created with a quoted
+here-document, then pass its contents to Herdr. Use a native file/stdin option
+only when the installed help documents one. Never build long packets by
+manually nesting shell quotes or include secrets.
+
+Track work through `CREATED → SENT → ACKNOWLEDGED → WORKING → RESULT_RECEIVED
+→ VERIFIED → CLOSED`. If interrupted, inspect the task, Git, and worker state
+for an existing result before resending; a slow task is not a failed task.
+
+## Roles and exact-SHA audit
+
+- **Codex** orchestrates, integrates, and writes the primary worktree.
+- **Pi** independently verifies and is read-only during audits. Every audit is
+  pinned to an exact SHA in a detached checkout; deterministic checks are
+  allowed, but Pi does not commit or push.
+- **OpenCode** is an optional auxiliary worker with no architecture authority.
+  Use only when justified, in an isolated branch/worktree with explicit
+  authorization; default to sanitized/public data under the Muse Contributor
+  boundary.
+
+Prepare the audit worktree at `/tmp/zhoor-audit/<RUN_ID>` and pin it to the
+candidate SHA. The packet names the canonical repository, audit checkout, base
+and candidate SHAs, changed paths, relevant architecture contract, acceptance
+criteria, test commands, and forbidden modifications. A report is valid only
+when it identifies the reviewed SHA. Require `RUN_TASK`, `AUDIT_RESULT`,
+`REVIEWED_SHA`, `FINDINGS`, `RECOVERY_SIMULATION`, and `RESIDUAL_RISK` as
+applicable. Product-specific audit actions are optional; Herdr, Pi, the pinned
+checkout, and deterministic commands are the verification path.
+
+Codex owns the main worktree. Pi does not edit during audits. OpenCode writes
+only to an isolated branch/worktree when explicitly assigned.
+
+## Fresh-session recovery and compaction
+
+For a fresh session: read repository `AGENTS.md`, this runbook, and the local
+`STATE.md`; reconcile Git status, branch, HEAD, and recent commits; identify
+protected dirty paths; rediscover Herdr agents; perform a fresh handshake; then
+identify the current and next milestone. If HEAD differs from the checkpoint,
+reconcile the difference before continuing.
+
+Before context compaction or ending a session, update
+`${XDG_STATE_HOME:-$HOME/.local/state}/zhoor-orchestrator/STATE.md` with the
+full HEAD, branch, protected dirty/untracked paths, milestone and exact-SHA
+audit status, unresolved blockers, and exactly one next action. Keep runtime
+IDs out of durable state. Use `/tmp` only for disposable packets, worktrees,
+build output, and scratch files. After compaction, recover from repository
+instructions, this runbook, the checkpoint, Git, and current Herdr discovery;
+do not rebuild the session from conversational summaries.

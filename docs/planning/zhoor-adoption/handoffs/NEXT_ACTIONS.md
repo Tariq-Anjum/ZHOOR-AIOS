@@ -31,7 +31,7 @@ Paste into the Codex (GPT-5.6 Sol) session.
 
 ```text
 You are assigned ARC-01 (governance baseline review) as PRIMARY reviewer only, in the repository at
-/mnt/MD/AI-tools/zhoor-repo-review, branch integration/zhoor-adoption. Do not switch branches.
+/mnt/MD/AI-tools/ZHOOR-AIOS, branch integration/zhoor-adoption. Do not switch branches.
 Record the exact commit you reviewed (git rev-parse HEAD) in the report's Scope section.
 
 Read, in order:
@@ -103,7 +103,7 @@ Substitute the marked lines for the chosen reviewer, then paste the block.
 
 ```text
 You are assigned ARC-01 (governance baseline review) as INDEPENDENT CHALLENGER only, in the repository
-at /mnt/MD/AI-tools/zhoor-repo-review, branch integration/zhoor-adoption. Do not switch branches.
+at /mnt/MD/AI-tools/ZHOOR-AIOS, branch integration/zhoor-adoption. Do not switch branches.
 Record the exact commit you reviewed (git rev-parse HEAD) in the report's Scope section.
 
 Do NOT read docs/planning/zhoor-adoption/handoffs/reviews/ARC-01-sol.md — not before your own report

@@ -1,6 +1,6 @@
-# HERMES-AIOS → ZHOOR
+# ZHOOR AIOS
 
-This repository is transitioning from the documentation-only HERMES-AIOS concept to **ZHOOR**, a local-first decision fabric for agents and AIOS clients. The repository will be renamed later; the architecture transition begins here.
+This is the canonical repository for **ZHOOR AIOS**, a local-first decision fabric for agents and AIOS clients. The former HERMES-AIOS repository was renamed in place to ZHOOR-AIOS.
 
 > Minimum context. Minimum tokens. Minimum code. Minimum model. Maximum useful work.
 
@@ -25,6 +25,6 @@ All earlier HERMES architecture, execution, infrastructure, and implementation d
 
 Models may recommend, classify, extract, or score. Deterministic policy controls authorization, and the separate `aiosd` boundary controls any future allowlisted execution. Confidence is never permission.
 
-## Contributing during the transition
+## Contributing
 
 Do not start from the legacy Kanban. Select only an owner-assigned `READY` card in `docs/planning/zhoor-adoption/jobs/`, use an isolated worktree for concurrent work, obey the card's write scope, run its validation, and leave a handoff. Do not commit or push unless the owner explicitly assigns that operation.

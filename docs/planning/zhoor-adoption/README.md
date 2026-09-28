@@ -2,7 +2,7 @@
 
 **Point every implementation or review agent to this directory first.**
 
-This workspace converts the documentation-only HERMES-AIOS repository into the ZHOOR architecture in bounded, dependency-ordered sessions. It is the execution control plane for the migration; the repository keeps its current name until a later rename decision.
+This workspace governs bounded, dependency-ordered ZHOOR AIOS work. It is the execution control plane for the canonical repository `Tariq-Anjum/ZHOOR-AIOS`.
 
 ## Start here
 

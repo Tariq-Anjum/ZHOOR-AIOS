@@ -293,7 +293,7 @@ flowchart TD
 
 | Ticket | Depends on | Done when |
 |---|---|---|
-| ZH-01 Repository identity | none | **Satisfied:** this HERMES-AIOS checkout hosts ZHOOR during transition; ADR-0001 and the adoption workspace define contribution rules |
+| ZH-01 Repository identity | none | **Satisfied:** the canonical ZHOOR-AIOS repository and the adoption workspace define contribution rules |
 | ZH-02 Protocol fixtures | ZH-01 | versioned request/response schemas and positive/negative fixtures exist |
 | ZH-03 Registry and deterministic slice | ZH-02 | skill router and risk judge run without model dependency |
 | ZH-04 Trace/eval harness | ZH-03 | traces replay and 50–100 labeled cases per worker are versioned |

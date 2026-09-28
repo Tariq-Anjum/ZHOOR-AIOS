@@ -1,6 +1,6 @@
 # Audit findings
 
-- The Git remote is `https://github.com/Tariq-Anjum/HERMES-AIOS.git`.
+- The canonical Git remote is `https://github.com/Tariq-Anjum/ZHOOR-AIOS.git`; the GitHub repository was renamed in place, preserving repository ID `1289061750`.
 - Audit checkout was detached at `origin/main`, commit `dbffd08`.
 - The repository has extensive Markdown documentation but no product source, package manifest, tests, executable schemas, or CI workflow.
 - The root README was two lines before this adoption tranche.

@@ -4,15 +4,15 @@ last_updated: 2026-09-23
 owner: Hermes AIOS Project
 review_cycle: Quarterly
 status: Approved
-title: HERMES-AIOS / ZHOOR Transition Constitution
+title: ZHOOR AIOS Constitution (historical HERMES-AIOS transition)
 version: 1.1.0
 ---
 
-# HERMES-AIOS / ZHOOR Transition Constitution
+# ZHOOR AIOS Constitution
 
 ## 1. Purpose
 
-This Constitution governs the HERMES-AIOS repository during its transition to ZHOOR. ZHOOR is the accepted product and architectural direction; the repository name will change later. All code, documentation, architecture decisions, and contributions must conform to this Constitution and accepted ADRs.
+This Constitution governs ZHOOR AIOS. Its former GitHub repository identity, HERMES-AIOS, was renamed in place to ZHOOR-AIOS. All code, documentation, architecture decisions, and contributions must conform to this Constitution and accepted ADRs.
 
 ## 2. Vision
 

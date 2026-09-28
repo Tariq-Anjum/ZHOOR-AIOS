@@ -3,7 +3,7 @@
 This is the intended shape after the corresponding jobs complete. It is **not** permission for one agent to create the whole tree. Each card creates only its owned slice.
 
 ```text
-HERMES-AIOS/                         # rename to ZHOOR later
+ZHOOR-AIOS/
 ├── docs/
 │   ├── architecture/
 │   │   ├── ZHOOR_ARCHITECTURE-v0.2.md

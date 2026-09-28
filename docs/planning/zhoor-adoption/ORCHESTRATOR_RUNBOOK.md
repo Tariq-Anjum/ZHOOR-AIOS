@@ -62,7 +62,7 @@ When a card requires the Sol lane and that lane is unavailable:
 ## Assignment prompt
 
 ```text
-You are assigned [JOB-ID] only in the HERMES-AIOS → ZHOOR repository.
+You are assigned [JOB-ID] only in the ZHOOR-AIOS repository.
 Read docs/planning/zhoor-adoption/README.md, AGENT_OPERATING_RULES.md, and jobs/[JOB-ID].md; then read only card-listed context.
 Use skill-router and karpathy-guidelines: state assumptions, do not overbuild, stay in scope, optimize for the success condition.
 Worktree/branch: [PATH / BRANCH]. Obey the ARC-03-pinned paths and validation commands. Do not switch branches.

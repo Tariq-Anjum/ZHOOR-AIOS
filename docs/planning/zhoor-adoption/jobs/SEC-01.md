@@ -1,9 +1,9 @@
 # SEC-01 — aiosd contract and attack fixtures
 
 
-**Depends on:** PRO-01  
-**Recommended:** Qwen3.8 Max  
-**Review:** GPT-5.6 Sol  
+**Depends on:** PRO-01
+**Recommended:** security-reviewer
+**Review:** independent-challenger in a separate session
 **Timebox:** one contract/security session; no daemon
 
 ## Objective
@@ -30,6 +30,7 @@ Specify versioned `aiosd` request, short-lived single-operation grant, normalize
 - Fixtures reject expiry/replay, caller mismatch, capability substitution, argument tampering, unknown fields/version, path traversal/symlink escape representation, oversized inputs, and missing provenance.
 - Contract is local Unix-socket oriented but transport framing is explicit.
 - Only `capabilities.describe` is eligible and non-mutating.
+- Before any execution-capable workflow is eligible for promotion, SEC-01 must define the required postcondition schema, verification owner, typed verdict/status, deterministic evidence, evidence linkage, failure/unknown behavior, and how verification affects later policy/state. An `aiosd` execution receipt records what was executed and observed; it does not itself prove required postconditions. Semantic output may be evidence/advice only and cannot replace required deterministic safety checks.
 
 ## Stop
 

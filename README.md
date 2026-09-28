@@ -7,9 +7,10 @@ This is the canonical repository for **ZHOOR AIOS**, a local-first decision fabr
 ## Current status
 
 - ZHOOR is the accepted architectural direction.
-- The repository currently contains architecture and planning documents; product implementation has not started.
+- The planned ZHOOR decision-fabric implementation has not begun beyond one owner-authorized bounded exception: the audited, rootless, read-only, deterministic, non-networked, non-shell, non-mutating, policy-gated `system.info.read` slice defined by [ADR-0002](docs/architecture/adr/ADR-0002-rootless-system-info-slice.md). Its implementation is in `crates/system-info/`, with dedicated CI in `.github/workflows/system-info.yml`.
+- This exception validates one narrow path only. It authorizes no additional capabilities, model/worker execution, or privileged actions, satisfies none of the planned adoption cards, does not select the repository-wide toolchain, and does not change the roadmap sequence beginning with ARC-01, ARC-02, and ARC-03.
 - The first release is deliberately narrow: typed decision contracts, deterministic `skill_router` and `risk_judge`, sanitized traces, and offline evaluation.
-- No initial worker may execute tools or OS capabilities.
+- Decision-fabric workers do not execute tools or OS capabilities. The separate ADR-0002 `system.info.read` exception is outside that initial worker slice.
 - Jev is not a dependency. Needle or another semantic backend is considered only after deterministic evaluation gates pass.
 
 ## Start here

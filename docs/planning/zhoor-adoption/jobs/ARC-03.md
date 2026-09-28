@@ -1,13 +1,13 @@
 # ARC-03 — Toolchain adjudication and path pinning
 
-**Depends on:** ARC-02  
-**Recommended:** GPT-5.6 Sol  
-**Review:** Qwen3.8 Max, then human owner acceptance  
+**Depends on:** ARC-02 DONE with independent review complete
+**Recommended:** architecture-primary
+**Review:** independent-challenger in a separate session, then human owner acceptance
 **Timebox:** one architecture decision session
 
 ## Objective
 
-Adjudicate ARC-02 evidence, accept one primary implementation stack/layout, pin canonical quality commands, and replace downstream descriptive write areas with concrete repository-relative path globs before any card becomes `READY`.
+Start only after ARC-02 is DONE with its independent review complete. Consume the accepted evidence, adjudicate the production language/toolchain and package layout, pin canonical quality commands, and replace downstream descriptive write areas with concrete repository-relative path globs before any downstream implementation card becomes `READY`. ARC-03 does not provide retrospective review for ARC-02.
 
 ## Required context and skills
 

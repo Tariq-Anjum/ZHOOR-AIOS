@@ -4,11 +4,11 @@ Write one immutable review report per reviewer as `<JOB-ID>-<REVIEWER>.md`. Revi
 
 ## Naming
 
-`<REVIEWER>` is a reviewer token, never a role: `sol`, `luna`, `qwen-max`, `qwen-flash`, `glm`, `muse`, `deepseek`, `owner`. The role (`primary`, `independent-challenger`, `interim-primary`) is recorded inside the report using `../../templates/REVIEW_TEMPLATE.md`, because a two-report card cannot have two `-primary` files.
+`<REVIEWER>` is a reviewer token, never a role: `herdr-primary`, `herdr-challenger`, `herdr-review`, `sol-final`, or `owner`. The role (`primary`, `independent-challenger`, `interim-primary`) is recorded inside the report using `../../templates/REVIEW_TEMPLATE.md`, because a two-report card cannot have two `-primary` files.
 
 ## Independence
 
-- Primary and challenger reports for one card come from different model families.
+- Primary and challenger reports come from different reviewers in independent sessions. A different model/provider family is optional, not an independence requirement.
 - An independent challenger writes its report before reading the primary one.
-- An agent that helped author the artefact under review is never its only reviewer, and never its independent challenger. If no author-independent reviewer is available, the owner records a waiver in `../../DECISIONS.md` and the report states the conflict.
-- If the assigned lane is unavailable, follow `../../ORCHESTRATOR_RUNBOOK.md` §Lane unavailability and record the substitution in `../../DECISIONS.md`. The card stays in `REVIEW` until the owed independent report exists.
+- An agent/model that authored the reviewed tranche cannot act as its independent challenger. There is no waiver for self-review; an author-conflicted reviewer may only provide supplemental, non-independent evidence.
+- If the assigned lane is unavailable, use a different reviewer/session with no authorship conflict and record the substitution in `../../DECISIONS.md`. The card stays in `REVIEW` until the owed independent report exists.

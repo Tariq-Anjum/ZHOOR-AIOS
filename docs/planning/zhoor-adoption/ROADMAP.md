@@ -42,7 +42,9 @@ flowchart TD
 **Jobs:** `ARC-01`, `ARC-02`, `ARC-03`, `BASE-01`  
 **Goal:** validate authority, gather toolchain evidence, accept one stack/layout, pin every downstream path/check, and build the smallest verified skeleton.
 
-**Gate:** owner-accepted ADR; named integration branch; exact format/lint/static-check/test/build commands; mechanically disjoint card paths; clean CI; no product behavior.
+**Gate:** owner-accepted ADR; named integration branch; exact format/lint/static-check/test/build commands; mechanically disjoint card paths; clean CI. The sole pre-existing product behavior allowed before this phase is the bounded ADR-0002 `system.info.read` exception; Phase 0 authorizes no additional behavior or capability.
+
+ARC-02 evidence must be independently reviewed and accepted before ARC-03 becomes `READY`. ARC-03 consumes that evidence; it cannot provide ARC-02's missing review.
 
 ## Phase 1 — protocol and deterministic foundations
 

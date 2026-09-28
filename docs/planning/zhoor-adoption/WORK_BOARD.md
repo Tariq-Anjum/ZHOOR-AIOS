@@ -8,43 +8,41 @@ Before any downstream implementation card becomes `READY`, `ARC-03` must replace
 
 ## Board
 
-| ID | Status | Depends on | Deliverable | Recommended implementer | Independent review | Planned exclusive area |
+| ID | Status | Depends on | Deliverable | Recommended runtime role | Independent review role | Planned exclusive area |
 |---|---|---|---|---|---|---|
-| ARC-01 | REVIEW | none | Governance baseline review | GPT-5.6 Sol | GPT-5.6 Luna + owner (Qwen3.8 Max only by recorded waiver — author conflict) | review handoff only |
-| ARC-02 | BLOCKED | ARC-01 | Reproducible Rust/Python/bounded-mixed evidence spike | Qwen3.8 Max | GPT-5.6 Sol in ARC-03 | isolated spike evidence |
-| ARC-03 | BLOCKED | ARC-02 | Toolchain ADR, canonical commands, pinned paths | GPT-5.6 Sol | Qwen3.8 Max + owner | ADR/toolchain docs/board/card path sections |
-| BASE-01 | BLOCKED | ARC-03 | Minimal verified project scaffold | GLM 5.3 Flash | GPT-5.6 Luna | root manifests/config, smoke source/test, CI |
-| PRO-01 | BLOCKED | BASE-01 | Versioned decision protocol and fixtures | GLM 5.3 Flash | GPT-5.6 Luna | protocol schemas/package/tests |
-| REG-01 | BLOCKED | PRO-01 | Compact descriptor registry/index loader | GLM 5.3 Flash | Qwen3.8 Flash | registry package/fixtures/tests |
-| POL-01 | BLOCKED | PRO-01 | Deterministic risk rules and recommendations | GPT-5.6 Luna | Qwen3.8 Max | risk-policy package/fixtures/tests |
-| TRC-01 | BLOCKED | PRO-01 | Sanitized trace writer and replay | Muse Spark 1.3 | DeepSeek V4.1 Flash | trace package/fixtures/tests |
-| SEC-01 | BLOCKED | PRO-01 | `aiosd`/grant contracts and hostile fixtures | Qwen3.8 Max | GPT-5.6 Sol | aiosd schemas/fixtures/contract tests |
-| WRK-01 | BLOCKED | REG-01, TRC-01 | Deterministic `skill_router` | Muse Spark 1.3 | GPT-5.6 Luna | skill-router worker/tests |
-| WRK-02 | BLOCKED | POL-01, TRC-01 | Deterministic non-authoritative `risk_judge` | GLM 5.3 Flash | Qwen3.8 Max | risk-judge worker/tests |
-| EVAL-00 | BLOCKED | WRK-01, WRK-02 | Shared deterministic evaluation harness | DeepSeek V4.1 Flash | GPT-5.6 Luna | eval harness/report contract/tests |
-| EVAL-01 | BLOCKED | EVAL-00 | First 25–50 skill-router cases | GPT-5.6 Luna | DeepSeek V4.1 Flash + human spot-check | skill dataset batch 1 |
-| EVAL-02 | BLOCKED | EVAL-00 | First 25–50 risk cases | Qwen3.8 Flash | GPT-5.6 Luna + human spot-check | risk dataset batch 1 |
-| EVAL-03 | BLOCKED | EVAL-01 | Complete 50–100 skill cases and aggregate report | DeepSeek V4.1 Flash | Qwen3.8 Max + human spot-check | skill dataset batch 2/report |
-| EVAL-04 | BLOCKED | EVAL-02 | Complete 50–100 risk cases and aggregate report | GPT-5.6 Luna | DeepSeek V4.1 Flash + human spot-check | risk dataset batch 2/report |
-| AUD-01 | BLOCKED | EVAL-03, EVAL-04 | Deterministic slice architecture/security audit | GPT-5.6 Sol | Human owner | review handoff only |
-| BENCH-01 | BLOCKED | AUD-01 | Backend adapter, mocks, frozen benchmark runner | Muse Spark 1.3 | GPT-5.6 Sol | benchmark adapter/runner/tests |
-| BENCH-02 | BLOCKED | BENCH-01 | Approval-gated measured run and report | DeepSeek V4.1 Flash | GPT-5.6 Sol | benchmark configs/results/report |
-| SHADOW-01 | BLOCKED | BENCH-02 | No-effect shadow integration/report | DeepSeek V4.1 Flash | GPT-5.6 Luna | shadow adapter/tests/report |
-| GRANT-01 | BLOCKED | SEC-01, SHADOW-01 | Policy-owned grant issuer/verifier for `capabilities.describe` | Qwen3.8 Max | GPT-5.6 Sol | policy grant package/tests/docs |
-| AIOSD-01 | BLOCKED | GRANT-01 | Enforcement core and immutable append-only receipts | Muse Spark 1.3 | GPT-5.6 Sol | aiosd core/receipt tests |
-| AIOSD-02 | BLOCKED | AIOSD-01 | Unix transport, peer identity, lifecycle hardening | GLM 5.3 Flash | GPT-5.6 Sol | aiosd transport/integration tests |
-| AUD-02 | BLOCKED | AIOSD-02 | Promotion and threat-model audit | GPT-5.6 Sol | Human owner | review handoff only |
-| CANARY-01 | BLOCKED | AUD-02 | One reversible canary proposal | GPT-5.6 Sol | Human owner | proposal ADR only |
+| ARC-01 | DONE | none | Governance baseline review and owner-adjudicated closure | architecture-primary | independent-challenger + owner | review handoff only |
+| ARC-02 | READY | ARC-01 | Reproducible Rust/Python/bounded-mixed evidence spike; evidence only | implementation-low-cost | independent-challenger before DONE | `docs/planning/zhoor-adoption/evidence/ARC-02/`; disposable builds under `/tmp/zhoor-arc02/<RUN_ID>/` |
+| ARC-03 | BLOCKED | ARC-02 DONE + independent review | Toolchain ADR, canonical commands, pinned paths | architecture-primary | independent-challenger + owner | ADR/toolchain docs/board/card path sections |
+| BASE-01 | BLOCKED | ARC-03 | Minimal verified project scaffold | implementation-low-cost | independent-challenger | root manifests/config, smoke source/test, CI |
+| PRO-01 | BLOCKED | BASE-01 | Versioned decision protocol and fixtures | implementation-low-cost | security-reviewer | protocol schemas/package/tests |
+| REG-01 | BLOCKED | PRO-01 | Compact descriptor registry/index loader | implementation-low-cost | evaluation-reviewer | registry package/fixtures/tests |
+| POL-01 | BLOCKED | PRO-01 | Deterministic risk rules and recommendations | implementation-low-cost | security-reviewer | risk-policy package/fixtures/tests |
+| TRC-01 | BLOCKED | PRO-01 | Sanitized trace writer and replay | implementation-low-cost | evaluation-reviewer | trace package/fixtures/tests |
+| SEC-01 | BLOCKED | PRO-01 | `aiosd`/grant contracts and hostile fixtures | security-reviewer | independent-challenger | aiosd schemas/fixtures/contract tests |
+| WRK-01 | BLOCKED | REG-01, TRC-01 | Deterministic `skill_router` | implementation-low-cost | evaluation-reviewer | skill-router worker/tests |
+| WRK-02 | BLOCKED | POL-01, TRC-01 | Deterministic non-authoritative `risk_judge` | implementation-low-cost | evaluation-reviewer | risk-judge worker/tests |
+| EVAL-00 | BLOCKED | WRK-01, WRK-02 | Shared deterministic evaluation harness | evaluation-reviewer | independent-challenger | eval harness/report contract/tests |
+| EVAL-01 | BLOCKED | EVAL-00 | First 25–50 skill-router cases | evaluation-reviewer | independent-challenger + human spot-check | skill dataset batch 1 |
+| EVAL-02 | BLOCKED | EVAL-00 | First 25–50 risk cases | evaluation-reviewer | independent-challenger + human spot-check | risk dataset batch 1 |
+| EVAL-03 | BLOCKED | EVAL-01 | Complete 50–100 skill cases and aggregate report | evaluation-reviewer | independent-challenger + human spot-check | skill dataset batch 2/report |
+| EVAL-04 | BLOCKED | EVAL-02 | Complete 50–100 risk cases and aggregate report | evaluation-reviewer | independent-challenger + human spot-check | risk dataset batch 2/report |
+| AUD-01 | BLOCKED | EVAL-03, EVAL-04 | Deterministic slice architecture/security audit | security-reviewer | human owner | review handoff only |
+| BENCH-01 | BLOCKED | AUD-01 | Backend adapter, mocks, frozen benchmark runner | implementation-low-cost | evaluation-reviewer | benchmark adapter/runner/tests |
+| BENCH-02 | BLOCKED | BENCH-01 | Approval-gated measured run and report | evaluation-reviewer | independent-challenger | benchmark configs/results/report |
+| SHADOW-01 | BLOCKED | BENCH-02 | No-effect shadow integration/report | implementation-low-cost | evaluation-reviewer | shadow adapter/tests/report |
+| GRANT-01 | BLOCKED | SEC-01, SHADOW-01 | Policy-owned grant issuer/verifier for `capabilities.describe` | security-reviewer | independent-challenger | policy grant package/tests/docs |
+| AIOSD-01 | BLOCKED | GRANT-01 | Enforcement core and immutable append-only receipts | security-reviewer | independent-challenger | aiosd core/receipt tests |
+| AIOSD-02 | BLOCKED | AIOSD-01 | Unix transport, peer identity, lifecycle hardening | security-reviewer | independent-challenger | aiosd transport/integration tests |
+| AUD-02 | BLOCKED | AIOSD-02 | Promotion and threat-model audit | security-reviewer | human owner | review handoff only |
+| CANARY-01 | BLOCKED | AUD-02 | One reversible canary proposal | architecture-primary | human owner | proposal ADR only |
 
 ## Assignment rules
 
-- Architecture/security acceptance stays with GPT-5.6 Sol plus human review. Sol runs through the Codex harness; the former Zed lane is retired.
-- Prefer a reviewer from a different model family; do not use model consensus as acceptance.
-- Review files are `<JOB-ID>-<reviewer-token>.md` (`sol`, `luna`, `qwen-max`, `qwen-flash`, `glm`, `muse`, `deepseek`, `owner`). The role — primary or independent-challenger — is recorded inside the report, never in the filename.
-- If a required lane is unavailable, substitute only per `ORCHESTRATOR_RUNBOOK.md` §Lane unavailability, record it in `DECISIONS.md`, and keep the card in `REVIEW` until the owed independent report exists.
-- Qwen3.8 Max is the challenger for protocol/security reasoning.
-- GLM 5.3 Flash and Muse Spark are default implementation agents.
-- Luna, Qwen3.8 Flash, and DeepSeek V4.1 Flash handle bounded fixtures, datasets, measurements, and routine review cost-effectively.
+- Architecture/security acceptance uses independent evidence and owner review. The concrete current reviewer lanes are in `MODEL_AND_SKILL_MATRIX.md`.
+- Independence requires a different reviewer and session with no authorship conflict; model/provider family is not an authority requirement.
+- Review files are `<JOB-ID>-<reviewer-token>.md`; use `herdr-primary`, `herdr-challenger`, `herdr-review`, `sol-final`, or `owner`. The role is recorded inside the report, never inferred from the filename.
+- If a reviewer lane is unavailable, substitute a different reviewer/session with no authorship conflict, record it in `DECISIONS.md`, and keep the card in `REVIEW` until the owed independent report exists.
+- Herdr Runtime Server is the default session and handoff surface for all non-final-audit work.
 - Tests, deterministic oracles, provenance, and human decisions control promotion.
 
 ## Parallelism
@@ -56,6 +54,6 @@ Before any downstream implementation card becomes `READY`, `ARC-03` must replace
 
 ## Current owner action
 
-Done: tranche reviewed and committed on the named branch `integration/zhoor-adoption`; not pushed (push is owner-only).
+Done: ARC-01 adjudication and closure audit passed; current identity is `Tariq-Anjum/ZHOOR-AIOS` on `integration/zhoor-adoption`.
 
-Next: assign the two independent `ARC-01` reports using `handoffs/NEXT_ACTIONS.md` — primary to GPT-5.6 Sol (Codex), independent challenger to GPT-5.6 Luna (Codex), because Qwen3.8 Max authored the handoff/lane layer and is eligible only by a waiver recorded in `DECISIONS.md`. Adjudicate both, then flip `ARC-01` → `DONE` and `ARC-02` → `READY`. Unblock only one wave at a time.
+Next: start ARC-02's language/toolchain evidence spike in a fresh session. Produce only bounded, non-production evidence and complete its separate independent review before ARC-02 becomes DONE and ARC-03 becomes READY. Unblock one wave at a time.

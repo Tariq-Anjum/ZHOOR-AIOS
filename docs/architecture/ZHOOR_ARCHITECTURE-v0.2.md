@@ -117,6 +117,8 @@ Workers are configurations and schemas over a shared runtime—not separate serv
 | `skill_router` | exact intent/tag/capability match against registered skill descriptors | rank supplied candidate descriptors; may abstain | none; returns recommendations only |
 | `risk_judge` | hard risk rules based on requested capability and arguments | classify ambiguity or risk signals; may only increase scrutiny | cannot authorize; informs policy only |
 
+The Level 2 columns describe future eligible routing behavior, not components enabled in the initial deterministic slice. The first implemented slice uses deterministic/index paths only. Semantic/model-backed paths remain inactive until their benchmark, evaluation, approval, and shadow gates have passed.
+
 Both workers must emit a trace on every invocation. Neither can issue an executable request during the first slice.
 
 Future workers—capability router, context judge, evidence selector, model router, extractor, verifier—are admitted only after the slice meets its evaluation gates.
@@ -217,6 +219,8 @@ sequenceDiagram
 It accepts only registered typed capabilities. For every request it validates schema, canonicalizes paths beneath an allowlisted root, rejects symlink escapes, applies its own capability/risk rules, executes with least privilege, and emits an append-only receipt. The receipt records grant ID, caller identity, validated capability, argument hash, outcome, timestamps, and safe result reference.
 
 The initial `aiosd` capability must be introspective (`capabilities.describe`) and non-mutating. No mutation, network egress, shell, package install, service control, or privileged capability is eligible for autonomous execution until this contract and its tests exist.
+
+An `aiosd` execution receipt records what was executed and observed; it does not by itself prove required postconditions. Before any execution-capable workflow is eligible for promotion, `SEC-01` must pin the postcondition schema, verification owner, typed verdict/status, required deterministic evidence and linkage, failure/unknown behavior, and how verification affects later policy/state. Any semantic verification remains evidence/advice and cannot substitute for required deterministic safety checks. Detailed design is deferred to `SEC-01`.
 
 Local peer credentials are not a defense against another process operating as the same OS user. ZHOOR's initial threat model is therefore a single trusted local account; stronger multi-user isolation requires separate OS identities and key management, not prompt policy.
 

@@ -1,9 +1,9 @@
 # ARC-02 — Language and toolchain evidence spike
 
 
-**Depends on:** ARC-01  
-**Recommended:** Qwen3.8 Max  
-**Review:** GPT-5.6 Sol in ARC-03  
+**Depends on:** ARC-01
+**Recommended:** implementation-low-cost
+**Review:** independent-challenger in a separate session after evidence completion and before ARC-02 is DONE
 **Timebox:** one evidence-producing spike session; no decision or product implementation
 
 ## Objective
@@ -18,8 +18,10 @@ Produce reproducible evidence comparing one minimal Rust spike, one minimal Pyth
 
 ## Write scope
 
-- Isolated spike/evidence files under an ARC-03-pinned evaluation area; no production package scaffold.
+- Committed reproducibility evidence under `docs/planning/zhoor-adoption/evidence/ARC-02/` (available before ARC-03); mark any minimal source used for comparisons as non-production spike material.
+- Disposable build/spike working directories under `/tmp/zhoor-arc02/<RUN_ID>/`.
 - `docs/planning/zhoor-adoption/handoffs/ARC-02.md` with commands, measurements, dependency inventory, and comparison table.
+- No production language/package decision or production scaffold. ARC-02 must compare minimal Rust, minimal Python, and a bounded mixed option; the existing ADR-0002 `system.info.read` crate may be cited as empirical evidence but does not predetermine the selection.
 
 ## Required comparison
 
@@ -27,7 +29,7 @@ Evaluate at least: Rust-first runtime, Python-first runtime, and a deliberately 
 
 ## Success condition
 
-All three options have reproducible minimal evidence and a concise recommendation. No option is accepted, no production layout is scaffolded, and no model/backend package is introduced.
+All three options have reproducible minimal evidence and a completed independent review before ARC-02 is marked DONE. ARC-02 records evidence and tradeoffs only; it makes no production decision, scaffolds no production layout, and introduces no model/backend package. ARC-03 consumes the accepted ARC-02 evidence and performs the production adjudication.
 
 ## Stop
 

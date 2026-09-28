@@ -1,8 +1,8 @@
 # Model and skill allocation
 
-This is a development-agent allocation, not a ZHOOR runtime model policy. Exact model quality, price, context, and availability change; benchmark before changing assignments.
-
-Harness mapping (harness → model → cards) lives in `ORCHESTRATOR_RUNBOOK.md`. GPT-5.6 Sol runs through Codex; the former Zed lane is retired. When a required lane is unavailable, substitute only per the runbook's §Lane unavailability and record the deviation in `DECISIONS.md`.
+This is a development-agent allocation, not a ZHOOR runtime model policy. Herdr Runtime Server is the
+continuity surface for every session. Exact model quality, price, context, and availability are not part of the
+repository contract; the owner assigns an available agent without changing the card's scope.
 
 ## Mandatory stack for every agent
 
@@ -17,24 +17,34 @@ Harness mapping (harness → model → cards) lives in `ORCHESTRATOR_RUNBOOK.md`
 
 `grill-me` and `grill-with-docs` are explicit/manual skills. Use them only when the owner directly requests a grilling session. Reviews do not implicitly activate them.
 
-## Models
+## Runtime roles
 
-| Model | Best use here | Avoid |
+| Role | Best use here | Avoid |
 |---|---|---|
-| GPT-5.6 Sol | Architecture decisions, security boundaries, difficult debugging, cross-document adjudication, final audits | Bulk fixture generation or routine transformations |
-| GPT-5.6 Luna | Bounded coding, protocol fixture review, documentation, routine tests | Sole authority on security/architecture |
-| GLM 5.3 Flash | Default implementation, refactoring, fast test/fix loops | Unreviewed architectural decisions |
-| Qwen3.8 Max | Independent challenger, protocol/security reasoning, difficult review | Routine bulk work when a Flash model suffices |
-| Qwen3.8 Flash | Repository scanning, fixtures, repetitive tests, replay analysis | Final architectural acceptance |
-| Muse Spark 1.3 | Longish but bounded coding/debugging, trace/runtime implementation | Unbounded multi-phase assignments |
-| DeepSeek V4.1 Flash | Cost-sensitive evaluation analysis, transformations, trace/replay work | Ground-truth labeling without deterministic/human review |
+| `architecture-primary` | Architecture/governance review | Author-conflicted work or final acceptance without owner review |
+| `independent-challenger` | Independent challenge in a separate session | Reading the primary report before writing its own; reviewing authored work |
+| `implementation-low-cost` | Bounded implementation and reproducible evidence | Unreviewed final acceptance or scope expansion |
+| `evaluation-reviewer` | Deterministic evaluation, benchmark evidence, and review | Treating model output as ground truth |
+| `security-reviewer` | Security contracts, adversarial fixtures, and boundary review | Authorization or execution authority |
+| Human owner | Acceptance, adjudication, scope changes, and promotion decisions | Delegating authority to model output |
+
+## Current concrete reviewer mapping
+
+These are operational observations, not architecture dependencies. Assign by job role and verify availability at session start.
+
+| Stable role | Current observed lane | Setting |
+|---|---|---|
+| `architecture-primary` | GPT-6 Sol / Pi | high |
+| `independent-challenger` | GPT-6 Luna / Codex | xhigh |
+
+Use another lane when needed only with a different reviewer, independent session, no authorship conflict, and a recorded substitution. Model/provider/harness names do not grant authority.
 
 ## Job-specific routing
 
 | Jobs | Required additions beyond mandatory stack |
 |---|---|
 | ARC-02, ARC-03, AUD-01, AUD-02, CANARY-01 | `file-based-planning`; `wayfinder` only for orchestrator dependency changes. ARC-01 uses file planning only if review crosses sessions. |
-| ARC-01 (both reports) | No extra skill. Two independent reports from different models: `sol` primary, plus a challenger from a non-Qwen model — `luna` recommended, because the handoff/lane layer under review is Qwen3.8 Max-authored. |
+| ARC-01 (both reports) | No extra skill. Use the `architecture-primary` and `independent-challenger` roles in separate sessions; see current concrete mappings above. |
 | PRO-01, SEC-01 | OpenSpec workflow if already available; otherwise use repository schemas/tests directly. Do not install it just for the card. |
 | BASE-01, REG-01, POL-01, WRK-01, WRK-02, TRC-01, GRANT-01, AIOSD-01, AIOSD-02 | No extra skill unless the router finds one narrow engineering match |
 | EVAL-00 through EVAL-04, SHADOW-01, BENCH-01, BENCH-02 | `file-based-planning` for durable evaluation/benchmark findings; no model-judge skill |

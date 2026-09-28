@@ -1,39 +1,32 @@
-# Orchestrator runbook for Pi, OpenCode, and Codex
+# Orchestrator runbook for Herdr Runtime Server sessions
 
 The human owner assigns jobs. Agents do not message one another; isolated worktrees, diffs/commits, tests, and handoffs coordinate work.
 
-## Recommended lanes
+## Runtime lanes
 
-| Harness | Model | Primary cards | Review cards |
+| Runtime surface | Role | Cards | Notes |
 |---|---|---|---|
-| Codex | GPT-5.6 Sol | ARC-01, ARC-03, AUD-01, AUD-02, CANARY-01 | ARC-02 (inside ARC-03), SEC-01, GRANT-01, BENCH-01/02, AIOSD-01/02 |
-| Pi | GLM 5.3 Flash | BASE-01, PRO-01, REG-01, WRK-02, AIOSD-02 | bounded implementation review |
-| Pi | Qwen3.8 Max | ARC-02, SEC-01, GRANT-01 | ARC-01 challenger only by recorded owner waiver (author conflict), ARC-03 challenger, POL-01, WRK-02, EVAL-03 |
-| Pi | Qwen3.8 Flash | EVAL-02 | registry/fixture bulk review |
-| OpenCode | Muse Spark 1.3 | TRC-01, WRK-01, BENCH-01, AIOSD-01 | bounded runtime review |
-| OpenCode | DeepSeek V4.1 Flash | EVAL-00, EVAL-03, BENCH-02, SHADOW-01 | TRC-01, EVAL-01, EVAL-04 |
-| Codex | GPT-5.6 Luna | POL-01, EVAL-01, EVAL-04 | ARC-01 challenger (recommended), BASE-01, PRO-01, WRK-01, EVAL-02, SHADOW-01 |
+| Herdr Runtime Server | implementation/evidence worker | bounded implementation and evidence cards | Use the job's stable role; see current concrete assignments in `MODEL_AND_SKILL_MATRIX.md`. |
+| Herdr Runtime Server | architecture-primary / independent-challenger | architecture and review cards | Different reviewers and independent sessions; neither may have authored the reviewed tranche. |
+| Herdr Runtime Server | exact-SHA auditor | `AUD-02` and owner-designated final audits | Must be independent of the closure authors; see the current reviewer mapping. |
 
 Start only agents needed for the current wave.
 
-## Lane unavailability
+## Handoff and lane availability
 
-GPT-5.6 Sol runs through the Codex harness. The former `Lead/Zed` lane is retired (owner-reported Zed credit exhaustion); no card depends on the Zed harness.
-
-When a card requires the Sol lane and that lane is unavailable:
-
-1. The owner may substitute Qwen3.8 Max (Pi) as `interim-primary` — unless that model authored the artefact under review — and the substitution must be recorded in `DECISIONS.md` before work starts.
-2. The independent challenge is then owed by a different model family — GPT-5.6 Luna (Codex), or GPT-5.6 Sol once the lane returns — before the card may become `DONE`.
-3. One model never writes both the primary and the challenger report for the same card, and an agent that helped author the artefact under review is never its only reviewer and never its independent challenger.
-4. Substitution never lowers an acceptance gate: architecture/security acceptance stays with Sol plus the human owner even if it is delivered later.
+1. Start every card in a named Herdr session `zhoor-<JOB-ID>`.
+2. If an agent becomes unavailable, hand the same card and attempt count to another owner-assigned session using its stable job role.
+3. The implementer and independent reviewer must be different agents in separate sessions. An agent/model that authored the reviewed tranche cannot act as its independent challenger.
+4. Do not require a particular model/provider family when authorship and session separation establish independence.
+5. A handoff never changes the card, branch, write scope, or acceptance gate. Record any substitution in `DECISIONS.md`.
 
 ## Wave order
 
 | Wave | Cards | Parallel? | Gate |
 |---|---|---|---|
-| 0 | ARC-01 | no | Owner adjudicates two independent reports: Sol (Codex) primary + non-Qwen challenger (Luna recommended) |
-| 1 | ARC-02 | no | Evidence complete, no decision |
-| 2 | ARC-03 | no | Sol + Qwen challenger + owner accept ADR, paths, commands |
+| 0 | ARC-01 | no | Owner adjudicates two independent Herdr reports |
+| 1 | ARC-02 | no | Bounded evidence complete, then separate independent review before ARC-02 DONE |
+| 2 | ARC-03 | no | Consume accepted ARC-02 evidence; owner accepts production ADR, paths, commands |
 | 3 | BASE-01 | no | Clean canonical checks |
 | 4 | PRO-01 | no | Protocol review merged |
 | 5 | REG-01, POL-01, TRC-01, SEC-01 | yes, pinned disjoint worktrees | Individual reviews and full checks |
@@ -41,14 +34,14 @@ When a card requires the Sol lane and that lane is unavailable:
 | 7 | EVAL-00 | no | Harness contract review |
 | 8 | EVAL-01, EVAL-02 | yes | First batches human spot-checked |
 | 9 | EVAL-03, EVAL-04 | yes | 50–100 cases/worker and aggregate reports |
-| 10 | AUD-01 | no | Explicit Sol + owner approval |
+| 10 | AUD-01 | no | Independent Herdr audit and owner approval |
 | 11 | BENCH-01 | no | Adapter/runner review; no live candidate run |
 | 12 | BENCH-02 | no | Owner approves any install/network; measured report reviewed |
 | 13 | SHADOW-01 | no | Shadow evidence reviewed |
 | 14 | GRANT-01 | no | Policy trust path/security review |
 | 15 | AIOSD-01 | no | Enforcement/receipt review |
 | 16 | AIOSD-02 | no | Unix peer/lifecycle review |
-| 17 | AUD-02 | no | Human promotion decision |
+| 17 | AUD-02 | no | Sol final audit plus human promotion decision |
 | 18 | CANARY-01 | no | Proposal ADR only |
 
 ## Worktree and status policy
@@ -59,22 +52,27 @@ When a card requires the Sol lane and that lane is unavailable:
 - ARC-03 must pin exact path globs and validation commands before downstream cards become `READY`.
 - No card permits push. Explicitly add `commit: yes/no` and `push: yes/no` to assignments.
 
+## Milestone publication
+
+After a milestone's implementation/review is complete, deterministic checks pass, the independent exact-SHA audit passes, and protected status is reconciled, the orchestrator may make a normal non-force push of `integration/zhoor-adoption` to `origin/integration/zhoor-adoption` without another owner interaction. Fetch and verify the remote first; if it has diverged from the known branch, stop. This standing authorization excludes `main`, tags, releases, force pushes of any kind, history rewriting, branch deletion, and repository settings.
+
 ## Assignment prompt
 
 ```text
 You are assigned [JOB-ID] only in the ZHOOR-AIOS repository.
+Use the Herdr Runtime Server named session `zhoor-[JOB-ID]`. Preserve the assigned worktree, branch, and attempt count.
 Read docs/planning/zhoor-adoption/README.md, AGENT_OPERATING_RULES.md, and jobs/[JOB-ID].md; then read only card-listed context.
 Use skill-router and karpathy-guidelines: state assumptions, do not overbuild, stay in scope, optimize for the success condition.
-Worktree/branch: [PATH / BRANCH]. Obey the ARC-03-pinned paths and validation commands. Do not switch branches.
+Worktree/branch: [PATH / BRANCH]. Use only the write scope pinned by your card. ARC-02 uses its explicit pre-ARC-03 evidence area; downstream implementation cards obey ARC-03-pinned paths and validation commands. Do not switch branches.
 Auto-approve routine reversible project-local reads/edits/checks. Ask before destructive, network/install, credential, push/merge/release, architecture, grilling, or final acceptance.
 After two failures on one blocker, stop. At ~60% context, validate and update docs/planning/zhoor-adoption/handoffs/[JOB-ID].md.
-Do not talk to other agents or edit WORK_BOARD.md. Commit: [yes/no]. Push: [yes/no].
+Do not talk to other agents or edit WORK_BOARD.md. Before stopping, write the handoff and pass it to the next agent through Herdr. Commit: [yes/no]. Push: [yes/no].
 ```
 
 ## Review prompt
 
 ```text
-Review [JOB-ID] only. The board status is REVIEW. Read the card, immutable implementation handoff, acceptance criteria, and provided diff/commit. Load skill-router and karpathy-guidelines. Do not edit implementation or its handoff. Independently run the exact targeted/full checks. Write docs/planning/zhoor-adoption/handoffs/reviews/[JOB-ID]-[REVIEWER].md using templates/REVIEW_TEMPLATE.md, where [REVIEWER] is your reviewer token (sol, luna, qwen-max, qwen-flash, glm, muse, deepseek, owner). Record your role (primary or independent-challenger), model/harness, and the exact commit you reviewed. An independent challenger does not read the primary report before writing its own. After two validation failures, stop and report blocked. Approval is evidence-based, never model consensus.
+Review [JOB-ID] only in a separate Herdr session with a different reviewer from the implementer. The board status is REVIEW. Read the card, immutable implementation handoff, acceptance criteria, and provided diff/commit. Load skill-router and karpathy-guidelines. Do not edit implementation or its handoff. Independently run the exact targeted/full checks. Write docs/planning/zhoor-adoption/handoffs/reviews/[JOB-ID]-[REVIEWER].md using templates/REVIEW_TEMPLATE.md, where [REVIEWER] is a unique runtime reviewer token. Record your role, runtime session, and exact commit. An independent challenger does not read the primary report before writing its own and must have no authorship conflict. After two validation failures, stop and report blocked. Approval is evidence-based, never model consensus.
 ```
 
 ## Context reset/resume
@@ -92,26 +90,29 @@ Review [JOB-ID] only. The board status is REVIEW. Read the card, immutable imple
 - Merge conflict in owned files: return to orchestrator.
 - Pre-existing failure: record exact evidence; do not fix unrelated work.
 - Ambiguity: use one stated conservative reversible interpretation only when within scope; otherwise stop.
-- Architecture/security conflict: stop for Sol/human review.
+- Architecture/security conflict: stop for the owner-designated audit path.
 - Install/network: stop for approval and document version, license, privacy, telemetry, cost, and rollback.
 
 ## Cost controls
 
-- GLM/Muse: bounded implementation; Luna/Flash: fixtures, datasets, routine review; Max/Sol: hard decisions/security.
+- Use one owner-assigned agent for each bounded card; preserve the stable role and independence requirements in the card.
 - One implementer plus one reviewer; do not ask multiple models to duplicate implementation.
 - No Needle, Jev, BMAD, or OpenSpec installation in early waves.
 - End sessions after handoff; do not keep agents resident while blocked.
 
 ## Continuity and source of truth
 
-Use this priority when records disagree:
+Use Git, runtime observations, and `STATE.md` to establish factual state. They are not policy authority. For normative project authority, use the canonical hierarchy in ADR-0001:
 
-1. Git repository state.
-2. Accepted architecture and ADRs.
-3. This tracked runbook and other tracked project contracts.
-4. Local orchestration `STATE.md` checkpoint.
-5. Current runtime observations.
-6. Conversation memory, which is never required for recovery.
+1. Current Constitution.
+2. Accepted ADRs.
+3. Normative ZHOOR architecture.
+4. Accepted contracts and schemas.
+5. ZHOOR adoption/governance controls.
+6. Legacy HERMES material.
+7. Raw discussions/chat archives.
+
+Conversation/runtime observations are evidence, not durable project authority, until recorded through the appropriate repository governance layer. Operational owner decisions may be recorded in `DECISIONS.md`; architectural changes require the applicable ADR/governance process.
 
 The canonical implementation repository is `/mnt/MD/AI-tools/ZHOOR-AIOS`,
 reconciled against Git evidence and external `STATE.md`. The former separate
@@ -123,9 +124,9 @@ paths and hunks.
 
 ADR-0002 is a narrow exception for the completed rootless, read-only
 `system.info.read` slice. It does not authorize arbitrary capability growth,
-change the remaining ARC governance gates, or bypass the ordered evaluation,
-grant, `aiosd`, audit, and canary sequence. Any further deviation requires an
-explicit accepted ADR.
+satisfy ARC-02/ARC-03 or later cards, make the slice `aiosd`, change the remaining
+ARC governance gates, or bypass the ordered evaluation, grant, `aiosd`, audit,
+and canary sequence. Any further deviation requires an explicit accepted ADR.
 
 ## Runtime discovery and handshake
 
@@ -153,7 +154,7 @@ for an existing result before resending; a slow task is not a failed task.
 ## Roles and exact-SHA audit
 
 - **Codex** orchestrates, integrates, and writes the primary worktree.
-- **Pi** independently verifies and is read-only during audits. Every audit is
+- **Pi** may independently verify and is read-only during audits. Every audit is
   pinned to an exact SHA in a detached checkout; deterministic checks are
   allowed, but Pi does not commit or push.
 - **OpenCode** is an optional auxiliary worker with no architecture authority.

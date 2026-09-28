@@ -11,8 +11,8 @@ Before any downstream implementation card becomes `READY`, `ARC-03` must replace
 | ID | Status | Depends on | Deliverable | Recommended runtime role | Independent review role | Planned exclusive area |
 |---|---|---|---|---|---|---|
 | ARC-01 | DONE | none | Governance baseline review and owner-adjudicated closure | architecture-primary | independent-challenger + owner | review handoff only |
-| ARC-02 | REVIEW | ARC-01 closure audit PASS | Reproducible Rust/Python/bounded-mixed evidence spike; evidence only | implementation-low-cost | independent-challenger before DONE | `docs/planning/zhoor-adoption/evidence/ARC-02/`; disposable builds under `/tmp/zhoor-arc02/<RUN_ID>/` |
-| ARC-03 | BLOCKED | ARC-02 DONE + independent review | Toolchain ADR, canonical commands, pinned paths | architecture-primary | independent-challenger + owner | ADR/toolchain docs/board/card path sections |
+| ARC-02 | DONE | ARC-01 closure audit PASS | Reproducible Rust/Python/bounded-mixed evidence spike; evidence only | implementation-low-cost | independent-challenger before DONE | `docs/planning/zhoor-adoption/evidence/ARC-02/`; disposable builds under `/tmp/zhoor-arc02/<RUN_ID>/` |
+| ARC-03 | READY | ARC-02 DONE + independent review | Toolchain ADR, canonical commands, pinned paths | architecture-primary | independent-challenger + owner | ADR/toolchain docs/board/card path sections |
 | BASE-01 | BLOCKED | ARC-03 | Minimal verified project scaffold | implementation-low-cost | independent-challenger | root manifests/config, smoke source/test, CI |
 | PRO-01 | BLOCKED | BASE-01 | Versioned decision protocol and fixtures | implementation-low-cost | security-reviewer | protocol schemas/package/tests |
 | REG-01 | BLOCKED | PRO-01 | Compact descriptor registry/index loader | implementation-low-cost | evaluation-reviewer | registry package/fixtures/tests |
@@ -54,6 +54,6 @@ Before any downstream implementation card becomes `READY`, `ARC-03` must replace
 
 ## Current owner action
 
-Done: owner adjudication, closure corrections, and the focused exact-SHA protected-work disposition audit passed. ARC-01 is complete; ARC-02 is the only `READY` card.
+Done: ARC-01 is complete. ARC-02 evidence and its independent exact-SHA review passed; ARC-02 is `DONE` and ARC-03 is the only `READY` card. No production toolchain was selected.
 
-Next: ARC-02 — language and toolchain evidence spike. Start it in a fresh session and keep the work evidence-only; ARC-03 and later cards remain blocked.
+Next: ARC-03 — toolchain adjudication and path pinning. The owner must accept the production decision; do not begin later implementation cards until ARC-03 closes.

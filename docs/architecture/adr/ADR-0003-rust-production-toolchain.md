@@ -1,15 +1,15 @@
 ---
 title: Select the Rust production toolchain and workspace layout
-status: Proposed — pending owner acceptance
+status: Accepted
 proposed: 2026-09-28
-deciders: Project owner (pending); ARC-03 controller recommendation
+deciders: Project owner (accepted 2026-09-29); ARC-03 controller recommendation
 ---
 
 # ADR-0003: Select the Rust production toolchain and workspace layout
 
 ## Status
 
-Proposed. This ADR remains pending until the human owner explicitly accepts ARC-03. It does not change any work-board status.
+Accepted by the human owner on 2026-09-29. ARC-03 is closed; BASE-01 is the only card advanced to `READY`.
 
 ## Context
 

@@ -4,10 +4,10 @@
 
 - Run: `ZHOOR-20260928-ARC03-ADJUDICATION-01`
 - Canonical repository: `/mnt/MD/AI-tools/ZHOOR-AIOS`
-- Branch/base: `integration/zhoor-adoption` at `dba0367a7320688a090296e9fda566d5f02b008e`
-- Candidate SHA: pending candidate commit; freeze and record the full SHA before reviewer work.
-- ARC-03 remains `READY` until explicit owner acceptance. Later cards remain blocked.
-- Push: not authorized before owner acceptance; none performed.
+- Branch: `integration/zhoor-adoption`; accepted candidate SHA: `07b9390c3f2a5db2f35e09dd9f8a04e602a510df`.
+- Final Luna and Sol exact-SHA focused reviews: PASS on the accepted candidate, with no unresolved material findings.
+- Owner explicitly accepted ARC-03 on 2026-09-29. ARC-03 is `DONE`; BASE-01 is `READY`; all later cards remain `BLOCKED`.
+- Closure commit and publication state are recorded in external orchestrator `STATE.md` after final verification.
 
 ## Assumptions
 
@@ -51,9 +51,9 @@
 - `docs/planning/zhoor-adoption/jobs/{BASE-01,PRO-01,REG-01,POL-01,TRC-01,SEC-01,WRK-01,WRK-02,EVAL-00,EVAL-01,EVAL-02,EVAL-03,EVAL-04,AUD-01,BENCH-01,BENCH-02,SHADOW-01,GRANT-01,AIOSD-01,AIOSD-02,AUD-02,CANARY-01}.md` — write scope plus path-ownership/validation sections only.
 - This handoff.
 
-No source, schema, fixture, manifest, lockfile, CI workflow, runtime dependency, or production scaffold was created.
+No source, schema, fixture, manifest, lockfile, CI workflow, runtime dependency, or production scaffold was created. `TARGET_SCAFFOLD.md` is unchanged in the final candidate to honor ARC-03's declared write scope; its old illustrative layout and ARC-02 attribution remain a documented residual inconsistency for owner disposition.
 
-## Exact commands and results so far
+## Exact commands and results
 
 - `git status --short --branch` — branch is `integration/zhoor-adoption`; initial HEAD was `dba0367a7320688a090296e9fda566d5f02b008e`.
 - `git fetch origin integration/zhoor-adoption` — PASS; fetched tracking SHA remained `dba0367a7320688a090296e9fda566d5f02b008e`.
@@ -67,6 +67,14 @@ No source, schema, fixture, manifest, lockfile, CI workflow, runtime dependency,
 - Full `git diff --check` — reports trailing whitespace on pre-existing protected Herdr recommendation lines in downstream cards. These lines are present in the saved pre-edit snapshots; the task-relative check above is clean. They were preserved and not opportunistically edited.
 - Rust source/format/lint/test/build commands — not run: the repository has no root Cargo workspace yet; creating it is owned by BASE-01.
 - No source tests were added or run.
+- `git diff --check dba0367a7320688a090296e9fda566d5f02b008e 07b9390c3f2a5db2f35e09dd9f8a04e602a510df` — PASS; the full candidate diff is whitespace-clean.
+- `git show --check --oneline --stat 07b9390c3f2a5db2f35e09dd9f8a04e602a510df` — PASS.
+- Final static ownership/validation audit — PASS for all 22 downstream card sections, the 12 required parallel/security ownership pairs, and 18 review-only versus implementation overlap checks.
+- Markdown fenced-block check — PASS across 30 architecture/toolchain/board/handoff/job-card documents.
+- Final `git fetch origin integration/zhoor-adoption` — PASS; origin remains at `dba0367a7320688a090296e9fda566d5f02b008e`, an ancestor of the candidate; local candidate is five commits ahead with no divergence.
+- Final protected-state comparison — PASS; all 28 STATE.md status/hash records match the live worktree after D-018 re-baselining, and unrelated bytes were preserved.
+- Whole-worktree `git diff --check` still reports trailing spaces on pre-existing Herdr recommendation lines in protected downstream cards. They match the saved pre-edit snapshots; `git diff --check` on the exact candidate range passes, and those protected lines were not normalized.
+- `cargo fmt`, Clippy, `cargo check`, Cargo tests/builds, Python AST/unit commands, and `./scripts/validate.sh` — not run because the root workspace/script does not exist until BASE-01. ARC-03 created no production source or test harness.
 
 ## Downstream path ownership and commands
 
@@ -99,7 +107,7 @@ The four required parallel wave pairs and the three later grant/enforcement card
 
 ## Runtime routing discrepancy
 
-`MODEL_AND_SKILL_MATRIX.md` still records the older operational mapping of Sol/Pi for architecture-primary and Luna/Codex for independent-challenger. This run uses the owner-assigned mapping: Luna/Codex high as controller; Luna/Pi xhigh as challenger one; Sol/Codex-or-Pi high as challenger two. The matrix is left unchanged as directed. Current Herdr discovery shows only the controller's Codex pane; its listing confirms the harness but does not expose model or reasoning. No reviewer model has been started before candidate freeze. Both reviewer runtime states must be verified by fresh role-only handshakes before source review.
+`MODEL_AND_SKILL_MATRIX.md` still records the older operational mapping of Sol/Pi for architecture-primary and Luna/Codex for independent-challenger. This run uses the owner-assigned mapping: Luna/Codex high as controller; Luna/Pi xhigh as challenger one; Sol/Codex-or-Pi high as challenger two. The matrix is left unchanged as directed. Initial Herdr discovery showed only the controller pane and identified Codex as the harness, not the model. The live Codex pane showed GPT-6 Luna/high. After candidate freeze, the fresh Pi reviewer pane showed `openai-codex / gpt-6-luna / xhigh`, the exact Luna checkout, and read-only `read` access; its role-only handshake confirmed no authorship. A separate fresh Pi session for Sol shows `openai-codex / gpt-6-sol / high`, the exact Sol checkout, and read-only access; the role-only handshake passed before source review.
 
 ## Risks and unresolved points
 
@@ -107,17 +115,23 @@ The four required parallel wave pairs and the three later grant/enforcement card
 - Exact Rust 1.98.1 is the observed available toolchain; upgrades require explicit review. Offline builds depend on pre-cached, lockfile-pinned crates.
 - JSON Schema-to-Rust binding generation is intentionally not selected here; its implementation must preserve the schema as sole contract authority and avoid an unjustified runtime dependency.
 - Python's standard-library tooling receives syntax and unit checks but no separate formatter/type-checker dependency; it cannot implement production semantic rules.
-- No currently visible Herdr reviewer pane is available. Review preparation must create/use a fresh isolated session only after candidate freeze and verify the actual requested model/reasoning. If the assigned lanes cannot be verified, stop under the run's stop conditions.
+- Luna reviewer pane `wG:p3` is a fresh Pi session in the Luna worktree. Herdr showed the requested model/reasoning and read-only access. For focused re-review, the controller safely repointed its clean checkout to each corrected SHA and reused the same reviewer/model. Sol used a separate fresh Pi session for the independent review; focused re-reviews reused that lane/model as authorized.
 - Full source/build/CI validation cannot run until BASE-01 exists; ARC-03 validates the future command contract and current documentation only.
 
 ## Candidate and review results
 
-- Candidate commit/SHA: pending.
-- Luna exact-SHA review: pending.
-- Sol exact-SHA review: pending.
-- Reviewer reports: pending; use `docs/planning/zhoor-adoption/handoffs/reviews/ARC-03-<reviewer>.md` and identify the exact reviewed SHA.
-- Owner acceptance: pending. No status transition, BASE-01 start, or push is authorized before explicit YES.
+- Luna first review found: (1) PRO-01/TRC-01 both appeared to own trace-schema semantics; (2) the target scaffold illustrated component code under root `src/` and attributed that layout choice to ARC-02; (3) ADR-0003 omitted later `zhoor-backend-adapter` and `zhoor-shadow` packages; (4) the CANARY-01 validation row used a broader ADR glob than the card; and (5) the immutable handoff could not embed its own final content hash. Corrections retained in the final candidate: separate protocol and trace schema ownership; list later-gated packages; narrow CANARY's validation glob; record the exact SHA in the post-freeze controller handoff. The scaffold edit was removed after Sol identified it as outside ARC-03's declared write scope; its stale illustration is recorded as a residual issue.
+
+- Corrected candidate commit/SHA: `07b9390c3f2a5db2f35e09dd9f8a04e602a510df`; prior candidate `b81410be5caf915dfece4b98a86f66ca223a1320` had Luna PASS with a P3 scaffold note and Sol CHANGES_REQUIRED for the remaining BASE-01 lockfile sentence conflict. Earlier candidate `87ae6b8e4207138b8fceb9020c648851e992e36a` also had Sol CHANGES_REQUIRED. Earlier reviewed candidates: `069aaa86455cc3884184b8cd18ebb8aa5b96413a` (Luna PASS with a P3 duplicate-heading finding, corrected) and `1f669d84765e36a64278ac73ffbef77852ee97c1` (Luna CHANGES_REQUIRED).
+- Handoff SHA rule: the candidate commit itself necessarily contains a pre-freeze marker because a content-addressed commit cannot embed its own hash. This post-freeze controller handoff records the authoritative full SHA supplied to reviewers.
+- Luna initial review: `CHANGES_REQUIRED` on `1f669d84765e36a64278ac73ffbef77852ee97c1`; report `docs/planning/zhoor-adoption/handoffs/reviews/ARC-03-luna.md`. Luna focused review: `PASS` on `069aaa86455cc3884184b8cd18ebb8aa5b96413a`, with one P3 duplicate-section finding; report `docs/planning/zhoor-adoption/handoffs/reviews/ARC-03-luna-rereview.md`. Luna duplicate-section re-review: `PASS`, no material findings, on `87ae6b8e4207138b8fceb9020c648851e992e36a`; report `docs/planning/zhoor-adoption/handoffs/reviews/ARC-03-luna-rereview2.md`. Luna focused re-review of `b81410be5caf915dfece4b98a86f66ca223a1320`: PASS, no material defect; P3 note says the unchanged illustrative scaffold retains older schema/evaluation paths. Report: `docs/planning/zhoor-adoption/handoffs/reviews/ARC-03-luna-rereview3.md`. Final Luna focused PASS on `07b9390c3f2a5db2f35e09dd9f8a04e602a510df`, no material findings; report: `docs/planning/zhoor-adoption/handoffs/reviews/ARC-03-luna-rereview4.md`.
+- Sol independent exact-SHA review: `CHANGES_REQUIRED` on `87ae6b8e4207138b8fceb9020c648851e992e36a`. Findings were (1) no explicit component lockfile reconciliation timing/gate, (2) out-of-scope scaffold edit, and (3) insufficiently pinned schema/Rust conformance. The controller corrected Sol's first three findings in candidate `b81410be5caf915dfece4b98a86f66ca223a1320`: lockfile reconciliation timing; removal of the scaffold edit; and Draft 2020-12 fixture/Rust conformance. Sol's focused re-review of that SHA found one remaining Medium conflict: BASE-01 still required `--locked` for component-worker checks. The controller confirmed it and amended only BASE-01's ARC-03-owned lockfile ownership sentence in candidate `07b9390c3f2a5db2f35e09dd9f8a04e602a510df`. Sol report: `docs/planning/zhoor-adoption/handoffs/reviews/ARC-03-sol-rereview.md`. Luna independently passed `b81410be5caf915dfece4b98a86f66ca223a1320`, with one P3 note about stale illustrative schema/eval paths in the unchanged target scaffold; report: `docs/planning/zhoor-adoption/handoffs/reviews/ARC-03-luna-rereview3.md`. Final Sol focused re-review on `07b9390c3f2a5db2f35e09dd9f8a04e602a510df`: PASS, no findings; report: `docs/planning/zhoor-adoption/handoffs/reviews/ARC-03-sol-rereview2.md`. The prior report `ARC-03-sol-rereview.md` records the BASE-01 correction request at the superseded SHA.
+- Both final reviewer checkouts are detached and clean at `07b9390c3f2a5db2f35e09dd9f8a04e602a510df`. They were repointed only after verifying their old exact SHA and clean state.
+- Owner acceptance: YES, received 2026-09-29. The owner accepted Rust 2024 with the pinned toolchain, the documented workspace and schema ownership, Python limited to offline/development tooling, no production Python boundary, canonical commands and Cargo.lock workflow, and the downstream path-ownership matrix. The owner explicitly directed that the stale `TARGET_SCAFFOLD.md` illustration remain for a later authorized scope.
+- Closure validation: the board diff contains only ARC-03 `READY` → `DONE` and BASE-01 `BLOCKED` → `READY`; all later statuses remain unchanged. The board was clean before edit at the D-018 baseline hash recorded in external `STATE.md`; a pre-edit byte snapshot was saved under `/tmp/zhoor-arc03/ZHOOR-20260928-ARC03-ADJUDICATION-01/closure/WORK_BOARD.before.md`.
+- Protected-work reconciliation: PASS; all 28 protected status/path/SHA-256 records still match, and unrelated dirty/untracked bytes are preserved. The only protected shared-control edit is the owner-authorized WORK_BOARD status hunk isolated under D-018.
+- Closure commit SHA and normal push result: recorded in external orchestrator `STATE.md`.
 
 ## Next action
 
-Finish exact-scope validation and staging, create the single ARC-03 candidate commit, freeze and record its full SHA, then prepare and assign the Luna exact-SHA review.
+BASE-01 is `READY`; begin it only in a separate authorized session. This ARC-03 session does not begin BASE-01.

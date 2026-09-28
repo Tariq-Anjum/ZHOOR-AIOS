@@ -6,7 +6,7 @@
 
 - Production implementation: Rust 2024, toolchain `1.98.1`, pinned in root `rust-toolchain.toml` with `rustfmt` and `clippy`. Do not use a floating stable channel for canonical checks. Upgrade the pin through a reviewed change.
 - Workspace/package layout: root `zhoor` CLI plus one package per owned component in `crates/`. `crates/system-info` remains the separate ADR-0002 slice; do not call it `aiosd`.
-- Contract authority: JSON Schema under `schemas/`. Rust owns the only production contract and domain validation. Generated bindings are derived outputs. Python tools may inspect schemas and fixture data, but must delegate normative validation and all policy/domain decisions to Rust.
+- Contract authority: JSON Schema under `schemas/` (with protocol schemas in `schemas/protocol/**` and trace schema solely in `schemas/trace/**`). Rust owns the only production contract and domain validation. Generated bindings are derived outputs. Python tools may inspect schemas and fixture data, but must delegate normative validation and all policy/domain decisions to Rust.
 - Python boundary: Python 3.14.7 standard library only, for offline evaluation analysis, fixture/dataset generation, benchmark/report tooling, and developer utilities. It is development-only, is not packaged with production code, and must not be on the request path. No third-party Python package is approved. Keep scripts small and cover them with `compileall` and `unittest`; Rust production lint/type checks remain the blocking canonical lint/static checks.
 - Cargo dependency changes are reviewed and locked. Canonical validation is offline and uses the committed lockfile. No validation command downloads tools, models, or dependencies.
 
@@ -49,7 +49,7 @@ python3.14 -c 'import ast, pathlib; [ast.parse(p.read_text(), filename=str(p)) f
 PYTHONDONTWRITEBYTECODE=1 python3.14 -m unittest discover -s tools/eval/tests -v
 ```
 
-The full-validation script uses `PYTHONDONTWRITEBYTECODE=1` and runs both commands when `tools/eval/` exists. Its Rust sequence is format check, Clippy, static check, unit tests, integration/contract tests, full tests/doctests, debug build, and release build; it writes build artifacts only beneath ignored `target/`. The Python AST and unittest checks write no checkout artifacts. Python validation writes no bytecode into the checkout. Python tests consume canonical schema/fixture data and may call the Rust validator; they do not reimplement Rust protocol, registry, policy, worker, grant, or enforcement behavior. Python-only dataset cards name a narrower unittest discovery directory and still run `./scripts/validate.sh` for full CI-equivalent validation.
+The full-validation script uses `PYTHONDONTWRITEBYTECODE=1` and runs both commands when `tools/eval/` exists. Its Rust sequence is format check, Clippy, static check, unit tests, integration/contract tests, full tests/doctests, debug build, and release build; it writes build artifacts only beneath ignored `target/`. The Python AST and unittest checks write no checkout artifacts. Python tests consume canonical schema/fixture data and may call the Rust validator; they do not reimplement Rust protocol, registry, policy, worker, grant, or enforcement behavior. Python-only dataset cards name a narrower unittest discovery directory and still run `./scripts/validate.sh` for full CI-equivalent validation.
 
 ## Targeted/full validation by card
 
@@ -76,6 +76,6 @@ The full-validation script uses `PYTHONDONTWRITEBYTECODE=1` and runs both comman
 | AIOSD-01 | `./scripts/validate.sh --package zhoor-aiosd-core` and `cargo test --offline --locked -p zhoor-aiosd-core --test aiosd_core_contract` | `./scripts/validate.sh` |
 | AIOSD-02 | `./scripts/validate.sh --package zhoor-aiosd-unix` and `cargo test --offline --locked -p zhoor-aiosd-unix --test unix_transport_contract` | `./scripts/validate.sh` |
 | AUD-02 | `git diff --check -- docs/planning/zhoor-adoption/handoffs/reviews/AUD-02-*.md` plus validation responsibilities in the review report | `./scripts/validate.sh` |
-| CANARY-01 | `git diff --check -- docs/architecture/adr/ADR-*.md docs/planning/zhoor-adoption/handoffs/CANARY-01.md` | `./scripts/validate.sh` |
+| CANARY-01 | `git diff --check -- docs/architecture/adr/ADR-CANARY-01-*.md docs/evaluations/canary-01/ docs/planning/zhoor-adoption/handoffs/CANARY-01.md` | `./scripts/validate.sh` |
 
 Review-only cards do not gain implementation ownership by running full validation. Their reports identify the exact candidate SHA and the checks they executed.

@@ -19,12 +19,18 @@ Implement versioned request, response, evidence-reference, confidence, dispositi
 
 ## Write scope
 
-- `schemas/protocol/**` — canonical request/response/evidence/trace wire schemas owned by this card.
+- `schemas/protocol/**` — canonical request/response/evidence wire schemas owned by this card; trace schema is excluded.
 - `crates/protocol/**` — `zhoor-protocol` Rust package, implementation, unit/contract tests, and package-local documentation.
 - `fixtures/protocol/valid/**` and `fixtures/protocol/invalid/**`.
 - `docs/planning/zhoor-adoption/handoffs/PRO-01.md` only for the job handoff.
 - Rust is the sole production validator. Do not create Python validation/policy logic or change root workspace/lock files.
 
+
+## Path ownership and validation
+
+Targeted: `./scripts/validate.sh --package zhoor-protocol` and `cargo test --offline --locked -p zhoor-protocol --test protocol_contract`.
+
+Full: `./scripts/validate.sh`.
 
 ## Path ownership and validation
 

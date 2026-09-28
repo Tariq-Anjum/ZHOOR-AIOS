@@ -82,7 +82,7 @@ Do not auto-approve:
 A job is complete only when:
 
 1. all acceptance criteria are satisfied;
-2. the exact ARC-03-pinned targeted and full validation commands were run and results are recorded truthfully;
+2. for downstream implementation cards, the exact ARC-03-pinned targeted and full validation commands were run and results are recorded truthfully; ARC-02 is the exception because it precedes ARC-03: its evidence handoff must record reproducible spike commands/results and its independent review must pass before ARC-02 is DONE;
 3. no files outside the write scope changed;
 4. `docs/planning/zhoor-adoption/handoffs/<JOB-ID>.md` records assumptions, files, commands, results, risks, and recommended next action;
 5. the agent stops and returns control to the owner/orchestrator.

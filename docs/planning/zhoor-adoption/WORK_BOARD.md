@@ -10,8 +10,8 @@ Before any downstream implementation card becomes `READY`, `ARC-03` must replace
 
 | ID | Status | Depends on | Deliverable | Recommended runtime role | Independent review role | Planned exclusive area |
 |---|---|---|---|---|---|---|
-| ARC-01 | DONE | none | Governance baseline review and owner-adjudicated closure | architecture-primary | independent-challenger + owner | review handoff only |
-| ARC-02 | READY | ARC-01 | Reproducible Rust/Python/bounded-mixed evidence spike; evidence only | implementation-low-cost | independent-challenger before DONE | `docs/planning/zhoor-adoption/evidence/ARC-02/`; disposable builds under `/tmp/zhoor-arc02/<RUN_ID>/` |
+| ARC-01 | REVIEW | none | Governance baseline review and owner-adjudicated closure | architecture-primary | independent-challenger + owner | review handoff only |
+| ARC-02 | BLOCKED | ARC-01 closure audit PASS | Reproducible Rust/Python/bounded-mixed evidence spike; evidence only | implementation-low-cost | independent-challenger before DONE | `docs/planning/zhoor-adoption/evidence/ARC-02/`; disposable builds under `/tmp/zhoor-arc02/<RUN_ID>/` |
 | ARC-03 | BLOCKED | ARC-02 DONE + independent review | Toolchain ADR, canonical commands, pinned paths | architecture-primary | independent-challenger + owner | ADR/toolchain docs/board/card path sections |
 | BASE-01 | BLOCKED | ARC-03 | Minimal verified project scaffold | implementation-low-cost | independent-challenger | root manifests/config, smoke source/test, CI |
 | PRO-01 | BLOCKED | BASE-01 | Versioned decision protocol and fixtures | implementation-low-cost | security-reviewer | protocol schemas/package/tests |
@@ -54,6 +54,6 @@ Before any downstream implementation card becomes `READY`, `ARC-03` must replace
 
 ## Current owner action
 
-Done: ARC-01 adjudication and closure audit passed; current identity is `Tariq-Anjum/ZHOOR-AIOS` on `integration/zhoor-adoption`.
+Done: owner adjudication and closure corrections are recorded. The exact-SHA closure audit is pending; keep ARC-01 in `REVIEW` and ARC-02 `BLOCKED` until it passes.
 
-Next: start ARC-02's language/toolchain evidence spike in a fresh session. Produce only bounded, non-production evidence and complete its separate independent review before ARC-02 becomes DONE and ARC-03 becomes READY. Unblock one wave at a time.
+Next: complete the independent exact-SHA closure audit. Only after PASS, set ARC-01 to `DONE` and ARC-02 to `READY`; then hand off ARC-02 in a fresh session. Unblock one wave at a time.

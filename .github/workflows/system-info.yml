@@ -1,0 +1,30 @@
+name: ZHOOR system information
+
+on:
+  push:
+    paths:
+      - "crates/system-info/**"
+      - ".github/workflows/system-info.yml"
+  pull_request:
+    paths:
+      - "crates/system-info/**"
+      - ".github/workflows/system-info.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  system-info:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+      - name: Format
+        run: cargo fmt --check --manifest-path crates/system-info/Cargo.toml
+      - name: Lint
+        run: cargo clippy --locked --manifest-path crates/system-info/Cargo.toml --all-targets -- -D warnings
+      - name: Test
+        run: cargo test --locked --manifest-path crates/system-info/Cargo.toml

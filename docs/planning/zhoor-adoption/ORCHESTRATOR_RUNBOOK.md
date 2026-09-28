@@ -113,11 +113,13 @@ Use this priority when records disagree:
 5. Current runtime observations.
 6. Conversation memory, which is never required for recovery.
 
-The canonical implementation repository is determined from recorded project
-state and Git evidence, not from a directory name. Do not move or merge the
-separate `/mnt/MD/AI-tools/zhoor` material as part of ordinary implementation.
-Preserve pre-existing dirty and untracked paths; inspect status before work and
-stage only task-owned paths and hunks.
+The canonical implementation repository is `/mnt/MD/AI-tools/ZHOOR-AIOS`,
+reconciled against Git evidence and external `STATE.md`. The former separate
+`/mnt/MD/AI-tools/zhoor` workspace is archived at
+`/mnt/MD/Archive/ZHOOR-precanonical-2026-09-28/legacy-docs/zhoor`; it is
+historical context, not an active project workspace. Preserve pre-existing
+dirty and untracked paths; inspect status before work and stage only task-owned
+paths and hunks.
 
 ADR-0002 is a narrow exception for the completed rootless, read-only
 `system.info.read` slice. It does not authorize arbitrary capability growth,

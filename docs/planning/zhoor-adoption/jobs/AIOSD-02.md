@@ -17,8 +17,16 @@ Wrap the reviewed `aiosd` enforcement core in the pinned local Unix-socket frami
 
 ## Write scope
 
-- Unix-socket transport/peer adapter, lifecycle integration tests, operator docs, and `docs/planning/zhoor-adoption/handoffs/AIOSD-02.md`.
-- ARC-03 must replace this description with exact path globs before `READY`.
+- `crates/aiosd-unix/**` — `zhoor-aiosd-unix` Unix transport/peer adapter and lifecycle integration tests.
+- `docs/contracts/aiosd-transport/**` and `docs/planning/zhoor-adoption/handoffs/AIOSD-02.md` for transport-specific operator docs.
+- `crates/aiosd-core/**`, grants, schemas, and receipts are read-only dependencies. No additional capability or remote transport.
+
+
+## Path ownership and validation
+
+Targeted: `./scripts/validate.sh --package zhoor-aiosd-unix` and `cargo test --offline --locked -p zhoor-aiosd-unix --test unix_transport_contract`.
+
+Full: `./scripts/validate.sh`.
 
 ## Acceptance
 

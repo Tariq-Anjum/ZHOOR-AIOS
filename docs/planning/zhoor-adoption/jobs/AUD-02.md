@@ -18,8 +18,15 @@ Decide whether evidence supports proposing one reversible capability canary. Aud
 
 ## Write scope
 
-- `docs/planning/zhoor-adoption/handoffs/reviews/AUD-02-sol.md`.
-- Optional draft recommendation inside that review; no production edits or implementation handoff.
+- `docs/planning/zhoor-adoption/handoffs/reviews/AUD-02-*.md` — one uniquely named promotion/threat audit report only.
+- Optional draft recommendation is part of that report. No production edits, proposal ADR, or implementation handoff.
+
+
+## Path ownership and validation
+
+Targeted: `git diff --check -- docs/planning/zhoor-adoption/handoffs/reviews/AUD-02-*.md`; record exact candidate validation and threat-test checks in the report.
+
+Full candidate validation responsibility: `./scripts/validate.sh` (read-only; do not edit implementation).
 
 ## Required audit
 

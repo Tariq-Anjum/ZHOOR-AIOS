@@ -17,10 +17,17 @@ Implement the deterministic Policy Engine path that issues and verifies short-li
 
 ## Write scope
 
-- Policy grant issuer/verifier implementation and tests.
-- Local development/test trust-root handling and operator documentation.
+- `crates/grant/**` — `zhoor-grant` issuer/verifier implementation and tests.
+- `fixtures/grant/**` and `docs/contracts/grant/**` — grant fixtures, local test-root instructions, and operator contract docs.
 - `docs/planning/zhoor-adoption/handoffs/GRANT-01.md`.
-- ARC-03 must replace this description with exact path globs before `READY`.
+- `schemas/aiosd/**` from SEC-01 and AIOSD packages are read-only contracts. Do not edit enforcement/transport packages or root lockfiles.
+
+
+## Path ownership and validation
+
+Targeted: `./scripts/validate.sh --package zhoor-grant` and `cargo test --offline --locked -p zhoor-grant --test grant_contract`.
+
+Full: `./scripts/validate.sh`.
 
 ## Acceptance
 

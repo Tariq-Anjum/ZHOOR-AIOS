@@ -18,11 +18,17 @@ Build a reusable offline evaluation harness and versioned case/report contract f
 
 ## Write scope
 
-- Evaluation harness module/tool.
-- Dataset case/provenance and report schemas.
-- Harness unit/integration tests and small synthetic smoke fixtures only.
-- Evaluation docs and `docs/planning/zhoor-adoption/handoffs/EVAL-00.md`.
-- ARC-03 must replace this description with exact path globs and validation commands before `READY`.
+- `tools/eval/harness/**` — shared offline Python evaluation harness and report-contract code only.
+- `tools/eval/tests/harness/**` — harness unit/integration tests and small synthetic smoke inputs.
+- `docs/evaluations/harness/**` and `docs/planning/zhoor-adoption/handoffs/EVAL-00.md`.
+- No worker, policy, protocol, dataset-batch, or aggregate-report implementation. Python remains offline development tooling.
+
+
+## Path ownership and validation
+
+Targeted: `python3.14 -c 'import ast, pathlib; [ast.parse(p.read_text(), filename=str(p)) for p in pathlib.Path("tools/eval").rglob("*.py")]' && PYTHONDONTWRITEBYTECODE=1 python3.14 -m unittest discover -s tools/eval/tests/harness -v`.
+
+Full: `./scripts/validate.sh`.
 
 ## Acceptance
 

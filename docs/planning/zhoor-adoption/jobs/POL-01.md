@@ -18,8 +18,17 @@ Define and implement the v1 deterministic risk taxonomy and hard rules consumed 
 
 ## Write scope
 
-- Policy/risk rule package/module, versioned risk-policy fixtures/tests, and `docs/planning/zhoor-adoption/handoffs/POL-01.md`.
-- ARC-03 must replace this description with exact path globs and validation commands before `READY`.
+- `crates/risk-policy/**` — `zhoor-risk-policy` package, deterministic rules, tests, and package-local docs.
+- `schemas/risk-policy/**` and `fixtures/risk-policy/**`.
+- `docs/planning/zhoor-adoption/handoffs/POL-01.md`.
+- Protocol schemas/types are read-only dependencies. Do not edit root manifests/lockfiles or registry/trace paths.
+
+
+## Path ownership and validation
+
+Targeted: `./scripts/validate.sh --package zhoor-risk-policy` and `cargo test --offline --locked -p zhoor-risk-policy --test risk_policy_contract`.
+
+Full: `./scripts/validate.sh`.
 
 ## Acceptance
 

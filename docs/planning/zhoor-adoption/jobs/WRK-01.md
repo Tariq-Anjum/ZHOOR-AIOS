@@ -18,9 +18,17 @@ Implement the Level 0/1 `skill_router`: validate a bounded request, filter and r
 
 ## Write scope
 
-- `skill_router` worker package/module.
-- Worker-specific fixtures/tests/docs and `docs/planning/zhoor-adoption/handoffs/WRK-01.md`.
-- ARC-03 must replace this description with exact path globs and validation commands before `READY`.
+- `crates/skill-router/**` — `zhoor-skill-router` deterministic worker, tests, and package-local docs.
+- `fixtures/skill-router/**`.
+- `docs/planning/zhoor-adoption/handoffs/WRK-01.md`.
+- Registry, protocol, and trace paths are read-only dependencies. No Python/model/backend implementation.
+
+
+## Path ownership and validation
+
+Targeted: `./scripts/validate.sh --package zhoor-skill-router` and `cargo test --offline --locked -p zhoor-skill-router --test skill_router_contract`.
+
+Full: `./scripts/validate.sh`.
 
 ## Acceptance
 

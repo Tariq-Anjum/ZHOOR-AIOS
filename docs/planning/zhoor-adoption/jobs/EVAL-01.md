@@ -18,8 +18,17 @@ Create the first 25–50 reviewed `skill_router` cases grounded in deterministic
 
 ## Write scope
 
-- First `skill_router` dataset batch, provenance metadata, oracle/label validation tests, and `docs/planning/zhoor-adoption/handoffs/EVAL-01.md`.
-- ARC-03 must replace this description with exact path globs before `READY`.
+- `eval/datasets/skill-router/batch-01/**` — first skill-router data/provenance batch only.
+- `tools/eval/tests/skill_router_batch_01/**` — batch-specific oracle/label validation tests.
+- `docs/planning/zhoor-adoption/handoffs/EVAL-01.md`.
+- The shared harness, other batches, and reports are read-only; do not edit production code.
+
+
+## Path ownership and validation
+
+Targeted: `PYTHONDONTWRITEBYTECODE=1 python3.14 -m unittest discover -s tools/eval/tests/skill_router_batch_01 -v`.
+
+Full: `./scripts/validate.sh`.
 
 ## Acceptance
 

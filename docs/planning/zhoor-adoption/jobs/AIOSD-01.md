@@ -18,8 +18,17 @@ Implement a transport-independent `aiosd` enforcement core that accepts authenti
 
 ## Write scope
 
-- `aiosd` enforcement core, fixture adapter, capability registry limited to `capabilities.describe`, append-only receipt store, tests, and `docs/planning/zhoor-adoption/handoffs/AIOSD-01.md`.
-- ARC-03 must replace this description with exact path globs before `READY`; no Unix socket/server source.
+- `crates/aiosd-core/**` — `zhoor-aiosd-core` transport-independent enforcement core, fixture adapter, fixed capability registry, receipt store, and tests.
+- `fixtures/aiosd-core/**` and `docs/contracts/aiosd-core/**` for core-only cases/contract notes.
+- `docs/planning/zhoor-adoption/handoffs/AIOSD-01.md`.
+- No Unix socket/server source; `crates/aiosd-unix/**` is reserved to AIOSD-02. SEC-01 schemas and GRANT-01 package are read-only.
+
+
+## Path ownership and validation
+
+Targeted: `./scripts/validate.sh --package zhoor-aiosd-core` and `cargo test --offline --locked -p zhoor-aiosd-core --test aiosd_core_contract`.
+
+Full: `./scripts/validate.sh`.
 
 ## Acceptance
 

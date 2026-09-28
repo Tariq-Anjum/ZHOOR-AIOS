@@ -18,8 +18,17 @@ Add a no-effect shadow mode that records deterministic and candidate-backend rec
 
 ## Write scope
 
-- Shadow adapter/coordinator, tests, report format, sanitization config, and `docs/planning/zhoor-adoption/handoffs/SHADOW-01.md`.
-- ARC-03 must replace this description with exact path globs before `READY`.
+- `crates/shadow/**` — `zhoor-shadow` no-effect adapter/coordinator, tests, and package-local report/sanitization contracts.
+- `eval/reports/shadow/**` — sanitized shadow report outputs only.
+- `docs/planning/zhoor-adoption/handoffs/SHADOW-01.md`.
+- No live policy changes or backend implementation. BENCH paths and production policy paths are read-only.
+
+
+## Path ownership and validation
+
+Targeted: `./scripts/validate.sh --package zhoor-shadow` and `cargo test --offline --locked -p zhoor-shadow --test shadow_contract`.
+
+Full: `./scripts/validate.sh`.
 
 ## Acceptance
 

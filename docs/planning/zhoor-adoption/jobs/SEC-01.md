@@ -19,9 +19,18 @@ Specify versioned `aiosd` request, short-lived single-operation grant, normalize
 
 ## Write scope
 
-- `schemas/aiosd/`, `fixtures/aiosd/`, contract tests, contract/threat notes, and `docs/planning/zhoor-adoption/handoffs/SEC-01.md`.
-- ARC-03 must confirm exact source/test path globs and validation commands before `READY`.
-- No daemon/server/executor source.
+- `schemas/aiosd/**` — canonical aiosd/grant wire schemas owned only by this card.
+- `crates/aiosd-contracts/**` — `zhoor-aiosd-contracts` package and contract tests only; no daemon, server, executor, grant issuer, or transport implementation.
+- `fixtures/aiosd/**` and `docs/contracts/aiosd/**` for hostile fixtures and contract/threat notes.
+- `docs/planning/zhoor-adoption/handoffs/SEC-01.md`.
+- Do not edit protocol, grant, enforcement, root manifest, or lockfile paths.
+
+
+## Path ownership and validation
+
+Targeted: `./scripts/validate.sh --package zhoor-aiosd-contracts` and `cargo test --offline --locked -p zhoor-aiosd-contracts --test aiosd_contract`.
+
+Full: `./scripts/validate.sh`.
 
 ## Acceptance
 

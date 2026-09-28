@@ -18,9 +18,16 @@ Implement the thinnest replaceable backend adapter, mocks, and frozen benchmark 
 
 ## Write scope
 
-- Backend adapter interface, one approved adapter, mocks, and benchmark runner/configuration.
-- Runner tests and `docs/planning/zhoor-adoption/handoffs/BENCH-01.md`.
-- ARC-03 must replace this description with exact path globs before `READY`; Needle must remain an isolated optional BENCH-02 candidate.
+- `crates/backend-adapter/**` — `zhoor-backend-adapter` interface, one approved adapter, mocks, benchmark runner/configuration, tests, and package-local docs.
+- `docs/planning/zhoor-adoption/handoffs/BENCH-01.md`.
+- No Needle installation or BENCH-02 result/config ownership. Root manifests/lockfiles are read-only; request controlled integration for any new dependency.
+
+
+## Path ownership and validation
+
+Targeted: `./scripts/validate.sh --package zhoor-backend-adapter` and `cargo test --offline --locked -p zhoor-backend-adapter --test backend_adapter_contract`.
+
+Full: `./scripts/validate.sh`.
 
 ## Acceptance
 

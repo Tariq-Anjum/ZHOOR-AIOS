@@ -18,10 +18,17 @@ Implement deterministic loading and validation of compact skill descriptors and 
 
 ## Write scope
 
-- Registry package/module.
-- Registry descriptor schema if not owned by PRO-01.
-- Registry fixtures/tests and `docs/planning/zhoor-adoption/handoffs/REG-01.md`.
-- ARC-03 must replace this description with exact path globs and validation commands before `READY`.
+- `crates/registry/**` — `zhoor-registry` package, implementation, tests, and package-local docs.
+- `schemas/registry/**` and `fixtures/registry/**` for registry descriptor schema/data owned only by this card.
+- `docs/planning/zhoor-adoption/handoffs/REG-01.md`.
+- Protocol schemas/types in `schemas/protocol/**` and `crates/protocol/**` are read-only dependencies. Do not edit root manifests/lockfiles.
+
+
+## Path ownership and validation
+
+Targeted: `./scripts/validate.sh --package zhoor-registry` and `cargo test --offline --locked -p zhoor-registry --test registry_contract`.
+
+Full: `./scripts/validate.sh`.
 
 ## Acceptance
 

@@ -18,9 +18,17 @@ Implement the Level 0 `risk_judge`: apply hard risk rules to a typed request, pr
 
 ## Write scope
 
-- `risk_judge` worker package/module.
-- Worker-specific fixtures/tests/docs and `docs/planning/zhoor-adoption/handoffs/WRK-02.md`.
-- ARC-03 must replace this description with exact path globs and validation commands before `READY`.
+- `crates/risk-judge/**` — `zhoor-risk-judge` deterministic non-authoritative worker, tests, and package-local docs.
+- `fixtures/risk-judge/**`.
+- `docs/planning/zhoor-adoption/handoffs/WRK-02.md`.
+- Policy, protocol, and trace paths are read-only dependencies. No Python/model/backend implementation or authoritative grant/deny behavior.
+
+
+## Path ownership and validation
+
+Targeted: `./scripts/validate.sh --package zhoor-risk-judge` and `cargo test --offline --locked -p zhoor-risk-judge --test risk_judge_contract`.
+
+Full: `./scripts/validate.sh`.
 
 ## Acceptance
 

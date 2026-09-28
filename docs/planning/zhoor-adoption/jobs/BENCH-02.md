@@ -17,8 +17,18 @@ Run the approved backend benchmark on the versioned datasets and target hardware
 
 ## Write scope
 
-- Versioned benchmark configuration, raw sanitized measurements, summarized report, and `docs/planning/zhoor-adoption/handoffs/BENCH-02.md`.
-- ARC-03 must replace this description with exact path globs before `READY`.
+- `eval/benchmarks/configs/**` — frozen measured-run configs only.
+- `eval/benchmarks/results/**` — raw sanitized measurements only.
+- `eval/reports/benchmarks/**` — summarized benchmark reports only.
+- `docs/planning/zhoor-adoption/handoffs/BENCH-02.md`.
+- Runner/adapters are read-only. Any package installation/network/live backend activity still requires the card's explicit owner approval.
+
+
+## Path ownership and validation
+
+Targeted: `git diff --check -- eval/benchmarks/configs/ eval/benchmarks/results/ eval/reports/benchmarks/ docs/planning/zhoor-adoption/handoffs/BENCH-02.md`; record and reproduce the frozen runner command in the report.
+
+Full: `./scripts/validate.sh`.
 
 ## Acceptance
 

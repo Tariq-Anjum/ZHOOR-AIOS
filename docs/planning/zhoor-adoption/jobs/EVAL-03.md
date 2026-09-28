@@ -17,8 +17,18 @@ Add the second bounded batch and aggregate the `skill_router` dataset to 50–10
 
 ## Write scope
 
-- Second `skill_router` dataset batch, aggregate manifest/report, worker-specific metric expectations/tests, and `docs/planning/zhoor-adoption/handoffs/EVAL-03.md`.
-- ARC-03 must replace this description with exact path globs before `READY`.
+- `eval/datasets/skill-router/batch-02/**` — second skill-router data/provenance batch only.
+- `eval/reports/skill-router/**` — skill-router aggregate manifest and report, owned only by this card.
+- `tools/eval/tests/skill_router_batch_02/**` — batch-specific metric/label tests.
+- `docs/planning/zhoor-adoption/handoffs/EVAL-03.md`.
+- Batch 01, risk-judge datasets/reports, the shared harness, and production worker code are read-only.
+
+
+## Path ownership and validation
+
+Targeted: `PYTHONDONTWRITEBYTECODE=1 python3.14 -m unittest discover -s tools/eval/tests/skill_router_batch_02 -v`.
+
+Full: `./scripts/validate.sh`.
 
 ## Acceptance
 

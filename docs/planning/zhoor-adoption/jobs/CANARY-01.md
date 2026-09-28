@@ -18,10 +18,17 @@ Propose exactly one low-risk, reversible capability canary with typed arguments,
 
 ## Write scope
 
-- One proposed ADR under `docs/architecture/adr/`.
-- Capability-specific threat/rollback/evaluation plan.
+- `docs/architecture/adr/ADR-CANARY-01-*.md` — one proposal ADR only.
+- `docs/evaluations/canary-01/**` — capability-specific threat, rollback, and evaluation proposal material.
 - `docs/planning/zhoor-adoption/handoffs/CANARY-01.md`.
-- No runtime implementation.
+- No runtime implementation, grant issuance, or capability activation.
+
+
+## Path ownership and validation
+
+Targeted: `git diff --check -- docs/architecture/adr/ADR-CANARY-01-*.md docs/evaluations/canary-01/ docs/planning/zhoor-adoption/handoffs/CANARY-01.md`.
+
+Full: `./scripts/validate.sh`.
 
 ## Required proposal fields
 

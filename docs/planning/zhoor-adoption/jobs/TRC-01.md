@@ -19,11 +19,17 @@ Implement deterministic trace creation, serialization, sanitization, and replay 
 
 ## Write scope
 
-- Trace/replay package/module.
-- Trace sanitization policy/config.
-- Trace fixtures/tests.
-- Trace-specific docs and `docs/planning/zhoor-adoption/handoffs/TRC-01.md`.
-- ARC-03 must replace this description with exact path globs and validation commands before `READY`.
+- `crates/trace/**` — `zhoor-trace` package, trace/replay implementation, sanitization rules, tests, and package-local docs.
+- `schemas/trace/**` and `fixtures/trace/**`.
+- `docs/planning/zhoor-adoption/handoffs/TRC-01.md`.
+- Protocol schemas/types are read-only dependencies. Do not edit root manifests/lockfiles or other component paths.
+
+
+## Path ownership and validation
+
+Targeted: `./scripts/validate.sh --package zhoor-trace` and `cargo test --offline --locked -p zhoor-trace --test trace_contract`.
+
+Full: `./scripts/validate.sh`.
 
 ## Acceptance
 

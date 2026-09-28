@@ -18,8 +18,17 @@ Create the first 25–50 reviewed `risk_judge` cases, emphasizing fail-closed be
 
 ## Write scope
 
-- First `risk_judge` dataset/provenance batch, expected-score/recommendation tests, and `docs/planning/zhoor-adoption/handoffs/EVAL-02.md`.
-- ARC-03 must replace this description with exact path globs before `READY`.
+- `eval/datasets/risk-judge/batch-01/**` — first risk-judge data/provenance batch only.
+- `tools/eval/tests/risk_judge_batch_01/**` — batch-specific oracle/label validation tests.
+- `docs/planning/zhoor-adoption/handoffs/EVAL-02.md`.
+- The shared harness, other batches, and reports are read-only; do not edit production policy/worker code.
+
+
+## Path ownership and validation
+
+Targeted: `PYTHONDONTWRITEBYTECODE=1 python3.14 -m unittest discover -s tools/eval/tests/risk_judge_batch_01 -v`.
+
+Full: `./scripts/validate.sh`.
 
 ## Acceptance
 

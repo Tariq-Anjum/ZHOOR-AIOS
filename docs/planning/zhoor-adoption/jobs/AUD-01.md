@@ -18,7 +18,15 @@ Audit the merged protocol, registry, risk rules, traces, workers, and evaluation
 
 ## Write scope
 
-- `docs/planning/zhoor-adoption/handoffs/reviews/AUD-01-sol.md` only.
+- `docs/planning/zhoor-adoption/handoffs/reviews/AUD-01-*.md` — one uniquely named audit report only.
+- No implementation, fixture, schema, or shared handoff ownership. Validation is read-only.
+
+
+## Path ownership and validation
+
+Targeted: `git diff --check -- docs/planning/zhoor-adoption/handoffs/reviews/AUD-01-*.md`; the report records relevant candidate tests/checks run and their results.
+
+Full candidate validation responsibility: `./scripts/validate.sh` (read-only; do not edit implementation).
 
 ## Required audit
 

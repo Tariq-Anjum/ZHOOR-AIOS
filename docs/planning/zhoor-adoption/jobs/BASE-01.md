@@ -18,12 +18,20 @@ Create only the toolchain, package, test, and CI skeleton required to run an emp
 
 ## Write scope
 
-- Root manifests/lock/config files selected by ARC-02.
-- Minimal source package identity and version only.
-- Minimal smoke test.
-- One CI workflow for canonical checks.
-- Root `.gitignore` additions strictly required by toolchain.
+- `Cargo.toml`, `Cargo.lock`, `rust-toolchain.toml`, `.cargo/config.toml`.
+- `src/**` and `tests/smoke.rs` for the minimal root CLI/package smoke only.
+- `.github/workflows/zhoor.yml`, `scripts/validate.sh`, and toolchain-required `.gitignore` lines only.
 - `docs/planning/zhoor-adoption/handoffs/BASE-01.md`.
+- The root workspace uses `crates/*` members so component cards do not edit root manifests. The committed lockfile is integration-owned; component workers use only already-locked dependencies and `--locked` validation.
+
+
+## Path ownership and validation
+
+Targeted: `cargo fmt --all -- --check && cargo check --workspace --all-targets --offline --locked && cargo test --workspace --offline --locked`.
+
+Full: `./scripts/validate.sh`.
+
+CI must invoke exactly `./scripts/validate.sh` from repository root. The wrapper implements all canonical full checks in `docs/development/ZHOOR_TOOLCHAIN.md`.
 
 ## Acceptance
 

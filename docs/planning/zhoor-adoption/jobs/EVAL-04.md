@@ -17,8 +17,18 @@ Add the second bounded batch and aggregate the `risk_judge` dataset to 50–100 
 
 ## Write scope
 
-- Second `risk_judge` dataset batch, aggregate manifest/report, worker-specific metric expectations/tests, and `docs/planning/zhoor-adoption/handoffs/EVAL-04.md`.
-- ARC-03 must replace this description with exact path globs before `READY`.
+- `eval/datasets/risk-judge/batch-02/**` — second risk-judge data/provenance batch only.
+- `eval/reports/risk-judge/**` — risk-judge aggregate manifest and report, owned only by this card.
+- `tools/eval/tests/risk_judge_batch_02/**` — batch-specific metric/label tests.
+- `docs/planning/zhoor-adoption/handoffs/EVAL-04.md`.
+- Batch 01, skill-router datasets/reports, the shared harness, and production policy/worker code are read-only.
+
+
+## Path ownership and validation
+
+Targeted: `PYTHONDONTWRITEBYTECODE=1 python3.14 -m unittest discover -s tools/eval/tests/risk_judge_batch_02 -v`.
+
+Full: `./scripts/validate.sh`.
 
 ## Acceptance
 

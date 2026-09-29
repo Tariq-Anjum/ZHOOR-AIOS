@@ -2,7 +2,7 @@
 
 ## Verdict
 
-`CHANGES_REQUIRED` for the first candidate; focused re-review pending.
+`PASS` after focused exact-SHA re-review. The first candidate received `CHANGES_REQUIRED`; the single medium finding was corrected and verified closed.
 
 ## Review ownership
 
@@ -22,7 +22,7 @@
 
 ## Blocking findings
 
-1. `[medium] .github/workflows/zhoor.yml push.paths and pull_request.paths` — the script conditionally runs the documented Python evaluation checks when `tools/eval/` exists, but neither workflow path filter included `tools/eval/**`. Future evaluation-only changes could therefore skip the canonical validation workflow. The controller confirmed this finding and added `tools/eval/**` to both filters; focused exact-SHA re-review is pending.
+1. First candidate finding `[medium] .github/workflows/zhoor.yml push.paths and pull_request.paths` — the script conditionally runs the documented Python evaluation checks when `tools/eval/` exists, but neither workflow path filter included `tools/eval/**`. Future evaluation-only changes could therefore skip the canonical validation workflow. **Resolved:** the controller added `tools/eval/**` to both filters, and the same Luna reviewer confirmed the correction on the exact re-review candidate below. No blocking findings remain.
 
 ## Non-blocking findings
 
@@ -54,7 +54,20 @@
 
 ## Residual risk
 
-- Focused re-review must confirm the new `tools/eval/**` entries in both workflow filters.
 - The mutable `dtolnay/rust-toolchain@master` action reference remains a reproducibility risk even though the Rust toolchain input is pinned.
 - Existing system-info compatibility was verified by workspace metadata and successful workspace checks/tests; no separate `build.rs` or `tests/` file was present to inspect.
 - The two recorded orchestration deviations are not repository defects established by this review; prior contents/ownership of the removed scratch paths remain unknown.
+
+## Focused exact-SHA re-review
+
+- Result: `PASS`
+- REVIEWED_SHA: `546706dc18cd6d06d1cdbdd4f8eb228d3c42dd29`
+- Reviewer: same independent Luna reviewer, fresh Pi/Herdr session `base01-review-luna` in pane `wG:p3`; provider token `codex`; visible model footer `GPT-6 Luna`; launch argument `--thinking xhigh`. The reviewer could not independently introspect reasoning effort.
+- Reviewer session record: `/home/tariq/.pi/agent/sessions/--tmp-zhoor-base01-ZHOOR-20260929-BASE01-SCAFFOLD-01-reviewer-luna--/2026-09-29T06-06-58-384Z_01a0ebc6-054f-74aa-a3d7-246bac0e5915.jsonl`.
+- Finding disposition: `tools/eval/**` is present in both `push.paths` and `pull_request.paths`; the finding is closed. The workflow still pins Rust `1.98.1` and its validation step invokes exactly `./scripts/validate.sh`.
+- Exact SHA, clean detached checkout, candidate diff, and `git diff --check`: PASS.
+- Targeted command `cargo fmt --all -- --check && cargo check --workspace --all-targets --offline --locked && cargo test --workspace --offline --locked`: PASS.
+- Full command `./scripts/validate.sh`: PASS.
+- `sha256sum Cargo.lock` before and after: PASS, both invocations emitted the same hash below.
+- Cargo.lock SHA-256 before and after: unchanged at `b64220e8b71db2463235b296335a01d117b376d4d653baea8872f6ce901b4c40`.
+- Final reviewer checkout: `git status --porcelain` empty; PASS.

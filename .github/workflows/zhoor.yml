@@ -1,0 +1,39 @@
+name: ZHOOR
+
+on:
+  push:
+    paths:
+      - "**/*.rs"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "rust-toolchain.toml"
+      - "scripts/validate.sh"
+      - "tests/**"
+      - ".github/workflows/zhoor.yml"
+  pull_request:
+    paths:
+      - "**/*.rs"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "rust-toolchain.toml"
+      - "scripts/validate.sh"
+      - "tests/**"
+      - ".github/workflows/zhoor.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.98.1"
+          components: clippy, rustfmt
+      - name: Prepare dependencies
+        run: cargo fetch --locked
+      - name: Validate
+        run: ./scripts/validate.sh

@@ -2,7 +2,7 @@
 
 ## Status
 
-`controller audit corrections complete; worker-side offline validation PASS; integration/review pending`
+`implementation integrated; canonical locked package/contract/full validation PASS; independent exact-SHA review pending`
 
 ## Task identity
 
@@ -17,7 +17,7 @@
 
 ## Success condition (restated)
 
-Versioned v1 request/response/evidence/confidence/disposition/result-kind/deadline/error contracts under `schemas/protocol/**`; deterministic Rust semantic validation in `zhoor-protocol` under `crates/protocol/**`; positive/negative fixtures under `fixtures/protocol/valid/**` and `fixtures/protocol/invalid/**`; and a `protocol_contract` integration target enumerating every committed fixture with canonical Draft 2020-12 schema expectation, Rust expectation, and accept/reject agreement. Controller source audit corrections and worker-side offline validation are complete. Integration, canonical locked/full validation, and independent review remain pending. No transport, server, model integration, execution grant, policy engine, registry, trace implementation, backend API, database, or async framework.
+Versioned v1 request/response/evidence/confidence/disposition/result-kind/deadline/error contracts under `schemas/protocol/**`; deterministic Rust semantic validation in `zhoor-protocol` under `crates/protocol/**`; positive/negative fixtures under `fixtures/protocol/valid/**` and `fixtures/protocol/invalid/**`; and a `protocol_contract` integration target enumerating every committed fixture with canonical Draft 2020-12 schema expectation, Rust expectation, and accept/reject agreement. Controller source audit corrections and implementation integration are complete. Canonical package validation, the standalone protocol contract target, and full workspace validation passed offline with the root lockfile locked and stable. Independent exact-SHA review remains pending. No transport, server, model integration, execution grant, policy engine, registry, trace implementation, backend API, database, or async framework.
 
 ## Schema test dependency resolution
 
@@ -48,7 +48,7 @@ The contract integration test now compiles both canonical schemas with the Draft
 
 - Production: `serde` (derive) and `serde_json`; already cached and locked from BASE-01 (lockfile pins `serde 1.0.229`, `serde_json 1.0.151`). Required for JSON parsing and deterministic serialization.
 - Test-only: exact-pinned `jsonschema 0.33.0`, with default features disabled, for canonical Draft 2020-12 schema validation. Its source and full dependency tree compiled in an offline scratch probe; no network was used.
-- The worker worktree's root lock diff added the `zhoor-protocol` member and 88 dependency packages (829-line diff). The worker did not hand-edit, stage, or commit Cargo.lock. The canonical integration worktree's Cargo.lock remains unchanged; controller owns authoritative lock reconciliation.
+- The worker worktree's root lock diff added the `zhoor-protocol` member and 88 dependency packages (829-line diff). The worker did not hand-edit, stage, or commit the lockfile. The controller generated the canonical root lock offline under Rust 1.98.1 and committed it separately as `b6b4419e2f56c0efb77a0974c71f1c0b1ead384d` (`chore(protocol): reconcile workspace lockfile`). The delta is the package and the pinned test-only `jsonschema 0.33.0` dependency graph; no `reqwest` or production schema runtime is present.
 - No other direct dependency. No async runtime, framework, database, model SDK, HTTP/file schema reference resolver, or production JSON Schema runtime.
 
 ## Validations
@@ -65,7 +65,13 @@ The contract integration test now compiles both canonical schemas with the Draft
 
 Controller corrections after the worker returned: added the test-only schema dependency and strict per-fixture schema/Rust parity; moved request-paired semantic checks to focused Rust tests so every committed valid/invalid wire fixture agrees with its schema; fixed Rust nested result-object parsing; repaired valid evidence references and request/response pairing; bounded over-maximum budgets as typed `OverBudget`; and changed the input estimate to cover the serialized request envelope. Formatting was applied only to `crates/protocol` Rust files.
 
-**Root `Cargo.lock`:** offline Cargo resolution in the worker worktree added the `zhoor-protocol` member and 88 cached dependency packages. The worker did not hand-edit, stage, or commit the lockfile. The canonical integration worktree's lock is unchanged; controller owns authoritative reconciliation and commit.
+**Controller integration and canonical validation:** the implementation commit `6420ec8544382fd4a89ce2954df0bd5670a546d2` is a fast-forward child of assignment SHA `eff8db3bb811e2943da17b95394aaa4e8c7df6ea`. Controller lock reconciliation is commit `b6b4419e2f56c0efb77a0974c71f1c0b1ead384d`. The final locked validation sequence passed:
+
+1. `./scripts/validate.sh --package zhoor-protocol` — PASS (format, Clippy, check, unit/contract tests, debug and release package builds).
+2. `cargo test --offline --locked -p zhoor-protocol --test protocol_contract` — PASS (9 tests).
+3. `./scripts/validate.sh` — PASS (full workspace format, Clippy, checks, tests, docs, and debug/release builds).
+
+The root `Cargo.lock` SHA-256 was `517b2bdab93379075eceb07fb1170360e2d7af7cb2c0ce2469fedc9179af2c40` before and after the locked sequence.
 
 ## Scope check
 
@@ -86,11 +92,11 @@ Before source assignment, the OpenCode worker lane auto-started its configured e
 
 ## Residual risks
 
-- Worker-side schema/Rust parity and offline validation passed. Canonical locked package/contract/full validation, controller lock reconciliation, lock stability, and exact-SHA independent review remain pending.
+- Worker-side schema/Rust parity and offline validation passed; canonical locked package/contract/full validation, controller lock reconciliation, and lock stability passed. Independent exact-SHA review remains pending.
 - No Unicode boundary fixture exercises strings near schema length limits; the Rust validator counts Unicode scalar values and this should be checked during exact-SHA review if it is material.
 - Cross-envelope consistency is intentionally a Rust semantic check because it depends on the paired request. Focused tests exercise foreign evidence, candidate membership, verdict evidence, and deadline accounting.
 - Fixture request/response identifiers are synthetic and deterministic; real provenance values belong to later runtime cards.
 
 ## Recommended next action
 
-Exactly one next action: controller independently inspect this complete worker tree and its residual lock diff, then stage only approved PRO-01 paths (excluding root Cargo.lock) and integrate the implementation using the prescribed safe Git sequence.
+Exactly one next action: finish the controller pre-review audit, transition PRO-01 from ASSIGNED to REVIEW with the D-018-safe board hunk, freeze the exact candidate SHA, and start the separate contained Pi/GPT-6 Luna reviewer only against that detached SHA.

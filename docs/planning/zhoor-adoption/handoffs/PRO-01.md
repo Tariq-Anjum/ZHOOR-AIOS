@@ -2,7 +2,7 @@
 
 ## Status
 
-`architecture/security adjudication complete; candidate 209d1fbb38fd7f23b763ad3c3048f46f998bf697 validated offline and exact-SHA reviewed PASS; board closure and publication pending`
+`PRO-01 DONE; candidate 209d1fbb38fd7f23b763ad3c3048f46f998bf697 validated offline and exact-SHA reviewed PASS; closure and normal publication verified; no later card started`
 
 ## Task identity
 
@@ -144,6 +144,7 @@ Following this validation checkpoint, the controller committed the nine exact PR
 - Verdict: `PASS`; findings `NONE`. The reviewer examined the numeric boundary/error behavior, exact test-only schema supplementation, fixtures, protocol semantics, and handoff.
 - Review evidence: `/tmp/zhoor-pro01/ZHOOR-20260929-PRO01-PROTOCOL-01/review-result-209d1fb.md`; containment evidence: `/tmp/zhoor-pro01/ZHOOR-20260929-PRO01-PROTOCOL-01/review-containment-pass-209d1fb-08.md`.
 - Limitation: the reviewer could not inspect `.git/HEAD` or rerun validation because it had read-only file tools. The controller independently verified the exact checkout SHA and supplied the canonical offline/locked validation results recorded above.
+- Publication: closure commit `1bab161cd783e36adb04acb8c594756a2266f47a` was published by normal fast-forward; a post-push fetch verified equality. The final handoff update is included in the subsequent normal fast-forward publication.
 
 ## Assumptions to confirm at review
 
@@ -161,4 +162,4 @@ Following this validation checkpoint, the controller committed the nine exact PR
 
 ## Recommended next action
 
-Exactly one next action: record the exact-SHA PASS, transition PRO-01 from REVIEW to DONE in the board closure commit, reconcile the 28 protected records, verify the remote relationship, and publish only by normal fast-forward if the remote has not diverged. Stop after PRO-01; do not start a later card.
+Task complete. Stop after PRO-01; do not start a later card.

@@ -157,6 +157,7 @@ const INVALID_EXPECTATIONS: &[(&str, ErrorKind)] = &[
     ("response-unknown-backend.json", ErrorKind::UnknownBackend),
     ("response-invalid-score.json", ErrorKind::InvalidResult),
     ("response-invalid-verdict.json", ErrorKind::InvalidResult),
+    ("response-duplicate-choice.json", ErrorKind::InvalidResult),
 ];
 
 /// Pairing between every response fixture (valid and invalid) and the valid
@@ -183,6 +184,10 @@ const RESPONSE_PAIRS: &[(&str, &str)] = &[
     ("response-unknown-backend.json", "request-score.json"),
     ("response-invalid-score.json", "request-score.json"),
     ("response-invalid-verdict.json", "request-verify.json"),
+    (
+        "response-duplicate-choice.json",
+        "request-select-minimal.json",
+    ),
 ];
 
 /// Field-name substrings that must never appear in accepted contracts or
@@ -608,6 +613,21 @@ fn cross_envelope_semantics_fail_closed() {
             .expect_err("queue deadline overrun must fail")
             .kind(),
         ErrorKind::InvalidDeadline
+    );
+
+    let extract_request = Request::from_value(&read_json(
+        &fixture_dir("valid").join("request-extract.json"),
+    ))
+    .expect("extract request fixture");
+    let mut mismatched_result = read_json(&fixture_dir("valid").join("response-score.json"));
+    mismatched_result["request_id"] = Value::String(extract_request.request_id.clone());
+    let response = Response::from_value(&mismatched_result).expect("well-shaped response");
+    assert_eq!(
+        response
+            .validate_against(&extract_request)
+            .expect_err("result kind must match the request operation")
+            .kind(),
+        ErrorKind::InconsistentEnvelope
     );
 }
 

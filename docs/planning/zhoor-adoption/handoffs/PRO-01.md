@@ -2,7 +2,7 @@
 
 ## Status
 
-`implementation integrated; canonical locked package/contract/full validation PASS; independent exact-SHA review pending`
+`review correction applied; canonical locked validation and focused Luna re-review pending`
 
 ## Task identity
 
@@ -17,7 +17,7 @@
 
 ## Success condition (restated)
 
-Versioned v1 request/response/evidence/confidence/disposition/result-kind/deadline/error contracts under `schemas/protocol/**`; deterministic Rust semantic validation in `zhoor-protocol` under `crates/protocol/**`; positive/negative fixtures under `fixtures/protocol/valid/**` and `fixtures/protocol/invalid/**`; and a `protocol_contract` integration target enumerating every committed fixture with canonical Draft 2020-12 schema expectation, Rust expectation, and accept/reject agreement. Controller source audit corrections and implementation integration are complete. Canonical package validation, the standalone protocol contract target, and full workspace validation passed offline with the root lockfile locked and stable. Independent exact-SHA review remains pending. No transport, server, model integration, execution grant, policy engine, registry, trace implementation, backend API, database, or async framework.
+Versioned v1 request/response/evidence/confidence/disposition/result-kind/deadline/error contracts under `schemas/protocol/**`; deterministic Rust semantic validation in `zhoor-protocol` under `crates/protocol/**`; positive/negative fixtures under `fixtures/protocol/valid/**` and `fixtures/protocol/invalid/**`; and a `protocol_contract` integration target enumerating every committed fixture with canonical Draft 2020-12 schema expectation, Rust expectation, and accept/reject agreement. Controller source audit corrections and implementation integration are complete. Canonical package validation, the standalone protocol contract target, and full workspace validation passed offline with the root lockfile locked and stable. The first exact-SHA Luna session returned BLOCKED after finding two schema/Rust semantic gaps; the blocker about attachment was based on interpreting `git show --decorate` incorrectly. Controller verified the checkout was detached and clean, confirmed both semantic findings, and applied bounded corrections. Canonical validation and focused exact-SHA re-review are pending. No transport, server, model integration, execution grant, policy engine, registry, trace implementation, backend API, database, or async framework.
 
 ## Schema test dependency resolution
 
@@ -83,6 +83,14 @@ The root `Cargo.lock` SHA-256 was `517b2bdab93379075eceb07fb1170360e2d7af7cb2c0c
 
 Before source assignment, the OpenCode worker lane auto-started its configured external MCP processes, and lifecycle process inspection exposed a credential-bearing remote URL in process metadata. No PRO-01 source or task packet had been sent to that lane. The lane was stopped, its child processes were verified gone, the affected credential was treated as exposed, and the owner completed rotation/revocation. The lane is quarantined for this milestone; routing moved to this isolated Pi/OpenRouter/GLM lane, and the `AGENT_CONTAINMENT=PASS` gate passed before this packet. No secret, URL, token fragment, header, or credential prefix/suffix is reproduced anywhere in this handoff or in any task artifact.
 
+## First exact-SHA review and correction
+
+The first Luna review session returned `BLOCKED` at candidate `ef89714337ba6f364b97eba1e06263fd430a3b71`; its in-session report is preserved under the assigned run root. It identified two real parity gaps: Rust accepted repeated `choice` values although the response schema requires unique items, and paired-response validation did not require the result kind to match the request operation. The report also incorrectly inferred an attached checkout from `git show --decorate`; controller verification showed `git branch --show-current` empty and `git worktree list --porcelain` marked the exact candidate detached. The reviewer session was stopped safely before corrections.
+
+A separate fresh role-only reviewer launch was stopped before source because its profile referenced a shared multi-provider auth store. No repository source or review packet was sent to that session. The active review profile was corrected to expose only the selected OpenAI/Codex provider entry through an anonymous memory descriptor; no credential was copied into a prompt, packet, repository file, or persistent runtime file. The corrected session passed the containment gate before receiving source.
+
+Controller corrections now reject duplicate choices with a typed result error and enforce the `select`/`choice`, `score`/`score`, `extract`/`extract`, and `verify`/`verdict` mapping for resolved responses. A duplicate-choice invalid fixture and focused paired-envelope test cover the corrections. The corrections passed canonical offline locked validation: `./scripts/validate.sh --package zhoor-protocol` (PASS), `cargo test --offline --locked -p zhoor-protocol --test protocol_contract` (9 tests PASS), and `./scripts/validate.sh` (full workspace PASS). The root `Cargo.lock` SHA-256 was `517b2bdab93379075eceb07fb1170360e2d7af7cb2c0ce2469fedc9179af2c40` both before and after the full locked sequence. Task-owned `git diff --check` passed. A new candidate and same-Luna focused re-review are pending.
+
 ## Assumptions to confirm at review
 
 - The bounded v1 `worker_kind` set (`skill_router`, `risk_judge`) matches the current worker roster; adding a worker is a deliberate protocol version event.
@@ -92,11 +100,11 @@ Before source assignment, the OpenCode worker lane auto-started its configured e
 
 ## Residual risks
 
-- Worker-side schema/Rust parity and offline validation passed; canonical locked package/contract/full validation, controller lock reconciliation, and lock stability passed. Independent exact-SHA review remains pending.
+- Worker-side schema/Rust parity and offline validation passed; canonical locked package/contract/full validation, controller lock reconciliation, and lock stability passed again after the two review corrections. Independent exact-SHA PASS remains pending.
 - No Unicode boundary fixture exercises strings near schema length limits; the Rust validator counts Unicode scalar values and this should be checked during exact-SHA review if it is material.
 - Cross-envelope consistency is intentionally a Rust semantic check because it depends on the paired request. Focused tests exercise foreign evidence, candidate membership, verdict evidence, and deadline accounting.
 - Fixture request/response identifiers are synthetic and deterministic; real provenance values belong to later runtime cards.
 
 ## Recommended next action
 
-Exactly one next action: finish the controller pre-review audit, transition PRO-01 from ASSIGNED to REVIEW with the D-018-safe board hunk, freeze the exact candidate SHA, and start the separate contained Pi/GPT-6 Luna reviewer only against that detached SHA.
+Exactly one next action: commit the validated bounded correction as a new candidate, then have the same contained Pi/GPT-6 Luna reviewer perform a focused re-review against a clean detached checkout of that exact SHA.

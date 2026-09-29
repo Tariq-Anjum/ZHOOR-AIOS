@@ -8,7 +8,7 @@ use serde_json::Value;
 
 use crate::error::ProtocolError;
 use crate::evidence::EvidenceRef;
-use crate::request::{ProtocolVersion, Request};
+use crate::request::{Operation, ProtocolVersion, Request};
 use crate::util::{
     array_field, f64_field, is_uuid, object_fields, object_fields_map, optional_str_field,
     str_field, uint_field,
@@ -305,6 +305,11 @@ impl DecisionResult {
                     if !(1..=256).contains(&len) {
                         return Err(ProtocolError::InvalidResult {
                             reason: "choice length out of range",
+                        });
+                    }
+                    if choices.iter().any(|choice| choice == text) {
+                        return Err(ProtocolError::InvalidResult {
+                            reason: "choice values must be unique",
                         });
                     }
                     choices.push(text.to_owned());
@@ -750,14 +755,28 @@ impl Response {
     }
 
     /// Cross-envelope validation against the answered request: request
-    /// linkage, evidence containment, candidate containment for choice
-    /// results, evidence linkage for extract fields, verdict evidence
-    /// obligations, and latency/deadline accounting. These rules cannot be
-    /// expressed in a standalone JSON Schema document.
+    /// linkage, operation/result-kind compatibility, evidence containment,
+    /// candidate containment for choice results, evidence linkage for
+    /// extract fields, verdict evidence obligations, and latency/deadline
+    /// accounting. These rules cannot be expressed in a standalone JSON
+    /// Schema document.
     pub fn validate_against(&self, request: &Request) -> Result<(), ProtocolError> {
         if self.request_id != request.request_id {
             return Err(ProtocolError::InconsistentEnvelope {
                 reason: "response request_id does not match the request".to_owned(),
+            });
+        }
+        let operation_matches_result = matches!(
+            (request.operation, &self.result),
+            (Operation::Select, Some(DecisionResult::Choice { .. }))
+                | (Operation::Score, Some(DecisionResult::Score { .. }))
+                | (Operation::Extract, Some(DecisionResult::Extract { .. }))
+                | (Operation::Verify, Some(DecisionResult::Verdict { .. }))
+                | (_, None)
+        );
+        if !operation_matches_result {
+            return Err(ProtocolError::InconsistentEnvelope {
+                reason: "response result kind does not match the request operation".to_owned(),
             });
         }
         for reference in &self.evidence_refs {

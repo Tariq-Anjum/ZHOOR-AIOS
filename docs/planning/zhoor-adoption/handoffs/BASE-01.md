@@ -2,7 +2,7 @@
 
 ## Status
 
-`implementation integrated; controller validation passed; exact-SHA review pending`
+`implementation integrated; controller validation passed; first exact-SHA review found one CI path-filter correction; focused re-review pending`
 
 ## Success condition
 
@@ -33,7 +33,7 @@ Create only the toolchain, package, test, and CI skeleton required to run an emp
 - `src/main.rs`: empty deterministic CLI entry point (`fn main() {}`).
 - `tests/smoke.rs`: integration smoke test that runs the built `zhoor` binary via `CARGO_BIN_EXE_zhoor` and asserts exit success with empty stdout and stderr.
 - `scripts/validate.sh` (mode 100755): the stable validation wrapper (see Validation and CI/smoke behavior below).
-- `.github/workflows/zhoor.yml`: CI quality gate; controller added `crates/**` to both path filters so future component manifest changes trigger validation (see CI/smoke behavior below).
+- `.github/workflows/zhoor.yml`: CI quality gate; controller added `crates/**` to both path filters so future component manifest changes trigger validation. The first exact-SHA reviewer also found that future `tools/eval/**` changes would not trigger the workflow; controller added that path to both filters in the focused correction now under re-review.
 - `.gitignore`: added toolchain-required line `/target/` under a `# Rust` section header only.
 - `docs/planning/zhoor-adoption/handoffs/BASE-01.md`: this handoff.
 
@@ -71,7 +71,7 @@ Notes: `cargo test --tests` includes lib/bin unittest targets by Cargo semantics
 
 ## CI/smoke behavior
 
-- `.github/workflows/zhoor.yml`: name `ZHOOR`; triggers `push` and `pull_request` (path-filtered on `**/*.rs`, `crates/**`, `Cargo.toml`, `Cargo.lock`, `rust-toolchain.toml`, `scripts/validate.sh`, `tests/**`, `.github/workflows/zhoor.yml`) plus `workflow_dispatch`; `permissions: contents: read`; `ubuntu-latest`.
+- `.github/workflows/zhoor.yml`: name `ZHOOR`; triggers `push` and `pull_request` (path-filtered on `**/*.rs`, `crates/**`, `Cargo.toml`, `Cargo.lock`, `rust-toolchain.toml`, `scripts/validate.sh`, `tests/**`, `tools/eval/**`, `.github/workflows/zhoor.yml`) plus `workflow_dispatch`; `permissions: contents: read`; `ubuntu-latest`.
 - Steps: checkout (`actions/checkout@v4`); `dtolnay/rust-toolchain@master` with `toolchain: "1.98.1"` and `components: clippy, rustfmt` (CI pinned to 1.98.1); a separate `Prepare dependencies` step running `cargo fetch --locked` (fresh-runner dependency preparation outside `validate.sh`, per steering); then exactly `./scripts/validate.sh` from the repository root as the quality gate.
 - The script itself performs no installs, network access, source modification, secrets handling, or telemetry; it writes build artifacts only beneath ignored `target/`.
 - Smoke behavior: `tests/smoke.rs` builds and runs the `zhoor` binary and asserts exit success with empty stdout/stderr, pinning the empty deterministic CLI contract.
@@ -96,18 +96,18 @@ The worker did not access or modify the canonical worktree (`/mnt/MD/AI-tools/ZH
 - Argument rejection: `--bogus`, missing `--package` value, empty value, dash-prefixed value, extra argument, and `--package=zhoor` each returned usage and exit 2. `--package nonexistent-pkg` propagated Cargo exit 101 with a clear “did not match any packages” diagnostic. A controller assertion first expected different wording; the observed Cargo failure and propagated code were correct.
 - Smoke executable: direct `target/debug/zhoor` → exit 0 with empty stdout and stderr. Integration smoke test passed in targeted and full suites.
 - Artifact/scope checks: `scripts/validate.sh` mode 755; `/target/` ignores Cargo output; task-range `git diff --check` passed; no untracked validation source artifacts were introduced. All 28 protected dirty/untracked status/path/hash records still match STATE.md after implementation and validation.
-- Frozen candidate SHA: pending the controller's `ASSIGNED` → `REVIEW` control commit. Independent exact-SHA review: pending.
+- First frozen candidate SHA: `7d253e3feb6d326ac454aac38361f343c6b254cb`. Independent Luna review returned `CHANGES_REQUIRED` for missing `tools/eval/**` entries in both workflow path filters. The controller confirmed the finding, added the paths, and is preparing a focused exact-SHA re-review. The corrected candidate SHA will be recorded after its commit.
 
 ## Stale prose/layout drift (not edited; out of scope)
 
 - `docs/development/ZHOOR_TOOLCHAIN.md` line 3 status banner still reads "proposed with ADR-0003; pending explicit owner acceptance", but ADR-0003 is Accepted (owner, 2026-09-29) and BASE-01 is now in REVIEW. Stale prose; the file's command contract was followed as normative.
-- `WORK_BOARD.md` "Current owner action" paragraph is stale per controller instruction; it does not reopen ARC-03, and the board was not edited.
+- `WORK_BOARD.md` "Current owner action" paragraph remains stale per controller instruction; it does not reopen ARC-03. The orchestrator made only the authorized BASE-01 `ASSIGNED` → `REVIEW` row transition; the stale owner-action paragraph will be reconciled during closure.
 - `TARGET_SCAFFOLD.md` still shows the illustrative `src/<component>/` layout; ADR-0003 decision 7 explicitly supersedes it. The implemented layout follows ADR-0003: root package plus workspace members under `crates/*`.
 
 ## Orchestration/process deviation
 
 - OpenCode worker deviation: it ran `rm -rf /tmp/opencode/zt-sandbox /tmp/opencode/out.txt`, outside its assigned worktree and write scope. The controller stopped the worker with `herdr agent send-keys base01-worker ctrl+c`, did not recreate, restore, or further manipulate either path, and preserved the already-created commit. One bounded Herdr pane-history read returned no extractable pane text, so exact creation provenance is not established. The worker handoff says its Python conditional was exercised using an isolated sandbox copy under `/tmp/opencode`, but does not identify these exact paths. Prior contents and ownership remain unknown. The owner authorized continuation from the clean commit; that decision does not waive or excuse the scope violation.
-- Herdr `agent --help` and `agent stop --help` confirmed there is no dedicated `agent stop` command. The worker is no longer listed; its worktree remains clean at the committed SHA. The independent reviewer session remains idle and has received no source context.
+- Herdr `agent --help` and `agent stop --help` confirmed there is no dedicated `agent stop` command. The worker is no longer listed; its worktree remains clean at the committed SHA. The independent reviewer completed the first exact-SHA review and returned `CHANGES_REQUIRED`; the reviewer checkout remains clean and read-only. A focused re-review is pending after the path-filter correction.
 
 - An earlier rustc version probe (before this worker session) triggered rustup downloads before approval. The owner acknowledged this process deviation and approved continuing with the now-installed toolchain. This was a process deviation, not a repository defect; the installed toolchain (`rustc/cargo 1.98.1`, `rustfmt 1.9.0`, `clippy 0.1.98`) was verified locally before implementation and used throughout.
 - Two mid-session owner steerings were applied and are recorded under Assumptions (`.cargo/config.toml` left absent; package-mode simplification to a single full package test).
@@ -128,4 +128,4 @@ The worker did not access or modify the canonical worktree (`/mnt/MD/AI-tools/ZH
 
 ## Recommended next action
 
-- Exactly one next action: transition BASE-01 from `ASSIGNED` to `REVIEW`, freeze the resulting exact candidate SHA, and send it to the independent Pi/GPT-6 Luna xhigh reviewer.
+- Exactly one next action: commit the confirmed `tools/eval/**` CI trigger correction and captured first-review report, then send the new exact candidate SHA to the same independent Pi/GPT-6 Luna xhigh reviewer for focused re-review.

@@ -10,6 +10,7 @@ on:
       - "rust-toolchain.toml"
       - "scripts/validate.sh"
       - "tests/**"
+      - "tools/eval/**"
       - ".github/workflows/zhoor.yml"
   pull_request:
     paths:
@@ -20,6 +21,7 @@ on:
       - "rust-toolchain.toml"
       - "scripts/validate.sh"
       - "tests/**"
+      - "tools/eval/**"
       - ".github/workflows/zhoor.yml"
   workflow_dispatch:
 

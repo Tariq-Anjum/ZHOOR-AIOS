@@ -2,7 +2,7 @@
 
 ## Status
 
-`review correction applied; canonical locked validation and focused Luna re-review pending`
+`second review correction applied; canonical locked validation PASS; focused Luna re-review pending`
 
 ## Task identity
 
@@ -89,7 +89,11 @@ The first Luna review session returned `BLOCKED` at candidate `ef89714337ba6f364
 
 A separate fresh role-only reviewer launch was stopped before source because its profile referenced a shared multi-provider auth store. No repository source or review packet was sent to that session. The active review profile was corrected to expose only the selected OpenAI/Codex provider entry through an anonymous memory descriptor; no credential was copied into a prompt, packet, repository file, or persistent runtime file. The corrected session passed the containment gate before receiving source.
 
-Controller corrections now reject duplicate choices with a typed result error and enforce the `select`/`choice`, `score`/`score`, `extract`/`extract`, and `verify`/`verdict` mapping for resolved responses. A duplicate-choice invalid fixture and focused paired-envelope test cover the corrections. The corrections passed canonical offline locked validation: `./scripts/validate.sh --package zhoor-protocol` (PASS), `cargo test --offline --locked -p zhoor-protocol --test protocol_contract` (9 tests PASS), and `./scripts/validate.sh` (full workspace PASS). The root `Cargo.lock` SHA-256 was `517b2bdab93379075eceb07fb1170360e2d7af7cb2c0ce2469fedc9179af2c40` both before and after the full locked sequence. Task-owned `git diff --check` passed. A new candidate and same-Luna focused re-review are pending.
+Controller corrections reject duplicate choices with a typed result error and enforce the `select`/`choice`, `score`/`score`, `extract`/`extract`, and `verify`/`verdict` mapping for resolved responses. A duplicate-choice invalid fixture and focused paired-envelope test cover those changes. Candidate `88459e89d409ebb3c5689e0b37db97e08aca3c8e` received `CHANGES_REQUIRED` from a contained Luna review. Its report and validation results are preserved under the run root. The two verified findings were Rust numeric parsing of schema-valid integer-valued decimals and an overstrict `max_choices <= candidates.len()` Rust condition. Controller correction now accepts finite nonnegative integral decimal representations within `u64`, removes the overstrict candidate-count condition because `max_choices` is an upper bound and returned choices must still belong to the supplied candidates, and adds valid fixtures for both cases.
+
+The reviewer also noted that schema `uniqueItems` compares whole evidence objects, while Rust rejects repeated content-addressed `ref` identities even when trust/provenance metadata differs. This check is retained as an intentional Rust semantic safeguard against conflicting trust/provenance for the same content hash. Draft 2020-12 has no standard unique-by-property array constraint; the request schema now states this boundary, and a contract test demonstrates schema shape acceptance alongside typed Rust semantic rejection. The required committed valid/invalid fixture inventory still has schema/Rust accept/reject parity.
+
+The updated source passed canonical locked validation: `./scripts/validate.sh --package zhoor-protocol` (15 unit tests and 10 contract tests PASS), `cargo test --offline --locked -p zhoor-protocol --test protocol_contract` (10 tests PASS), and `./scripts/validate.sh` (full workspace PASS). The root `Cargo.lock` SHA-256 was `517b2bdab93379075eceb07fb1170360e2d7af7cb2c0ce2469fedc9179af2c40` before and after the full locked sequence. Task-owned `git diff --check` passed. A new candidate and focused Luna re-review are pending.
 
 ## Assumptions to confirm at review
 
@@ -100,11 +104,11 @@ Controller corrections now reject duplicate choices with a typed result error an
 
 ## Residual risks
 
-- Worker-side schema/Rust parity and offline validation passed; canonical locked package/contract/full validation, controller lock reconciliation, and lock stability passed again after the two review corrections. Independent exact-SHA PASS remains pending.
+- Worker-side schema/Rust parity and offline validation passed; canonical locked package/contract/full validation, controller lock reconciliation, and lock stability passed after both correction rounds. The reviewer-requested property-level evidence identity check remains a documented deterministic Rust semantic rule because Draft 2020-12 cannot express unique-by-property semantics in an array; a focused test pins this behavior. Independent exact-SHA PASS remains pending.
 - No Unicode boundary fixture exercises strings near schema length limits; the Rust validator counts Unicode scalar values and this should be checked during exact-SHA review if it is material.
 - Cross-envelope consistency is intentionally a Rust semantic check because it depends on the paired request. Focused tests exercise foreign evidence, candidate membership, verdict evidence, and deadline accounting.
 - Fixture request/response identifiers are synthetic and deterministic; real provenance values belong to later runtime cards.
 
 ## Recommended next action
 
-Exactly one next action: commit the validated bounded correction as a new candidate, then have the same contained Pi/GPT-6 Luna reviewer perform a focused re-review against a clean detached checkout of that exact SHA.
+Exactly one next action: commit the validated correction round as a new candidate, then have the same contained Pi/GPT-6 Luna reviewer perform a focused re-review against a clean detached checkout of that exact SHA.

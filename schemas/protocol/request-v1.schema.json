@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:zhoor:protocol:request:v1",
   "title": "ZHOOR decision protocol request, version 1",
-  "description": "Canonical Generation/Reasoning Plane to Decision Plane request envelope. A model may propose, classify, extract, or score; only deterministic validation and policy authorize execution. Confidence is not authority and is not evidence trust. Unknown fields and unknown versions fail closed.",
+  "description": "Canonical Generation/Reasoning Plane to Decision Plane request envelope. A model may propose, classify, extract, or score; only deterministic validation and policy authorize execution. Confidence is not authority and is not evidence trust. JSON Schema validates the wire shape; deterministic Rust semantic validation also rejects duplicate evidence identities when metadata differs, a cross-item rule not expressible with Draft 2020-12 uniqueItems. Unknown fields and unknown versions fail closed.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -28,6 +28,7 @@
       "type": "array",
       "maxItems": 64,
       "uniqueItems": true,
+      "description": "Exact duplicate objects are rejected here. Rust also rejects repeated ref identities even when their metadata differs, to fail closed on conflicting trust or provenance.",
       "items": { "$ref": "#/$defs/evidenceReference" }
     },
     "candidates": {
@@ -80,7 +81,7 @@
       "additionalProperties": false,
       "required": ["max_choices", "input_token_budget"],
       "properties": {
-        "max_choices": { "type": "integer", "minimum": 0, "maximum": 64 },
+        "max_choices": { "type": "integer", "minimum": 0, "maximum": 64, "description": "Upper bound for returned choices; it may exceed the number of currently supplied candidates because every returned choice must independently belong to that candidate list." },
         "input_token_budget": { "type": "integer", "minimum": 1, "maximum": 100000 }
       }
     },

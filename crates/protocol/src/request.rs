@@ -355,11 +355,6 @@ impl Request {
                         reason: "select requires max_choices of at least one".to_owned(),
                     });
                 }
-                if self.constraints.max_choices as usize > self.candidates.len() {
-                    return Err(ProtocolError::InconsistentEnvelope {
-                        reason: "max_choices exceeds the supplied candidates".to_owned(),
-                    });
-                }
             }
             Operation::Extract | Operation::Verify => {
                 if self.evidence.is_empty() {
@@ -451,17 +446,15 @@ mod tests {
     }
 
     #[test]
-    fn select_choice_limit_cannot_exceed_candidate_count() {
+    fn select_choice_limit_may_exceed_available_candidate_count() {
         let mut value: serde_json::Value =
             serde_json::from_str(&boundary_request_json(1_000)).expect("json");
         value["operation"] = json!("select");
         value["candidates"] = json!(["cand-alpha"]);
         value["constraints"]["max_choices"] = json!(2);
-        let error = Request::from_value(&value).expect_err("choice limit must fit candidate count");
-        assert!(matches!(
-            error,
-            crate::error::ProtocolError::InconsistentEnvelope { .. }
-        ));
+        let request = Request::from_value(&value).expect("choice limit is an upper bound");
+        assert_eq!(request.constraints.max_choices, 2);
+        assert_eq!(request.candidates.len(), 1);
     }
 
     #[test]

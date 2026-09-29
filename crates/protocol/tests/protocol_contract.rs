@@ -485,6 +485,31 @@ fn every_fixture_matches_schema_and_rust_expectations() {
 }
 
 #[test]
+fn rust_rejects_conflicting_evidence_identity_metadata() {
+    let schema = compiled_schema("request-v1.schema.json");
+    let mut document = read_json(&fixture_dir("valid").join("request-select-minimal.json"));
+    let original = document["evidence"][0].clone();
+    let mut conflicting = original;
+    conflicting["trust_tier"] = Value::String("verified".to_owned());
+    conflicting["source"] = Value::String("alternate source".to_owned());
+    document["evidence"]
+        .as_array_mut()
+        .expect("evidence array")
+        .push(conflicting);
+
+    // Draft 2020-12 uniqueItems compares complete array items; the Rust
+    // semantic validator additionally enforces unique content-addressed
+    // identities so one digest cannot carry conflicting trust/provenance.
+    assert!(schema.is_valid(&document));
+    assert_eq!(
+        Request::from_value(&document)
+            .expect_err("one evidence identity cannot carry conflicting metadata")
+            .kind(),
+        ErrorKind::InvalidEvidenceReference
+    );
+}
+
+#[test]
 fn invalid_expectations_match_fixture_inventory() {
     let inventory: BTreeSet<String> = json_files(&fixture_dir("invalid"))
         .iter()

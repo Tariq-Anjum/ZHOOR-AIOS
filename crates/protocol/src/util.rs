@@ -79,9 +79,11 @@ pub(crate) fn str_field(
     Ok(text.to_owned())
 }
 
-/// Extracts a required non-negative integer field. Negative, fractional, or
-/// out-of-u64-range numbers fail closed as malformed JSON; range policy is
-/// applied afterwards by the semantic validators with specific typed errors.
+/// Extracts a required non-negative integer field. JSON Schema integers are
+/// mathematical integers, so integral decimal representations such as `1.0`
+/// are accepted as well as integer tokens. Negative, fractional, non-finite,
+/// and out-of-u64-range numbers fail closed; range policy is applied
+/// afterwards by the semantic validators with specific typed errors.
 pub(crate) fn uint_field(
     object: &Map<String, Value>,
     field: &'static str,
@@ -89,7 +91,19 @@ pub(crate) fn uint_field(
     let value = object
         .get(field)
         .ok_or(ProtocolError::MissingField { field })?;
-    value.as_u64().ok_or(ProtocolError::MalformedJson {
+    if let Some(integer) = value.as_u64() {
+        return Ok(integer);
+    }
+    let integer = value
+        .as_f64()
+        .filter(|number| {
+            number.is_finite()
+                && *number >= 0.0
+                && *number < 18_446_744_073_709_551_616.0
+                && number.fract() == 0.0
+        })
+        .map(|number| number as u64);
+    integer.ok_or(ProtocolError::MalformedJson {
         reason: "expected a non-negative integer",
     })
 }

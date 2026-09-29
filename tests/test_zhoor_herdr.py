@@ -73,7 +73,7 @@ class FakeHerdr:
         return subprocess.CompletedProcess(args, 0, "{}", "")
 
 
-def spawn_args(cwd: Path) -> SimpleNamespace:
+def spawn_args(cwd: Path, scratch: Path) -> SimpleNamespace:
     return SimpleNamespace(
         role="ARCH",
         name="pro01-arch-review",
@@ -81,7 +81,7 @@ def spawn_args(cwd: Path) -> SimpleNamespace:
         workspace="workspace",
         cwd=str(cwd),
         worktree=str(cwd),
-        scratch=str(cwd),
+        scratch=str(scratch),
         starting_sha=SHA,
         label="ARCH · Pi · Luna-XH",
         provider="openai-codex",
@@ -97,6 +97,8 @@ class ZhoorHerdrTopologyTests(unittest.TestCase):
         self.root = Path(self.temp.name)
         self.cwd = self.root / "worktree"
         self.cwd.mkdir()
+        self.scratch = self.root / "scratch"
+        self.scratch.mkdir(mode=0o700)
         self.registry = self.root / "state" / "lane-registry.json"
 
     def tearDown(self):
@@ -104,7 +106,7 @@ class ZhoorHerdrTopologyTests(unittest.TestCase):
 
     def test_spawn_uses_no_focus_tab_and_accepts_sidebar_as_managed_ui(self):
         fake = FakeHerdr(self.cwd)
-        lane = zhoor_herdr.spawn_agent(spawn_args(self.cwd), runner=fake, registry_path=self.registry)
+        lane = zhoor_herdr.spawn_agent(spawn_args(self.cwd, self.scratch), runner=fake, registry_path=self.registry)
         create = next(call for call in fake.calls if call[:3] == ["herdr", "tab", "create"])
         start = next(call for call in fake.calls if call[:3] == ["herdr", "agent", "start"])
         self.assertIn("--no-focus", create)
@@ -117,11 +119,15 @@ class ZhoorHerdrTopologyTests(unittest.TestCase):
         self.assertEqual(lane["managed_ui_pane_ids"], ["extra-pane-1"])
         self.assertFalse(lane["focus_changed_on_create"])
         self.assertTrue(lane["focus_restored"])
+        self.assertIn(f"HOME={self.scratch}/home", create)
+        self.assertIn(f"TMPDIR={self.scratch}/tmp", create)
+        self.assertIn(f"PI_CODING_AGENT_DIR={self.scratch}/pi-config", create)
+        self.assertIn(f"PI_CODING_AGENT_SESSION_DIR={self.scratch}/pi-sessions", create)
         self.assertFalse(any(call[:2] == ["herdr", "pane"] and "split" in call for call in fake.calls))
 
     def test_one_interactive_root_without_sidebar_passes(self):
         fake = FakeHerdr(self.cwd, panes=1)
-        lane = zhoor_herdr.spawn_agent(spawn_args(self.cwd), runner=fake, registry_path=self.registry)
+        lane = zhoor_herdr.spawn_agent(spawn_args(self.cwd, self.scratch), runner=fake, registry_path=self.registry)
         self.assertEqual(lane["interactive_pane_ids"], ["root-pane"])
         self.assertEqual(lane["managed_ui_pane_ids"], [])
 
@@ -130,7 +136,7 @@ class ZhoorHerdrTopologyTests(unittest.TestCase):
         self.registry.write_text(json.dumps({"version": 1, "lanes": [{"logical_role": "ARCH", "agent_name": "older", "status": "WORKING"}]}))
         fake = FakeHerdr(self.cwd)
         with self.assertRaisesRegex(zhoor_herdr.LaneError, "already has a live lane"):
-            zhoor_herdr.spawn_agent(spawn_args(self.cwd), runner=fake, registry_path=self.registry)
+            zhoor_herdr.spawn_agent(spawn_args(self.cwd, self.scratch), runner=fake, registry_path=self.registry)
         self.assertEqual(fake.calls, [])
 
     def test_completed_retry_ignores_prior_topology_failed_lane(self):
@@ -150,14 +156,14 @@ class ZhoorHerdrTopologyTests(unittest.TestCase):
     def test_tab_creation_failure_never_falls_back_to_split(self):
         fake = FakeHerdr(self.cwd, fail_create=True)
         with self.assertRaisesRegex(zhoor_herdr.LaneError, r"\(tab create\): exit 1"):
-            zhoor_herdr.spawn_agent(spawn_args(self.cwd), runner=fake, registry_path=self.registry)
+            zhoor_herdr.spawn_agent(spawn_args(self.cwd, self.scratch), runner=fake, registry_path=self.registry)
         self.assertFalse(any("split" in call for call in fake.calls))
         self.assertFalse(any(call[:3] == ["herdr", "agent", "start"] for call in fake.calls))
 
     def test_two_interactive_panes_fail_closed(self):
         fake = FakeHerdr(self.cwd, panes=2, extra_kind="interactive")
         with self.assertRaisesRegex(zhoor_herdr.LaneError, "exactly one assigned interactive pane"):
-            zhoor_herdr.spawn_agent(spawn_args(self.cwd), runner=fake, registry_path=self.registry)
+            zhoor_herdr.spawn_agent(spawn_args(self.cwd, self.scratch), runner=fake, registry_path=self.registry)
         lane = json.loads(self.registry.read_text())["lanes"][0]
         self.assertEqual(lane["status"], "TOPOLOGY_FAILED")
         self.assertFalse(any(call[:3] == ["herdr", "agent", "start"] for call in fake.calls))
@@ -165,12 +171,12 @@ class ZhoorHerdrTopologyTests(unittest.TestCase):
     def test_unknown_second_pane_fails_closed(self):
         fake = FakeHerdr(self.cwd, panes=2, extra_kind="unknown")
         with self.assertRaisesRegex(zhoor_herdr.LaneError, "not positively identified as Herdr UI"):
-            zhoor_herdr.spawn_agent(spawn_args(self.cwd), runner=fake, registry_path=self.registry)
+            zhoor_herdr.spawn_agent(spawn_args(self.cwd, self.scratch), runner=fake, registry_path=self.registry)
         self.assertEqual(json.loads(self.registry.read_text())["lanes"][0]["status"], "TOPOLOGY_FAILED")
 
     def test_focus_change_is_restored_and_verified(self):
         fake = FakeHerdr(self.cwd, focus_changes=True)
-        lane = zhoor_herdr.spawn_agent(spawn_args(self.cwd), runner=fake, registry_path=self.registry)
+        lane = zhoor_herdr.spawn_agent(spawn_args(self.cwd, self.scratch), runner=fake, registry_path=self.registry)
         self.assertTrue(lane["focus_changed_on_create"])
         self.assertTrue(lane["focus_restored"])
         self.assertEqual(fake.focused_tab, "controller-tab")
@@ -178,7 +184,7 @@ class ZhoorHerdrTopologyTests(unittest.TestCase):
 
     def test_delayed_focus_change_after_inventory_is_restored_before_agent_start(self):
         fake = FakeHerdr(self.cwd, delayed_focus_change=True)
-        lane = zhoor_herdr.spawn_agent(spawn_args(self.cwd), runner=fake, registry_path=self.registry)
+        lane = zhoor_herdr.spawn_agent(spawn_args(self.cwd, self.scratch), runner=fake, registry_path=self.registry)
         start_index = next(i for i, call in enumerate(fake.calls) if call[:3] == ["herdr", "agent", "start"])
         restore_index = max(i for i, call in enumerate(fake.calls[:start_index]) if call[:3] == ["herdr", "tab", "focus"])
         self.assertLess(restore_index, start_index)
@@ -189,7 +195,7 @@ class ZhoorHerdrTopologyTests(unittest.TestCase):
     def test_failed_focus_restoration_blocks_agent_start(self):
         fake = FakeHerdr(self.cwd, focus_changes=True, restore_fails=True)
         with self.assertRaisesRegex(zhoor_herdr.LaneError, "focus could not be restored"):
-            zhoor_herdr.spawn_agent(spawn_args(self.cwd), runner=fake, registry_path=self.registry)
+            zhoor_herdr.spawn_agent(spawn_args(self.cwd, self.scratch), runner=fake, registry_path=self.registry)
         lane = json.loads(self.registry.read_text())["lanes"][0]
         self.assertEqual(lane["status"], "TOPOLOGY_FAILED")
         self.assertFalse(lane["focus_restored"])

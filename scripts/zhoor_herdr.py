@@ -8,6 +8,7 @@ import fcntl
 import json
 import os
 import re
+import stat
 import subprocess
 import sys
 import tempfile
@@ -162,8 +163,12 @@ def spawn_agent(args: argparse.Namespace, *, runner: Runner = subprocess.run, re
         raise LaneError("agent name is not valid for Herdr")
     if not args.cwd or not args.worktree or not args.scratch or not args.starting_sha:
         raise LaneError("CWD, worktree, scratch directory, and starting SHA are required")
-    if not Path(args.scratch).is_dir():
+    scratch = Path(args.scratch).resolve()
+    if not scratch.is_dir():
         raise LaneError("assigned scratch directory does not exist")
+    scratch_stat = scratch.stat()
+    if scratch_stat.st_uid != os.getuid() or stat.S_IMODE(scratch_stat.st_mode) & 0o077:
+        raise LaneError("assigned scratch directory must be owned by the controller user and private")
     if not args.provider or not args.model or not args.reasoning:
         raise LaneError("provider, model, and reasoning must be explicit")
     agent_args = list(args.agent_args)
@@ -185,6 +190,27 @@ def spawn_agent(args: argparse.Namespace, *, runner: Runner = subprocess.run, re
 
         cwd, worktree = Path(args.cwd), Path(args.worktree)
         _validate_checkout(cwd, worktree, args.starting_sha, runner)
+        real_worktree = worktree.resolve()
+        if scratch == real_worktree or scratch in real_worktree.parents or real_worktree in scratch.parents:
+            raise LaneError("assigned scratch directory must be separate from the worktree")
+        runtime_paths = {
+            "HOME": scratch / "home",
+            "TMPDIR": scratch / "tmp",
+            "XDG_CONFIG_HOME": scratch / "xdg" / "config",
+            "XDG_CACHE_HOME": scratch / "xdg" / "cache",
+            "XDG_STATE_HOME": scratch / "xdg" / "state",
+        }
+        if args.kind == "pi":
+            runtime_paths.update({
+                "PI_CODING_AGENT_DIR": scratch / "pi-config",
+                "PI_CODING_AGENT_SESSION_DIR": scratch / "pi-sessions",
+            })
+        for runtime_path in runtime_paths.values():
+            runtime_path.mkdir(mode=0o700, parents=True, exist_ok=True)
+            os.chmod(runtime_path, 0o700)
+        lane_env = [f"{key}={value}" for key, value in runtime_paths.items()]
+        if args.kind == "pi":
+            lane_env += ["PI_OFFLINE=1", "PI_TELEMETRY=0", "PI_SKIP_VERSION_CHECK=1"]
         before = _snapshot(runner)
         before_focus = before.get("focused_tab_id")
         if not before_focus:
@@ -192,6 +218,7 @@ def spawn_agent(args: argparse.Namespace, *, runner: Runner = subprocess.run, re
         output = run([
             "herdr", "tab", "create", "--workspace", args.workspace,
             "--cwd", str(cwd.resolve()), "--label", args.label, "--no-focus",
+            *[arg for item in lane_env for arg in ("--env", item)],
         ], runner=runner)
         created = json_result(output, "tab create")
         tab = created.get("tab", {})
@@ -210,7 +237,8 @@ def spawn_agent(args: argparse.Namespace, *, runner: Runner = subprocess.run, re
             "pane_id": pane_id,
             "cwd": str(cwd.resolve()),
             "worktree": str(worktree.resolve()),
-            "scratch": str(Path(args.scratch).resolve()),
+            "scratch": str(scratch),
+            "runtime_directories": {key: str(value) for key, value in runtime_paths.items()},
             "starting_sha": args.starting_sha,
             "candidate_sha_if_any": None,
             "status": "TAB_CREATED_VERIFYING",

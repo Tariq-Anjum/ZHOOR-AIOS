@@ -8,6 +8,8 @@ import fcntl
 import json
 import os
 import re
+import shlex
+import shutil
 import stat
 import subprocess
 import sys
@@ -22,13 +24,101 @@ REGISTRY = STATE_ROOT / "zhoor-orchestrator" / "lane-registry.json"
 AGENT_NAME = re.compile(r"^[a-z][a-z0-9_-]{0,31}$")
 TERMINAL_LANE_STATES = {
     "COMPLETED", "STOPPED", "CANCELLED", "TOPOLOGY_FAILED",
-    "AGENT_START_FAILED", "ROLE_HANDSHAKE_FAILED",
+    "AGENT_START_FAILED", "ROLE_HANDSHAKE_FAILED", "QUARANTINED",
 }
 Runner = Callable[..., subprocess.CompletedProcess[str]]
 
 
 class LaneError(RuntimeError):
     pass
+
+
+def _prepare_pi_containment(
+    agent_args: list[str], *, provider: str, model: str, reasoning: str,
+    scratch: Path,
+) -> tuple[list[str], dict[str, str]]:
+    """Install a clean-environment Pi launcher and a read-only path guard."""
+    if provider != "openai-codex" or reasoning != "xhigh":
+        raise LaneError("this Pi containment profile only permits the verified OpenAI/Codex xhigh route")
+
+    def option_value(flag: str) -> str | None:
+        indexes = [i for i, value in enumerate(agent_args) if value == flag]
+        if len(indexes) != 1 or indexes[0] + 1 >= len(agent_args):
+            return None
+        return agent_args[indexes[0] + 1]
+
+    model_id = option_value("--model")
+    normalized_model = re.sub(r"\s+", "-", model.lower())
+    if option_value("--provider") != provider or option_value("--thinking") != reasoning:
+        raise LaneError("Pi launch route does not match the registered provider/reasoning")
+    if model_id != normalized_model:
+        raise LaneError("Pi launch model does not match the registered model")
+    tools_value = option_value("--tools")
+    if not tools_value or set(tools_value.split(",")) != {"read", "grep", "find", "ls"}:
+        raise LaneError("Pi containment requires exactly the read-only file tools")
+    required = {"--no-extensions", "--no-skills", "--no-prompt-templates", "--no-themes", "--no-context-files", "--no-approve"}
+    if not required.issubset(agent_args) or "--api-key" in agent_args or "--extension" in agent_args:
+        raise LaneError("Pi launch must disable discovery and use controller-managed credentials and guard")
+    if option_value("--name") is None:
+        raise LaneError("Pi launch must use a fresh named session")
+
+    pi_executable = shutil.which("pi")
+    if not pi_executable:
+        raise LaneError("Pi executable cannot be resolved")
+    pi_executable_path = Path(pi_executable).resolve()
+    if not pi_executable_path.is_file() or not os.access(pi_executable_path, os.X_OK):
+        raise LaneError("resolved Pi executable is not runnable")
+
+    guard_source = Path(__file__).with_name("zhoor_pi_readonly_guard.ts")
+    if not guard_source.is_file():
+        raise LaneError("controller-authored Pi read-only guard is missing")
+    pi_config = scratch / "pi-config"
+    extension_dir = pi_config / "extensions"
+    extension_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
+    os.chmod(extension_dir, 0o700)
+    guard_path = extension_dir / "zhoor-readonly-guard.ts"
+    shutil.copyfile(guard_source, guard_path)
+    os.chmod(guard_path, 0o400)
+
+    bin_dir = scratch / "bin"
+    bin_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
+    os.chmod(bin_dir, 0o700)
+    wrapper = bin_dir / "pi"
+    isolated = {
+        "HOME": scratch / "home",
+        "SHELL": "/bin/sh",
+        "PATH": "/usr/bin:/bin",
+        "TERM": "xterm-256color",
+        "LANG": "C.UTF-8",
+        "PI_CODING_AGENT_DIR": pi_config,
+        "PI_CODING_AGENT_SESSION_DIR": scratch / "pi-sessions",
+        "XDG_CONFIG_HOME": scratch / "xdg" / "config",
+        "XDG_CACHE_HOME": scratch / "xdg" / "cache",
+        "XDG_STATE_HOME": scratch / "xdg" / "state",
+        "TMPDIR": scratch / "tmp",
+        "PI_OFFLINE": "1",
+        "PI_SKIP_VERSION_CHECK": "1",
+        "PI_TELEMETRY": "0",
+    }
+    env_pairs = [f"{key}={value}" for key, value in isolated.items()]
+    continuation = " " + chr(92) + "\n"
+    wrapper_text = "#!/bin/sh\nexec /usr/bin/env -i" + continuation
+    wrapper_text += "".join("  " + shlex.quote(pair) + continuation for pair in env_pairs)
+    wrapper_text += "  " + shlex.quote(str(pi_executable_path)) + ' "$@"\n'
+    wrapper.write_text(wrapper_text)
+    os.chmod(wrapper, 0o700)
+    sandbox_args = ["--extension", str(guard_path)]
+    launch_env = {
+        "PATH": f"{bin_dir}:/usr/bin:/bin",
+        "HOME": str(scratch / "home"),
+        "TMPDIR": str(scratch / "tmp"),
+        "PI_CODING_AGENT_DIR": str(pi_config),
+        "PI_CODING_AGENT_SESSION_DIR": str(scratch / "pi-sessions"),
+        "XDG_CONFIG_HOME": str(scratch / "xdg" / "config"),
+        "XDG_CACHE_HOME": str(scratch / "xdg" / "cache"),
+        "XDG_STATE_HOME": str(scratch / "xdg" / "state"),
+    }
+    return sandbox_args, launch_env
 
 
 def run(argv: list[str], *, cwd: str | None = None, runner: Runner = subprocess.run) -> str:
@@ -171,6 +261,8 @@ def spawn_agent(args: argparse.Namespace, *, runner: Runner = subprocess.run, re
         raise LaneError("assigned scratch directory must be owned by the controller user and private")
     if not args.provider or not args.model or not args.reasoning:
         raise LaneError("provider, model, and reasoning must be explicit")
+    if args.kind != "pi":
+        raise LaneError("no verified containment profile is installed for this agent harness")
     agent_args = list(args.agent_args)
     if agent_args[:1] == ["--"]:
         agent_args = agent_args[1:]
@@ -200,17 +292,20 @@ def spawn_agent(args: argparse.Namespace, *, runner: Runner = subprocess.run, re
             "XDG_CACHE_HOME": scratch / "xdg" / "cache",
             "XDG_STATE_HOME": scratch / "xdg" / "state",
         }
-        if args.kind == "pi":
-            runtime_paths.update({
-                "PI_CODING_AGENT_DIR": scratch / "pi-config",
-                "PI_CODING_AGENT_SESSION_DIR": scratch / "pi-sessions",
-            })
+        runtime_paths.update({
+            "PI_CODING_AGENT_DIR": scratch / "pi-config",
+            "PI_CODING_AGENT_SESSION_DIR": scratch / "pi-sessions",
+        })
         for runtime_path in runtime_paths.values():
             runtime_path.mkdir(mode=0o700, parents=True, exist_ok=True)
             os.chmod(runtime_path, 0o700)
         lane_env = [f"{key}={value}" for key, value in runtime_paths.items()]
-        if args.kind == "pi":
-            lane_env += ["PI_OFFLINE=1", "PI_TELEMETRY=0", "PI_SKIP_VERSION_CHECK=1"]
+        containment_args, launch_env = _prepare_pi_containment(
+            agent_args, provider=args.provider, model=args.model,
+            reasoning=args.reasoning, scratch=scratch,
+        )
+        lane_env.append(f"PATH={launch_env['PATH']}")
+        lane_env += ["PI_OFFLINE=1", "PI_TELEMETRY=0", "PI_SKIP_VERSION_CHECK=1"]
         before = _snapshot(runner)
         before_focus = before.get("focused_tab_id")
         if not before_focus:
@@ -290,7 +385,7 @@ def spawn_agent(args: argparse.Namespace, *, runner: Runner = subprocess.run, re
         lane["status"] = "TAB_READY_AGENT_START_PENDING"
         _write_registry(registry_path, registry)
         try:
-            run(["herdr", "agent", "start", args.name, "--kind", args.kind, "--pane", pane_id, "--", *agent_args], runner=runner)
+            run(["herdr", "agent", "start", args.name, "--kind", args.kind, "--pane", pane_id, "--", *agent_args, *containment_args], runner=runner)
         except LaneError:
             lane["status"] = "AGENT_START_FAILED"
             _write_registry(registry_path, registry)

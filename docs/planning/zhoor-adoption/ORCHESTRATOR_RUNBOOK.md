@@ -178,7 +178,11 @@ pre-containment prompt is a fixed role-only handshake. The controller records
 children, and filesystem/runtime boundaries; the helper refuses all further
 prompts until that gate is recorded. Lane IDs are re-derived from current
 Herdr responses and stored for the current run; do not recover a lane by
-focusing its tab.
+focusing its tab. The current verified subordinate profile is Pi with an
+allowlisted environment, isolated HOME/XDG/Pi/temp directories, read-only
+file tools, and a controller-managed guard that blocks paths outside the
+assigned worktree. The helper fails closed for harnesses without a verified
+containment profile.
 
 Before relying on a topology change, test tab creation, no-focus behavior,
 one-pane verification, role uniqueness, fail-closed behavior, and prompt/read/

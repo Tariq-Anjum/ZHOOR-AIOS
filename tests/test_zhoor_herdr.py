@@ -87,7 +87,7 @@ def spawn_args(cwd: Path, scratch: Path) -> SimpleNamespace:
         provider="openai-codex",
         model="GPT-6 Luna",
         reasoning="xhigh",
-        agent_args=["--", "--model", "provider/model", "--thinking", "xhigh", "--tools", "read,grep,find,ls"],
+        agent_args=["--", "--provider", "openai-codex", "--model", "gpt-6-luna", "--thinking", "xhigh", "--no-extensions", "--no-skills", "--no-prompt-templates", "--no-themes", "--no-context-files", "--no-approve", "--tools", "read,grep,find,ls", "--name", "pro01-arch-review", "--system-prompt", "Role-only handshake; inspect no source."],
     )
 
 
@@ -123,6 +123,19 @@ class ZhoorHerdrTopologyTests(unittest.TestCase):
         self.assertIn(f"TMPDIR={self.scratch}/tmp", create)
         self.assertIn(f"PI_CODING_AGENT_DIR={self.scratch}/pi-config", create)
         self.assertIn(f"PI_CODING_AGENT_SESSION_DIR={self.scratch}/pi-sessions", create)
+        start_args = start[start.index("--") + 1:]
+        guard_index = start_args.index("--extension")
+        guard_path = Path(start_args[guard_index + 1])
+        wrapper = self.scratch / "bin" / "pi"
+        self.assertTrue(guard_path.is_file())
+        self.assertTrue(wrapper.is_file())
+        wrapper_text = wrapper.read_text()
+        self.assertIn("/usr/bin/env -i", wrapper_text)
+        self.assertNotIn("AGENT_BROWSER_ENCRYPTION_KEY", wrapper_text)
+        self.assertIn(f"PATH={self.scratch}/bin:/usr/bin:/bin", create)
+        version = subprocess.run([str(wrapper), "--version"], text=True, capture_output=True, check=False)
+        self.assertEqual(version.returncode, 0)
+        self.assertIn("0.87.1", version.stdout)
         self.assertFalse(any(call[:2] == ["herdr", "pane"] and "split" in call for call in fake.calls))
 
     def test_one_interactive_root_without_sidebar_passes(self):
@@ -138,6 +151,22 @@ class ZhoorHerdrTopologyTests(unittest.TestCase):
         with self.assertRaisesRegex(zhoor_herdr.LaneError, "already has a live lane"):
             zhoor_herdr.spawn_agent(spawn_args(self.cwd, self.scratch), runner=fake, registry_path=self.registry)
         self.assertEqual(fake.calls, [])
+
+    def test_quarantined_role_can_be_retried_in_a_fresh_lane(self):
+        self.registry.parent.mkdir(parents=True)
+        self.registry.write_text(json.dumps({"version": 1, "lanes": [{"logical_role": "ARCH", "agent_name": "pro01-arch-review", "status": "QUARANTINED"}]}))
+        fake = FakeHerdr(self.cwd, panes=1)
+        lane = zhoor_herdr.spawn_agent(spawn_args(self.cwd, self.scratch), runner=fake, registry_path=self.registry)
+        self.assertEqual(lane["status"], "ROLE_HANDSHAKE_PENDING")
+        self.assertTrue(any(call[:3] == ["herdr", "agent", "start"] for call in fake.calls))
+
+    def test_pi_spawn_rejects_shell_tool_before_creating_tab(self):
+        args = spawn_args(self.cwd, self.scratch)
+        args.agent_args[args.agent_args.index("read,grep,find,ls")] = "read,grep,find,ls,bash"
+        fake = FakeHerdr(self.cwd)
+        with self.assertRaisesRegex(zhoor_herdr.LaneError, "exactly the read-only file tools"):
+            zhoor_herdr.spawn_agent(args, runner=fake, registry_path=self.registry)
+        self.assertFalse(any(call[:3] == ["herdr", "tab", "create"] for call in fake.calls))
 
     def test_completed_retry_ignores_prior_topology_failed_lane(self):
         self.registry.parent.mkdir(parents=True)

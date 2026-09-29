@@ -8,7 +8,6 @@ import fcntl
 import json
 import os
 import re
-import shlex
 import shutil
 import stat
 import subprocess
@@ -21,6 +20,7 @@ from typing import Any, Callable
 
 STATE_ROOT = Path(os.environ.get("XDG_STATE_HOME", Path.home() / ".local/state"))
 REGISTRY = STATE_ROOT / "zhoor-orchestrator" / "lane-registry.json"
+PI_AUTH_STORE = Path.home() / ".pi/agent/auth.json"
 AGENT_NAME = re.compile(r"^[a-z][a-z0-9_-]{0,31}$")
 TERMINAL_LANE_STATES = {
     "COMPLETED", "STOPPED", "CANCELLED", "TOPOLOGY_FAILED",
@@ -40,6 +40,22 @@ def _prepare_pi_containment(
     """Install a clean-environment Pi launcher and a read-only path guard."""
     if provider != "openai-codex" or reasoning != "xhigh":
         raise LaneError("this Pi containment profile only permits the verified OpenAI/Codex xhigh route")
+
+    # Confirm that the approved provider-scoped credential exists before a tab
+    # is created. Values stay in controller memory and are never rendered.
+    try:
+        auth = json.loads(PI_AUTH_STORE.read_text())
+        credential = auth.get(provider) if isinstance(auth, dict) else None
+        if (
+            not isinstance(credential, dict)
+            or not isinstance(credential.get("access"), str)
+            or not credential["access"]
+            or not isinstance(credential.get("refresh"), str)
+            or not isinstance(credential.get("expires"), int)
+        ):
+            raise ValueError
+    except (OSError, json.JSONDecodeError, ValueError, TypeError):
+        raise LaneError("approved provider credential is unavailable in the controller auth store") from None
 
     def option_value(flag: str) -> str | None:
         indexes = [i for i, value in enumerate(agent_args) if value == flag]
@@ -100,11 +116,53 @@ def _prepare_pi_containment(
         "PI_SKIP_VERSION_CHECK": "1",
         "PI_TELEMETRY": "0",
     }
-    env_pairs = [f"{key}={value}" for key, value in isolated.items()]
-    continuation = " " + chr(92) + "\n"
-    wrapper_text = "#!/bin/sh\nexec /usr/bin/env -i" + continuation
-    wrapper_text += "".join("  " + shlex.quote(pair) + continuation for pair in env_pairs)
-    wrapper_text += "  " + shlex.quote(str(pi_executable_path)) + ' "$@"\n'
+    auth_link = pi_config / "auth.json"
+    if auth_link.exists() or auth_link.is_symlink():
+        if not auth_link.is_symlink() or os.readlink(auth_link) != "/proc/self/fd/3":
+            raise LaneError("isolated Pi auth path already exists with an unexpected type")
+    else:
+        auth_link.symlink_to("/proc/self/fd/3")
+
+    # Herdr starts the executable found in the lane PATH. This small launcher
+    # reads only the approved provider entry, seals it in an anonymous memfd,
+    # and execs Pi with fd 3 inherited. Pi's isolated auth.json symlink points
+    # at that descriptor; no credential value enters argv, environment, or a
+    # regular temporary file.
+    launcher_config = {
+        "auth_store": str(PI_AUTH_STORE.resolve()),
+        "provider": provider,
+        "pi_executable": str(pi_executable_path),
+        "environment": {key: str(value) for key, value in isolated.items()},
+    }
+    wrapper_text = "#!/usr/bin/python3\n" + """import fcntl
+import json
+import os
+import sys
+from pathlib import Path
+
+CONFIG = __CONFIG__
+try:
+    auth = json.loads(Path(CONFIG["auth_store"]).read_text())
+    credential = auth[CONFIG["provider"]]
+    if not isinstance(credential, dict) or not isinstance(credential.get("access"), str):
+        raise ValueError
+    payload = json.dumps({CONFIG["provider"]: credential}, separators=(",", ":")).encode()
+    fd = os.memfd_create("pi-provider-auth", os.MFD_ALLOW_SEALING)
+    os.write(fd, payload)
+    os.lseek(fd, 0, os.SEEK_SET)
+    if fd != 3:
+        os.dup2(fd, 3, inheritable=True)
+        os.close(fd)
+    else:
+        os.set_inheritable(3, True)
+    seals = fcntl.F_SEAL_SEAL | fcntl.F_SEAL_SHRINK | fcntl.F_SEAL_GROW | fcntl.F_SEAL_WRITE
+    fcntl.fcntl(3, fcntl.F_ADD_SEALS, seals)
+    executable = CONFIG["pi_executable"]
+    os.execve(executable, [executable, *sys.argv[1:]], CONFIG["environment"])
+except Exception:
+    print("ZHOOR isolated provider credential handoff failed", file=sys.stderr)
+    raise SystemExit(125)
+""".replace("__CONFIG__", repr(launcher_config))
     wrapper.write_text(wrapper_text)
     os.chmod(wrapper, 0o700)
     sandbox_args = ["--extension", str(guard_path)]

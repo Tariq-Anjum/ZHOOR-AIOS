@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import tempfile
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
+from unittest.mock import patch
 
 from scripts import zhoor_herdr
 
@@ -100,8 +102,16 @@ class ZhoorHerdrTopologyTests(unittest.TestCase):
         self.scratch = self.root / "scratch"
         self.scratch.mkdir(mode=0o700)
         self.registry = self.root / "state" / "lane-registry.json"
+        self.auth_store = self.root / "controller-auth.json"
+        self.auth_store.write_text(json.dumps({"openai-codex": {
+            "access": "synthetic-test-access", "refresh": "synthetic-test-refresh",
+            "expires": 2_000_000_000, "type": "oauth",
+        }}))
+        self.auth_patch = patch.object(zhoor_herdr, "PI_AUTH_STORE", self.auth_store)
+        self.auth_patch.start()
 
     def tearDown(self):
+        self.auth_patch.stop()
         self.temp.cleanup()
 
     def test_spawn_uses_no_focus_tab_and_accepts_sidebar_as_managed_ui(self):
@@ -130,13 +140,26 @@ class ZhoorHerdrTopologyTests(unittest.TestCase):
         self.assertTrue(guard_path.is_file())
         self.assertTrue(wrapper.is_file())
         wrapper_text = wrapper.read_text()
-        self.assertIn("/usr/bin/env -i", wrapper_text)
+        self.assertIn("os.memfd_create", wrapper_text)
+        self.assertIn("F_SEAL_WRITE", wrapper_text)
+        self.assertIn("os.execve", wrapper_text)
+        self.assertTrue((self.scratch / "pi-config" / "auth.json").is_symlink())
+        self.assertEqual(os.readlink(self.scratch / "pi-config" / "auth.json"), "/proc/self/fd/3")
+        self.assertNotIn("synthetic-test-access", wrapper_text)
+        self.assertNotIn("synthetic-test-refresh", wrapper_text)
         self.assertNotIn("AGENT_BROWSER_ENCRYPTION_KEY", wrapper_text)
         self.assertIn(f"PATH={self.scratch}/bin:/usr/bin:/bin", create)
         version = subprocess.run([str(wrapper), "--version"], text=True, capture_output=True, check=False)
         self.assertEqual(version.returncode, 0)
         self.assertIn("0.87.1", version.stdout)
         self.assertFalse(any(call[:2] == ["herdr", "pane"] and "split" in call for call in fake.calls))
+
+    def test_missing_approved_provider_auth_fails_before_tab_creation(self):
+        self.auth_store.unlink()
+        fake = FakeHerdr(self.cwd)
+        with self.assertRaisesRegex(zhoor_herdr.LaneError, "provider credential is unavailable"):
+            zhoor_herdr.spawn_agent(spawn_args(self.cwd, self.scratch), runner=fake, registry_path=self.registry)
+        self.assertFalse(any(call[:3] == ["herdr", "tab", "create"] for call in fake.calls))
 
     def test_one_interactive_root_without_sidebar_passes(self):
         fake = FakeHerdr(self.cwd, panes=1)

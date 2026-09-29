@@ -38,6 +38,108 @@ fn compiled_schema(name: &str) -> Validator {
     })
 }
 
+/// `jsonschema` 0.33 evaluates `type: integer` through `f64::fract`, which
+/// can round a high-precision fractional token to an integer. Keep its full
+/// Draft 2020-12 validation and supplement only this keyword with exact
+/// decimal integrality checks using serde_json's arbitrary-precision number
+/// representation.
+fn exact_integer_constraints_hold(schema: &Value, instance: &Value, root: &Value) -> bool {
+    if let Some(reference) = schema.get("$ref").and_then(Value::as_str) {
+        let pointer = reference.strip_prefix('#').unwrap_or(reference);
+        let Some(referenced_schema) = root.pointer(pointer) else {
+            return false;
+        };
+        if !exact_integer_constraints_hold(referenced_schema, instance, root) {
+            return false;
+        }
+    }
+
+    if schema.get("type").and_then(Value::as_str) == Some("integer")
+        && !instance
+            .as_number()
+            .is_some_and(is_exact_mathematical_integer)
+    {
+        return false;
+    }
+
+    if let (Some(properties), Some(object)) = (
+        schema.get("properties").and_then(Value::as_object),
+        instance.as_object(),
+    ) {
+        for (name, property_schema) in properties {
+            if let Some(value) = object.get(name)
+                && !exact_integer_constraints_hold(property_schema, value, root)
+            {
+                return false;
+            }
+        }
+    }
+
+    if let (Some(item_schema), Some(items)) = (schema.get("items"), instance.as_array()) {
+        for item in items {
+            if !exact_integer_constraints_hold(item_schema, item, root) {
+                return false;
+            }
+        }
+    }
+
+    for keyword in ["allOf", "then", "else"] {
+        if let Some(subschemas) = schema.get(keyword).and_then(Value::as_array) {
+            for subschema in subschemas {
+                if !exact_integer_constraints_hold(subschema, instance, root) {
+                    return false;
+                }
+            }
+        } else if let Some(subschema) = schema.get(keyword).filter(|value| value.is_object())
+            && !exact_integer_constraints_hold(subschema, instance, root)
+        {
+            return false;
+        }
+    }
+    true
+}
+
+fn is_exact_mathematical_integer(number: &serde_json::Number) -> bool {
+    let token = number.to_string();
+    let (mantissa, exponent_text) = token
+        .split_once(['e', 'E'])
+        .map_or((token.as_str(), None), |(mantissa, exponent)| {
+            (mantissa, Some(exponent))
+        });
+    let unsigned_mantissa = mantissa.strip_prefix('-').unwrap_or(mantissa);
+    let (whole, fraction) = unsigned_mantissa
+        .split_once('.')
+        .map_or((unsigned_mantissa, ""), |(whole, fraction)| {
+            (whole, fraction)
+        });
+    let digits = format!("{whole}{fraction}");
+    if digits.is_empty() || !digits.bytes().all(|byte| byte.is_ascii_digit()) {
+        return false;
+    }
+    if digits.bytes().all(|byte| byte == b'0') {
+        return true;
+    }
+    let Some(exponent) = exponent_text.map_or(Some(0), |text| text.parse::<i64>().ok()) else {
+        return false;
+    };
+    let Some(decimal_position) = i64::try_from(whole.len())
+        .ok()
+        .and_then(|length| length.checked_add(exponent))
+    else {
+        return false;
+    };
+    if decimal_position <= 0 {
+        return false;
+    }
+    let Ok(digit_count) = i64::try_from(digits.len()) else {
+        return false;
+    };
+    decimal_position >= digit_count
+        || usize::try_from(decimal_position)
+            .ok()
+            .is_some_and(|position| digits[position..].bytes().all(|byte| byte == b'0'))
+}
+
 fn read_json(path: &Path) -> Value {
     let text = fs::read_to_string(path)
         .unwrap_or_else(|error| panic!("failed to read {}: {error}", path.display()));
@@ -121,6 +223,10 @@ const INVALID_EXPECTATIONS: &[(&str, ErrorKind)] = &[
         ErrorKind::InvalidEvidenceReference,
     ),
     ("request-invalid-budget.json", ErrorKind::InvalidBudget),
+    (
+        "request-fractional-near-integer-budget.json",
+        ErrorKind::MalformedJson,
+    ),
     ("request-over-budget.json", ErrorKind::OverBudget),
     ("request-invalid-deadline.json", ErrorKind::InvalidDeadline),
     (
@@ -451,6 +557,8 @@ fn invalid_fixtures_fail_closed_with_typed_errors() {
 
 #[test]
 fn every_fixture_matches_schema_and_rust_expectations() {
+    let request_schema_document = read_json(&schema_dir().join("request-v1.schema.json"));
+    let response_schema_document = read_json(&schema_dir().join("response-v1.schema.json"));
     let request_schema = compiled_schema("request-v1.schema.json");
     let response_schema = compiled_schema("response-v1.schema.json");
 
@@ -459,14 +567,15 @@ fn every_fixture_matches_schema_and_rust_expectations() {
         for path in json_files(&fixture_dir(category)) {
             let name = fixture_name(&path);
             let document = read_json(&path);
-            let schema = if name.starts_with("request-") {
-                &request_schema
+            let (schema, schema_document) = if name.starts_with("request-") {
+                (&request_schema, &request_schema_document)
             } else if name.starts_with("response-") {
-                &response_schema
+                (&response_schema, &response_schema_document)
             } else {
                 panic!("fixture {name} is not classified as a request or response");
             };
-            let schema_accepts = schema.is_valid(&document);
+            let schema_accepts = schema.is_valid(&document)
+                && exact_integer_constraints_hold(schema_document, &document, schema_document);
             let rust_accepts = parse_envelope(&name, &document).is_ok();
             assert_eq!(
                 schema_accepts, expected_accept,

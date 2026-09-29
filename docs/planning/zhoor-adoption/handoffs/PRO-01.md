@@ -2,7 +2,7 @@
 
 ## Status
 
-`second review correction applied; canonical locked validation PASS; focused Luna re-review pending`
+`third review correction applied; canonical locked validation PASS; focused Luna re-review pending`
 
 ## Task identity
 
@@ -93,7 +93,11 @@ Controller corrections reject duplicate choices with a typed result error and en
 
 The reviewer also noted that schema `uniqueItems` compares whole evidence objects, while Rust rejects repeated content-addressed `ref` identities even when trust/provenance metadata differs. This check is retained as an intentional Rust semantic safeguard against conflicting trust/provenance for the same content hash. Draft 2020-12 has no standard unique-by-property array constraint; the request schema now states this boundary, and a contract test demonstrates schema shape acceptance alongside typed Rust semantic rejection. The required committed valid/invalid fixture inventory still has schema/Rust accept/reject parity.
 
-The updated source passed canonical locked validation: `./scripts/validate.sh --package zhoor-protocol` (15 unit tests and 10 contract tests PASS), `cargo test --offline --locked -p zhoor-protocol --test protocol_contract` (10 tests PASS), and `./scripts/validate.sh` (full workspace PASS). The root `Cargo.lock` SHA-256 was `517b2bdab93379075eceb07fb1170360e2d7af7cb2c0ce2469fedc9179af2c40` before and after the full locked sequence. Task-owned `git diff --check` passed. A new candidate and focused Luna re-review are pending.
+The second Luna re-review at `d3d8dabb2a17c8d51bc75c7b08491ed9f0215dbd` returned `CHANGES_REQUIRED` for one narrower numeric-parity issue: parsing through `f64` could round `800.000000000000001` to an integer. The reviewer accepted the max-choice clarification and the documented Rust-only duplicate-evidence-identity semantic check. The reviewer’s report and exact-SHA evidence are preserved under the run root; its emitted `RUN_TASK` string omitted `PRO01`, and the capture records the exact assigned task ID alongside that raw report text.
+
+The final numeric correction enables serde_json `arbitrary_precision` for the protocol crate, parses the preserved decimal token exactly for unsigned integer fields, and adds invalid fixture `request-fractional-near-integer-budget.json`. Unit tests cover integral decimal/exponent forms, fractional forms, negative values, and out-of-range values. The cached `jsonschema 0.33.0` crate implements `type: integer` via `f64::fract()`, so its standalone validator accepts this one high-precision fractional token after rounding even with serde_json arbitrary precision. To keep the contract result faithful to Draft 2020-12 without replacing the full schema validator, the fixture suite supplements only exact mathematical integrality for schema nodes typed `integer`; the cached library continues to validate all other schema keywords.
+
+The updated source passed canonical locked validation: `./scripts/validate.sh --package zhoor-protocol` (16 unit tests and 10 contract tests PASS), `cargo test --offline --locked -p zhoor-protocol --test protocol_contract` (10 tests PASS), and `./scripts/validate.sh` (full workspace PASS). The root `Cargo.lock` SHA-256 was `517b2bdab93379075eceb07fb1170360e2d7af7cb2c0ce2469fedc9179af2c40` before and after the full locked sequence. Task-owned `git diff --check` passed. A new candidate and focused Luna re-review are pending.
 
 ## Assumptions to confirm at review
 
@@ -104,11 +108,11 @@ The updated source passed canonical locked validation: `./scripts/validate.sh --
 
 ## Residual risks
 
-- Worker-side schema/Rust parity and offline validation passed; canonical locked package/contract/full validation, controller lock reconciliation, and lock stability passed after both correction rounds. The reviewer-requested property-level evidence identity check remains a documented deterministic Rust semantic rule because Draft 2020-12 cannot express unique-by-property semantics in an array; a focused test pins this behavior. Independent exact-SHA PASS remains pending.
+- Worker-side schema/Rust parity and offline validation passed; canonical locked package/contract/full validation, controller lock reconciliation, and lock stability passed after three correction rounds. The property-level evidence identity check remains a documented deterministic Rust semantic rule because Draft 2020-12 cannot express unique-by-property semantics in an array; a focused test pins this behavior. The cached test validator’s `f64` implementation of `type: integer` is supplemented by a narrow exact-decimal check in the contract suite. Independent exact-SHA PASS remains pending.
 - No Unicode boundary fixture exercises strings near schema length limits; the Rust validator counts Unicode scalar values and this should be checked during exact-SHA review if it is material.
 - Cross-envelope consistency is intentionally a Rust semantic check because it depends on the paired request. Focused tests exercise foreign evidence, candidate membership, verdict evidence, and deadline accounting.
 - Fixture request/response identifiers are synthetic and deterministic; real provenance values belong to later runtime cards.
 
 ## Recommended next action
 
-Exactly one next action: commit the validated correction round as a new candidate, then have the same contained Pi/GPT-6 Luna reviewer perform a focused re-review against a clean detached checkout of that exact SHA.
+Exactly one next action: commit the exact-decimal correction round as a new candidate, then have the same contained Pi/GPT-6 Luna reviewer perform a focused re-review against a clean detached checkout of that exact SHA.

@@ -1,6 +1,6 @@
 //! Shared private parsing helpers used by the envelope validators.
 
-use serde_json::{Map, Value};
+use serde_json::{Map, Number, Value};
 
 use crate::error::ProtocolError;
 
@@ -94,18 +94,69 @@ pub(crate) fn uint_field(
     if let Some(integer) = value.as_u64() {
         return Ok(integer);
     }
-    let integer = value
-        .as_f64()
-        .filter(|number| {
-            number.is_finite()
-                && *number >= 0.0
-                && *number < 18_446_744_073_709_551_616.0
-                && number.fract() == 0.0
-        })
-        .map(|number| number as u64);
+    let integer = value.as_number().and_then(exact_u64_integer);
     integer.ok_or(ProtocolError::MalformedJson {
         reason: "expected a non-negative integer",
     })
+}
+
+/// Converts the exact JSON number representation to `u64` only when it is a
+/// mathematical non-negative integer. `serde_json/arbitrary_precision`
+/// preserves the source decimal so a fractional value cannot round to an
+/// integer before this check.
+fn exact_u64_integer(number: &Number) -> Option<u64> {
+    if let Some(integer) = number.as_u64() {
+        return Some(integer);
+    }
+
+    let token = number.to_string();
+    let (mantissa, exponent_text) = token
+        .split_once(['e', 'E'])
+        .map_or((token.as_str(), None), |(mantissa, exponent)| {
+            (mantissa, Some(exponent))
+        });
+    let negative = mantissa.starts_with('-');
+    let unsigned_mantissa = mantissa.strip_prefix('-').unwrap_or(mantissa);
+    let (whole, fraction) = unsigned_mantissa
+        .split_once('.')
+        .map_or((unsigned_mantissa, ""), |(whole, fraction)| {
+            (whole, fraction)
+        });
+    let digits = format!("{whole}{fraction}");
+    if digits.is_empty() || !digits.bytes().all(|byte| byte.is_ascii_digit()) {
+        return None;
+    }
+    if digits.bytes().all(|byte| byte == b'0') {
+        return Some(0);
+    }
+    if negative {
+        return None;
+    }
+
+    let exponent = exponent_text.map_or(Some(0), |text| text.parse::<i64>().ok())?;
+    let decimal_position = i64::try_from(whole.len()).ok()?.checked_add(exponent)?;
+    if decimal_position <= 0 {
+        return None;
+    }
+
+    let digit_count = i64::try_from(digits.len()).ok()?;
+    if decimal_position < digit_count
+        && digits[usize::try_from(decimal_position).ok()?..]
+            .bytes()
+            .any(|byte| byte != b'0')
+    {
+        return None;
+    }
+
+    let integer_digits = &digits[..usize::try_from(decimal_position.min(digit_count)).ok()?];
+    let significant = integer_digits.trim_start_matches('0');
+    let appended_zeroes = usize::try_from((decimal_position - digit_count).max(0)).ok()?;
+    if significant.len().checked_add(appended_zeroes)? > 20 {
+        return None;
+    }
+    let mut integer = significant.to_owned();
+    integer.push_str(&"0".repeat(appended_zeroes));
+    integer.parse().ok()
 }
 
 /// Extracts a required finite JSON number field.
@@ -168,7 +219,9 @@ pub(crate) fn optional_str_field(
 
 #[cfg(test)]
 mod tests {
-    use super::is_uuid;
+    use serde_json::{Map, Value};
+
+    use super::{exact_u64_integer, is_uuid, uint_field};
 
     #[test]
     fn canonical_lowercase_uuid_is_accepted() {
@@ -181,5 +234,30 @@ mod tests {
         assert!(!is_uuid("11111111-1111-4111-8111-111111111111-1"));
         assert!(!is_uuid("AAAAAAAA-0001-4000-8000-000000000001"));
         assert!(!is_uuid(""));
+    }
+
+    #[test]
+    fn integer_number_conversion_preserves_exact_decimal_semantics() {
+        for (token, expected) in [("1.0", 1), ("8.00e2", 800), ("100e-2", 1)] {
+            let value: Value = serde_json::from_str(token).expect("JSON number");
+            assert_eq!(
+                exact_u64_integer(value.as_number().expect("number")),
+                Some(expected),
+                "{token} should represent an integer"
+            );
+        }
+
+        for token in ["800.000000000000001", "1.5", "1e-1", "-1", "1e30"] {
+            let value: Value = serde_json::from_str(token).expect("JSON number");
+            assert_eq!(
+                exact_u64_integer(value.as_number().expect("number")),
+                None,
+                "{token} should not be accepted as a bounded unsigned integer"
+            );
+        }
+
+        let object: Map<String, Value> =
+            serde_json::from_str(r#"{"budget":800.000000000000001}"#).expect("object");
+        assert!(uint_field(&object, "budget").is_err());
     }
 }

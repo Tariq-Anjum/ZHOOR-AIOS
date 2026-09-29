@@ -1,0 +1,38 @@
+{
+  "protocol_version": "1",
+  "request_id": "66666666-6666-4666-8666-666666666666",
+  "operation": "score",
+  "worker_kind": "risk_judge",
+  "goal": "Score risk using evidence from every trust tier.",
+  "evidence": [
+    {
+      "ref": "evidence://sha256/e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0",
+      "kind": "user_input",
+      "trust_tier": "untrusted",
+      "source": "user prompt"
+    },
+    {
+      "ref": "evidence://sha256/a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1",
+      "kind": "tool_result",
+      "trust_tier": "observed",
+      "source": "tool:probe"
+    },
+    {
+      "ref": "evidence://sha256/b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2",
+      "kind": "registry",
+      "trust_tier": "verified",
+      "source": "registry:state"
+    },
+    {
+      "ref": "evidence://sha256/c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3",
+      "kind": "registry",
+      "trust_tier": "policy",
+      "source": "policy:limits"
+    }
+  ],
+  "candidates": [],
+  "constraints": { "max_choices": 1, "input_token_budget": 900 },
+  "deadline": { "queue_ms": 25, "execution_ms": 100 },
+  "policy_ref": "risk-policy-v1",
+  "provenance": { "client": "zhoor-cli", "session_ref": "session-0005" }
+}

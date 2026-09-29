@@ -1,0 +1,13 @@
+[package]
+name = "zhoor-protocol"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+description = "ZHOOR decision protocol v1 contracts with deterministic validation"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[dev-dependencies]
+jsonschema = { version = "=0.33.0", default-features = false }

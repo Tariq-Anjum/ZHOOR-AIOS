@@ -1,0 +1,96 @@
+# PRO-01 implementation handoff
+
+## Status
+
+`controller audit corrections complete; worker-side offline validation PASS; integration/review pending`
+
+## Task identity
+
+- RUN_ID: `ZHOOR-20260929-PRO01-PROTOCOL-01`
+- TASK_ID: `ZHOOR-20260929-PRO01-PROTOCOL-01-IMPLEMENTER-PI-01`
+- Role: implementation-low-cost
+- Harness: Pi 0.87.1; isolated runtime, no shell tool; all validation and Git operations are controller-owned
+- Provider/model: OpenRouter / Z.AI GLM 5.3 Flash (intended identity `z-ai/glm-5.3-flash`; verified by the controller, not introspected by this session)
+- Branch: `work/pro-01-decision-protocol`
+- Starting SHA: `eff8db3bb811e2943da17b95394aaa4e8c7df6ea` (clean status)
+- Worktree: `/tmp/zhoor-pro01/ZHOOR-20260929-PRO01-PROTOCOL-01/worker`
+
+## Success condition (restated)
+
+Versioned v1 request/response/evidence/confidence/disposition/result-kind/deadline/error contracts under `schemas/protocol/**`; deterministic Rust semantic validation in `zhoor-protocol` under `crates/protocol/**`; positive/negative fixtures under `fixtures/protocol/valid/**` and `fixtures/protocol/invalid/**`; and a `protocol_contract` integration target enumerating every committed fixture with canonical Draft 2020-12 schema expectation, Rust expectation, and accept/reject agreement. Controller source audit corrections and worker-side offline validation are complete. Integration, canonical locked/full validation, and independent review remain pending. No transport, server, model integration, execution grant, policy engine, registry, trace implementation, backend API, database, or async framework.
+
+## Schema test dependency resolution
+
+The test-only Draft 2020-12 validator is `jsonschema = { version = "=0.33.0", default-features = false }`.
+
+- The controller confirmed the cached crate source and crate archive for 0.33.0.
+- The controller inspected the local source API: `jsonschema::draft202012::new(&schema)` returns a reusable `Validator`, which provides `is_valid`; `jsonschema::draft202012::meta::is_valid` validates schema documents against the Draft 2020-12 meta-schema.
+- An isolated scratch probe compiled and ran with Rust 1.98.1 and `--offline`; the full 99-package dependency tree resolved from the local cache. `default-features = false` excludes HTTP/file reference resolvers; these canonical schemas are self-contained and use no external `$ref`.
+- No network fetch or install was performed. The controller added the dependency as dev-only and exact-pinned it.
+
+The contract integration test now compiles both canonical schemas with the Draft 2020-12 API, validates the schemas against the Draft 2020-12 meta-schema, enumerates every committed fixture in `valid/` and `invalid/`, and asserts that schema and Rust acceptance both match the fixture category. Cross-envelope semantic cases (foreign evidence, candidate membership, request/deadline linkage) are separate in-memory Rust tests; no fixture under `valid/` or `invalid/` is exempted from schema/Rust parity.
+
+## Design decisions and assumptions
+
+- **Envelope semantics.** `resolved` requires a result; `abstained` and `escalated` carry neither result nor error (never a fabricated answer); `denied` requires a typed error. This is enforced identically in the response schema (if/then) and the Rust validator.
+- **Bounded enums, fail closed.** v1 `worker_kind` is limited to `skill_router` and `risk_judge`; new workers require a version change, not silent extension. Unknown operation/worker/result kinds, dispositions, trust tiers, backends, and error codes all produce typed errors.
+- **Wire error codes.** Mirror the typed Rust errors plus the wire-only `denied_by_policy`. There is deliberately no `unsupported_version` wire code: an unsupported version cannot be represented inside a v1 envelope; the validator reports it as a typed error outside the envelope.
+- **Identifiers.** Canonical lowercase `8-4-4-4-12` UUID strings, validated without a `uuid` crate (no dependency needed).
+- **Token budget.** `estimated_input_tokens` serializes the typed request as canonical JSON, removes only the declared `input_token_budget` field, counts the remaining Unicode characters, divides by four, and rounds up. This includes bounded metadata and payload strings instead of only selected user text. Serialization failure returns an unbounded estimate and fails closed. The valid boundary fixture equals the estimate exactly. This is a deterministic v1 heuristic, not a provider tokenizer.
+- **Cross-envelope rules.** Response request linkage, evidence containment, candidate containment, extract-field evidence linkage, verdict evidence obligations (`supported`/`unsupported` require non-empty evidence refs), and latency/deadline accounting (`queue_ms <= request.queue_ms`; total latency <= queue + execution window) are checked by Rust against the paired request. Focused in-memory tests cover foreign evidence, candidate membership, and queue-deadline overrun; committed wire fixtures all maintain schema/Rust acceptance parity.
+- **Score scale.** v1 fixes one scale, `unit_interval`, with score and threshold in `[0, 1]`.
+- **Extract fields.** Scalar values only (string/number/boolean/null), each linked to an evidence reference that must exist in the request; strings bounded to 4096 characters. This keeps transcripts and unbounded payloads out of the protocol.
+- **Schema layout.** Each canonical schema is self-contained (inline `$defs`) so it is standalone-resolvable offline without cross-file registry machinery; the shared definitions are intentionally duplicated between the two files and the contract test pins both files as the complete canonical set.
+- **Rust validation flow.** Value-level fail-closed field checks (unknown/missing) → typed extraction → semantic validation, so every fixture failure class maps to a specific typed error instead of a raw serde message. The typed error set is `#[non_exhaustive]`-free but classified through `ErrorKind` for contract pinning.
+- **No authority anywhere.** No field, type, or code path grants execution, authorization, or capability; confidence and trust tier are separate types with no conversion path.
+
+## Dependencies
+
+- Production: `serde` (derive) and `serde_json`; already cached and locked from BASE-01 (lockfile pins `serde 1.0.229`, `serde_json 1.0.151`). Required for JSON parsing and deterministic serialization.
+- Test-only: exact-pinned `jsonschema 0.33.0`, with default features disabled, for canonical Draft 2020-12 schema validation. Its source and full dependency tree compiled in an offline scratch probe; no network was used.
+- The worker worktree's root lock diff added the `zhoor-protocol` member and 88 dependency packages (829-line diff). The worker did not hand-edit, stage, or commit Cargo.lock. The canonical integration worktree's Cargo.lock remains unchanged; controller owns authoritative lock reconciliation.
+- No other direct dependency. No async runtime, framework, database, model SDK, HTTP/file schema reference resolver, or production JSON Schema runtime.
+
+## Validations
+
+**Worker-session validation:** not run because this contained Pi session had no shell tool. The controller ran the following offline commands from the worker worktree; all passed after controller-owned audit corrections:
+
+1. `cargo fmt --all -- --check` — PASS
+2. `cargo clippy -p zhoor-protocol --all-targets --offline -- -D warnings` — PASS
+3. `cargo check -p zhoor-protocol --all-targets --offline` — PASS
+4. `cargo test -p zhoor-protocol --offline` — PASS (15 unit tests, 9 contract tests)
+5. `cargo test --offline -p zhoor-protocol --test protocol_contract` — PASS (9 tests)
+6. `cargo build -p zhoor-protocol --offline` — PASS
+7. `cargo build -p zhoor-protocol --release --offline` — PASS
+
+Controller corrections after the worker returned: added the test-only schema dependency and strict per-fixture schema/Rust parity; moved request-paired semantic checks to focused Rust tests so every committed valid/invalid wire fixture agrees with its schema; fixed Rust nested result-object parsing; repaired valid evidence references and request/response pairing; bounded over-maximum budgets as typed `OverBudget`; and changed the input estimate to cover the serialized request envelope. Formatting was applied only to `crates/protocol` Rust files.
+
+**Root `Cargo.lock`:** offline Cargo resolution in the worker worktree added the `zhoor-protocol` member and 88 cached dependency packages. The worker did not hand-edit, stage, or commit the lockfile. The canonical integration worktree's lock is unchanged; controller owns authoritative reconciliation and commit.
+
+## Scope check
+
+- Files outside the declared write scope changed: no.
+- Direct production dependencies: `serde`/`serde_json` (already locked and cached). Direct test-only dependency: exact-pinned `jsonschema 0.33.0`, default features disabled; full graph verified offline.
+- No network access, installs, credentials, telemetry, background services, or Git operations performed.
+
+## Incident entry (sanitized)
+
+Before source assignment, the OpenCode worker lane auto-started its configured external MCP processes, and lifecycle process inspection exposed a credential-bearing remote URL in process metadata. No PRO-01 source or task packet had been sent to that lane. The lane was stopped, its child processes were verified gone, the affected credential was treated as exposed, and the owner completed rotation/revocation. The lane is quarantined for this milestone; routing moved to this isolated Pi/OpenRouter/GLM lane, and the `AGENT_CONTAINMENT=PASS` gate passed before this packet. No secret, URL, token fragment, header, or credential prefix/suffix is reproduced anywhere in this handoff or in any task artifact.
+
+## Assumptions to confirm at review
+
+- The bounded v1 `worker_kind` set (`skill_router`, `risk_judge`) matches the current worker roster; adding a worker is a deliberate protocol version event.
+- The serialized-JSON character estimate divided by four is a deterministic v1 budget heuristic, not a provider tokenizer. It includes all request fields except the declared budget field.
+- `session_ref` is a bounded opaque label (not forced to UUID form) because the architecture types it as a plain string.
+- Wire error codes on a denied response are descriptive; policy evaluation itself belongs to the policy card, and this crate performs no policy decisions.
+
+## Residual risks
+
+- Worker-side schema/Rust parity and offline validation passed. Canonical locked package/contract/full validation, controller lock reconciliation, lock stability, and exact-SHA independent review remain pending.
+- No Unicode boundary fixture exercises strings near schema length limits; the Rust validator counts Unicode scalar values and this should be checked during exact-SHA review if it is material.
+- Cross-envelope consistency is intentionally a Rust semantic check because it depends on the paired request. Focused tests exercise foreign evidence, candidate membership, verdict evidence, and deadline accounting.
+- Fixture request/response identifiers are synthetic and deterministic; real provenance values belong to later runtime cards.
+
+## Recommended next action
+
+Exactly one next action: controller independently inspect this complete worker tree and its residual lock diff, then stage only approved PRO-01 paths (excluding root Cargo.lock) and integrate the implementation using the prescribed safe Git sequence.

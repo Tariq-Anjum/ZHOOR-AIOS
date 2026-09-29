@@ -1,0 +1,22 @@
+{
+  "protocol_version": "1",
+  "request_id": "44444444-4444-4444-8444-444444444444",
+  "result": {
+    "kind": "verdict",
+    "value": { "verdict": "maybe" }
+  },
+  "confidence": { "raw": 0.6, "calibrated": 0.55, "calibration_ref": "calibration-verifier-v1" },
+  "disposition": "resolved",
+  "uncertainty": null,
+  "evidence_refs": [
+    {
+      "ref": "evidence://sha256/a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1",
+      "kind": "tool_result",
+      "trust_tier": "verified",
+      "source": "tool:backup-log"
+    }
+  ],
+  "backend": "local",
+  "latency": { "queue_ms": 2, "load_ms": 2, "inference_ms": 10 },
+  "trace_id": "aaaaaaaa-0010-4000-8000-000000000010"
+}

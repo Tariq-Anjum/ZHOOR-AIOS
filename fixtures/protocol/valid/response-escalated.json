@@ -1,0 +1,32 @@
+{
+  "protocol_version": "1",
+  "request_id": "22222222-2222-4222-8222-222222222222",
+  "confidence": {
+    "raw": 0.55,
+    "calibrated": 0.5,
+    "calibration_ref": "calibration-risk-judge-v1"
+  },
+  "disposition": "escalated",
+  "uncertainty": "risk above the autonomous limit; escalated for human review",
+  "evidence_refs": [
+    {
+      "ref": "evidence://sha256/a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1",
+      "kind": "tool_result",
+      "trust_tier": "observed",
+      "source": "tool:disk-usage"
+    },
+    {
+      "ref": "evidence://sha256/b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2",
+      "kind": "registry",
+      "trust_tier": "verified",
+      "source": "registry:skills"
+    }
+  ],
+  "backend": "local",
+  "latency": {
+    "queue_ms": 6,
+    "load_ms": 2,
+    "inference_ms": 15
+  },
+  "trace_id": "aaaaaaaa-0007-4000-8000-000000000007"
+}

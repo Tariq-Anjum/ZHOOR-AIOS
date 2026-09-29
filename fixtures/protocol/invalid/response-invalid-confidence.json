@@ -1,0 +1,22 @@
+{
+  "protocol_version": "1",
+  "request_id": "22222222-2222-4222-8222-222222222222",
+  "result": {
+    "kind": "score",
+    "value": { "scale": "unit_interval", "score": 0.42, "threshold": 0.6 }
+  },
+  "confidence": { "raw": 0.66, "calibrated": 1.5, "calibration_ref": "calibration-risk-judge-v1" },
+  "disposition": "resolved",
+  "uncertainty": "score within the guard band",
+  "evidence_refs": [
+    {
+      "ref": "evidence://sha256/a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1",
+      "kind": "tool_result",
+      "trust_tier": "observed",
+      "source": "tool:disk-usage"
+    }
+  ],
+  "backend": "local",
+  "latency": { "queue_ms": 4, "load_ms": 1, "inference_ms": 22 },
+  "trace_id": "aaaaaaaa-0002-4000-8000-000000000002"
+}

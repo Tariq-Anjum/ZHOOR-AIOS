@@ -1,0 +1,43 @@
+{
+  "protocol_version": "1",
+  "request_id": "33333333-3333-4333-8333-333333333333",
+  "result": {
+    "kind": "extract",
+    "value": {
+      "fields": [
+        {
+          "name": "maintenance_window",
+          "value": "2026-10-02T02:00:00Z",
+          "evidence": {
+            "ref": "evidence://sha256/c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3",
+            "kind": "external_document",
+            "trust_tier": "verified",
+            "source": "vendor-maintenance-page"
+          }
+        }
+      ]
+    }
+  },
+  "confidence": {
+    "raw": 0.75,
+    "calibrated": 0.7,
+    "calibration_ref": "calibration-extractor-v1"
+  },
+  "disposition": "resolved",
+  "uncertainty": null,
+  "evidence_refs": [
+    {
+      "ref": "evidence://sha256/c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3",
+      "kind": "external_document",
+      "trust_tier": "verified",
+      "source": "vendor-maintenance-page"
+    }
+  ],
+  "backend": "remote",
+  "latency": {
+    "queue_ms": 2,
+    "load_ms": 3,
+    "inference_ms": 55
+  },
+  "trace_id": "aaaaaaaa-0003-4000-8000-000000000003"
+}

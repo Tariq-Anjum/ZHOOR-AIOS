@@ -1,0 +1,29 @@
+{
+  "protocol_version": "1",
+  "request_id": "55555555-5555-4555-8555-555555555555",
+  "operation": "score",
+  "worker_kind": "risk_judge",
+  "goal": "Boundary budget probe for protocol v1.",
+  "evidence": [
+    {
+      "ref": "evidence://sha256/e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0",
+      "kind": "user_input",
+      "trust_tier": "untrusted",
+      "source": "user prompt"
+    }
+  ],
+  "candidates": [],
+  "constraints": {
+    "max_choices": 1,
+    "input_token_budget": 134
+  },
+  "deadline": {
+    "queue_ms": 25,
+    "execution_ms": 100
+  },
+  "policy_ref": "risk-policy-v1",
+  "provenance": {
+    "client": "zhoor-cli",
+    "session_ref": "session-0006"
+  }
+}

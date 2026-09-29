@@ -1,0 +1,26 @@
+{
+  "protocol_version": "1",
+  "request_id": "44444444-4444-4444-8444-444444444444",
+  "operation": "verify",
+  "worker_kind": "risk_judge",
+  "goal": "Verify that the reported backup completed successfully.",
+  "evidence": [
+    {
+      "ref": "evidence://sha256/a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1",
+      "kind": "tool_result",
+      "trust_tier": "verified",
+      "source": "tool:backup-log"
+    },
+    {
+      "ref": "evidence://sha256/c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3",
+      "kind": "registry",
+      "trust_tier": "policy",
+      "source": "policy:backup-requirements"
+    }
+  ],
+  "candidates": [],
+  "constraints": { "max_choices": 1, "input_token_budget": 300 },
+  "deadline": { "queue_ms": 25, "execution_ms": 100 },
+  "policy_ref": "verify-policy-v1",
+  "provenance": { "client": "zhoor-cli", "session_ref": "session-0004" }
+}

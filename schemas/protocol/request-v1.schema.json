@@ -1,0 +1,106 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:zhoor:protocol:request:v1",
+  "title": "ZHOOR decision protocol request, version 1",
+  "description": "Canonical Generation/Reasoning Plane to Decision Plane request envelope. A model may propose, classify, extract, or score; only deterministic validation and policy authorize execution. Confidence is not authority and is not evidence trust. Unknown fields and unknown versions fail closed.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "protocol_version",
+    "request_id",
+    "operation",
+    "worker_kind",
+    "goal",
+    "evidence",
+    "candidates",
+    "constraints",
+    "deadline",
+    "policy_ref",
+    "provenance"
+  ],
+  "properties": {
+    "protocol_version": { "const": "1" },
+    "request_id": { "$ref": "#/$defs/uuid" },
+    "operation": { "enum": ["select", "score", "extract", "verify"] },
+    "worker_kind": { "enum": ["skill_router", "risk_judge"] },
+    "goal": { "type": "string", "minLength": 1, "maxLength": 4096 },
+    "evidence": {
+      "type": "array",
+      "maxItems": 64,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/evidenceReference" }
+    },
+    "candidates": {
+      "type": "array",
+      "maxItems": 64,
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1, "maxLength": 256 }
+    },
+    "constraints": { "$ref": "#/$defs/constraints" },
+    "deadline": { "$ref": "#/$defs/deadline" },
+    "policy_ref": { "type": "string", "minLength": 1, "maxLength": 256 },
+    "provenance": { "$ref": "#/$defs/provenance" }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "operation": { "const": "select" } }, "required": ["operation"] },
+      "then": {
+        "properties": {
+          "candidates": { "minItems": 1 },
+          "constraints": { "properties": { "max_choices": { "minimum": 1 } } }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "operation": { "enum": ["extract", "verify"] } }, "required": ["operation"] },
+      "then": { "properties": { "evidence": { "minItems": 1 } } }
+    }
+  ],
+  "$defs": {
+    "uuid": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "evidenceReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ref", "kind", "trust_tier", "source"],
+      "properties": {
+        "ref": {
+          "type": "string",
+          "pattern": "^evidence://sha256/[0-9a-f]{64}$"
+        },
+        "kind": { "enum": ["user_input", "registry", "tool_result", "memory", "external_document"] },
+        "trust_tier": { "enum": ["untrusted", "observed", "verified", "policy"] },
+        "source": { "type": "string", "minLength": 1, "maxLength": 256 }
+      }
+    },
+    "constraints": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["max_choices", "input_token_budget"],
+      "properties": {
+        "max_choices": { "type": "integer", "minimum": 0, "maximum": 64 },
+        "input_token_budget": { "type": "integer", "minimum": 1, "maximum": 100000 }
+      }
+    },
+    "deadline": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["queue_ms", "execution_ms"],
+      "properties": {
+        "queue_ms": { "type": "integer", "minimum": 0, "maximum": 60000 },
+        "execution_ms": { "type": "integer", "minimum": 1, "maximum": 600000 }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["client", "session_ref"],
+      "properties": {
+        "client": { "type": "string", "minLength": 1, "maxLength": 256 },
+        "session_ref": { "type": "string", "minLength": 1, "maxLength": 256 }
+      }
+    }
+  }
+}

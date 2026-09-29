@@ -1,0 +1,15 @@
+{
+  "protocol_version": "1",
+  "request_id": "22222222-2222-4222-8222-222222222222",
+  "error": {
+    "code": "denied_by_policy",
+    "message": "request denied by policy: no eligible evidence tier for this risk class"
+  },
+  "confidence": { "raw": 0.0, "calibrated": 0.0, "calibration_ref": "calibration-risk-judge-v1" },
+  "disposition": "denied",
+  "uncertainty": null,
+  "evidence_refs": [],
+  "backend": "deterministic",
+  "latency": { "queue_ms": 1, "load_ms": 0, "inference_ms": 0 },
+  "trace_id": "aaaaaaaa-0008-4000-8000-000000000008"
+}

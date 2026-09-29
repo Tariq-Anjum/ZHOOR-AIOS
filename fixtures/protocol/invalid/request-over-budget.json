@@ -1,0 +1,29 @@
+{
+  "protocol_version": "1",
+  "request_id": "22222222-2222-4222-8222-222222222222",
+  "operation": "score",
+  "worker_kind": "risk_judge",
+  "goal": "This goal string is deliberately long enough to exceed the declared token budget for this request envelope.",
+  "evidence": [
+    {
+      "ref": "evidence://sha256/e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0",
+      "kind": "user_input",
+      "trust_tier": "untrusted",
+      "source": "user prompt"
+    }
+  ],
+  "candidates": [],
+  "constraints": {
+    "max_choices": 1,
+    "input_token_budget": 100001
+  },
+  "deadline": {
+    "queue_ms": 25,
+    "execution_ms": 100
+  },
+  "policy_ref": "risk-policy-v1",
+  "provenance": {
+    "client": "zhoor-cli",
+    "session_ref": "session-0010"
+  }
+}

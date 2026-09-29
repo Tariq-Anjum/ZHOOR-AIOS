@@ -151,6 +151,40 @@ Track work through `CREATED → SENT → ACKNOWLEDGED → WORKING → RESULT_REC
 → VERIFIED → CLOSED`. If interrupted, inspect the task, Git, and worker state
 for an existing result before resending; a slow task is not a failed task.
 
+## Automated Herdr topology
+
+The controller tab and every automated role tab contain exactly one
+interactive workload pane. Herdr-managed UI panes are permitted only when
+their role is positively identified from live pane metadata. The current
+managed UI classification is Herdr's `Sidebar` label with `herdr-sidebar-*`
+tokens. Unknown additional panes and additional terminals/agents block the
+lane; total pane count alone is not the acceptance check. Automated delegation
+creates a new tab in the explicitly selected live workspace with `--no-focus`
+and verifies its returned root pane, assigned CWD, and interactive pane
+inventory. On Herdr 0.9.1, creation may temporarily select that tab, including
+after the first focus snapshot; recheck after pane inventory, restore the
+previously recorded controller tab with the supported focus command, and
+verify it before starting or messaging the subordinate. A failed restoration
+or topology check blocks the lane. There is no pane-split fallback. Persistent
+shell utilities use their own tab with one interactive shell pane and the same
+managed UI classification.
+
+Use `scripts/zhoor_herdr.py` for automated lane creation and agent messaging.
+It records a controller-owned lane registry under
+`${XDG_STATE_HOME:-$HOME/.local/state}/zhoor-orchestrator/`, rejects duplicate
+live logical roles, and retains completed tabs for inspection. Its only
+pre-containment prompt is a fixed role-only handshake. The controller records
+`AGENT_CONTAINMENT=PASS` with sanitized evidence after checking route, config,
+children, and filesystem/runtime boundaries; the helper refuses all further
+prompts until that gate is recorded. Lane IDs are re-derived from current
+Herdr responses and stored for the current run; do not recover a lane by
+focusing its tab.
+
+Before relying on a topology change, test tab creation, no-focus behavior,
+one-pane verification, role uniqueness, fail-closed behavior, and prompt/read/
+wait/status/stop operations. Do not create demonstration agents with source
+access merely to inspect the layout.
+
 ## Roles and exact-SHA audit
 
 - **Codex** orchestrates, integrates, and writes the primary worktree.

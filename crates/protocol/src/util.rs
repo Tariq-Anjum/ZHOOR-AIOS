@@ -178,6 +178,67 @@ pub(crate) fn f64_field(
     Ok(number)
 }
 
+/// Returns whether a JSON number is mathematically within the closed unit
+/// interval without first rounding its decimal representation to `f64`.
+pub(crate) fn is_unit_interval_number(value: &Value) -> bool {
+    let Some(number) = value.as_number() else {
+        return false;
+    };
+    let token = number.to_string();
+    let (mantissa, exponent_text) = token
+        .split_once(['e', 'E'])
+        .map_or((token.as_str(), None), |(mantissa, exponent)| {
+            (mantissa, Some(exponent))
+        });
+    let negative = mantissa.starts_with('-');
+    let unsigned_mantissa = mantissa.strip_prefix('-').unwrap_or(mantissa);
+    let (whole, fraction) = unsigned_mantissa
+        .split_once('.')
+        .map_or((unsigned_mantissa, ""), |(whole, fraction)| {
+            (whole, fraction)
+        });
+    let digits = format!("{whole}{fraction}");
+    if digits.is_empty() || !digits.bytes().all(|byte| byte.is_ascii_digit()) {
+        return false;
+    }
+    if digits.bytes().all(|byte| byte == b'0') {
+        return true;
+    }
+    if negative {
+        return false;
+    }
+
+    let exponent = match exponent_text {
+        None => 0,
+        Some(text) => match text.parse::<i64>() {
+            Ok(exponent) => exponent,
+            Err(_) => return text.starts_with('-'),
+        },
+    };
+    let Some(decimal_position) = i64::try_from(whole.len())
+        .ok()
+        .and_then(|length| length.checked_add(exponent))
+    else {
+        return exponent < 0;
+    };
+    let leading_zeroes = digits.bytes().take_while(|byte| *byte == b'0').count();
+    let Ok(leading_zeroes) = i64::try_from(leading_zeroes) else {
+        return false;
+    };
+    let Some(significant_decimal_position) = decimal_position.checked_sub(leading_zeroes) else {
+        return exponent < 0;
+    };
+    if significant_decimal_position <= 0 {
+        return true;
+    }
+    if significant_decimal_position > 1 {
+        return false;
+    }
+
+    let significant = digits.trim_start_matches('0');
+    significant.starts_with('1') && significant[1..].bytes().all(|byte| byte == b'0')
+}
+
 /// Extracts a required JSON array field.
 pub(crate) fn array_field<'a>(
     object: &'a Map<String, Value>,
@@ -221,7 +282,7 @@ pub(crate) fn optional_str_field(
 mod tests {
     use serde_json::{Map, Value};
 
-    use super::{exact_u64_integer, is_uuid, uint_field};
+    use super::{exact_u64_integer, is_unit_interval_number, is_uuid, uint_field};
 
     #[test]
     fn canonical_lowercase_uuid_is_accepted() {
@@ -259,5 +320,36 @@ mod tests {
         let object: Map<String, Value> =
             serde_json::from_str(r#"{"budget":800.000000000000001}"#).expect("object");
         assert!(uint_field(&object, "budget").is_err());
+    }
+
+    #[test]
+    fn unit_interval_check_preserves_exact_decimal_bounds() {
+        for token in [
+            "0",
+            "-0.0",
+            "0.999999999999999999999",
+            "1",
+            "1.0000",
+            "10e-1",
+            "100e-2",
+            "1e-999999999999999999999999999999",
+        ] {
+            let value: Value = serde_json::from_str(token).expect("JSON number");
+            assert!(is_unit_interval_number(&value), "{token} is within [0, 1]");
+        }
+
+        for token in [
+            "1.00000000000000001",
+            "1.0000000000000000000000000001",
+            "-0.00000000000000001",
+            "-1e-999999999999999999999999999999",
+            "10",
+        ] {
+            let value: Value = serde_json::from_str(token).expect("JSON number");
+            assert!(
+                !is_unit_interval_number(&value),
+                "{token} is outside [0, 1]"
+            );
+        }
     }
 }

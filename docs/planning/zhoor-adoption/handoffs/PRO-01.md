@@ -2,7 +2,7 @@
 
 ## Status
 
-`third review correction applied; canonical locked validation PASS; focused Luna re-review pending`
+`fourth review correction applied; canonical locked validation PASS; focused Luna re-review pending`
 
 ## Task identity
 
@@ -17,7 +17,7 @@
 
 ## Success condition (restated)
 
-Versioned v1 request/response/evidence/confidence/disposition/result-kind/deadline/error contracts under `schemas/protocol/**`; deterministic Rust semantic validation in `zhoor-protocol` under `crates/protocol/**`; positive/negative fixtures under `fixtures/protocol/valid/**` and `fixtures/protocol/invalid/**`; and a `protocol_contract` integration target enumerating every committed fixture with canonical Draft 2020-12 schema expectation, Rust expectation, and accept/reject agreement. Controller source audit corrections and implementation integration are complete. Canonical package validation, the standalone protocol contract target, and full workspace validation passed offline with the root lockfile locked and stable. The first exact-SHA Luna session returned BLOCKED after finding two schema/Rust semantic gaps; the blocker about attachment was based on interpreting `git show --decorate` incorrectly. Controller verified the checkout was detached and clean, confirmed both semantic findings, and applied bounded corrections. Canonical validation and focused exact-SHA re-review are pending. No transport, server, model integration, execution grant, policy engine, registry, trace implementation, backend API, database, or async framework.
+Versioned v1 request/response/evidence/confidence/disposition/result-kind/deadline/error contracts under `schemas/protocol/**`; deterministic Rust semantic validation in `zhoor-protocol` under `crates/protocol/**`; positive/negative fixtures under `fixtures/protocol/valid/**` and `fixtures/protocol/invalid/**`; and a `protocol_contract` integration target enumerating every committed fixture with canonical Draft 2020-12 schema expectation, Rust expectation, and accept/reject agreement. Controller source audit corrections and implementation integration are complete. The fourth Luna exact-SHA review returned `CHANGES_REQUIRED` for decimal rounding at score/confidence unit-interval boundaries. The correction is applied; package, contract, and full locked offline validation pass with a stable root lockfile, and a new focused exact-SHA review is pending. No transport, server, model integration, execution grant, policy engine, registry, trace implementation, backend API, database, or async framework.
 
 ## Schema test dependency resolution
 
@@ -99,6 +99,12 @@ The final numeric correction enables serde_json `arbitrary_precision` for the pr
 
 The updated source passed canonical locked validation: `./scripts/validate.sh --package zhoor-protocol` (16 unit tests and 10 contract tests PASS), `cargo test --offline --locked -p zhoor-protocol --test protocol_contract` (10 tests PASS), and `./scripts/validate.sh` (full workspace PASS). The root `Cargo.lock` SHA-256 was `517b2bdab93379075eceb07fb1170360e2d7af7cb2c0ce2469fedc9179af2c40` before and after the full locked sequence. Task-owned `git diff --check` passed. A new candidate and focused Luna re-review are pending.
 
+## Fourth exact-SHA review and correction
+
+The fourth fresh Pi/Luna review at `4cd48269b5c7312fdceaaae3131bf325b8d6ca2e` returned `CHANGES_REQUIRED`. It confirmed the exact unsigned-integer correction and test-only integer-schema supplement, but found the same `f64` boundary-rounding class in score and confidence fields: values such as `1.00000000000000001` and tiny negative decimals could round onto the inclusive `[0,1]` endpoints before Rust checked their bounds. The full sanitized report is preserved under the run root; the reviewed SHA matched exactly. The reviewer process was stopped with the verified Pi exit key, and no Pi process remained in the reviewer worktree (three idle Herdr shell panes remain).
+
+Controller correction adds exact decimal-token comparison against `[0,1]` before score/confidence values are converted into the typed `f64` fields. Four invalid response fixtures cover score and confidence just above one and just below zero. The contract suite supplements only the schema's current `type: number`, `minimum: 0`, `maximum: 1` nodes because cached `jsonschema 0.33.0` uses `f64` for those comparisons; full Draft 2020-12 validation remains enabled. Unit tests cover endpoints, integral exponent forms, high-precision fractions, tiny negatives, and extreme exponents. Canonical package validation passed with 17 unit and 10 contract tests; standalone contract validation passed with 10 tests; full workspace validation passed. The root lock SHA remained `517b2bdab93379075eceb07fb1170360e2d7af7cb2c0ce2469fedc9179af2c40`. The controller is preparing a new candidate for focused re-review. No dependency or schema-language change was made.
+
 ## Assumptions to confirm at review
 
 - The bounded v1 `worker_kind` set (`skill_router`, `risk_judge`) matches the current worker roster; adding a worker is a deliberate protocol version event.
@@ -108,11 +114,11 @@ The updated source passed canonical locked validation: `./scripts/validate.sh --
 
 ## Residual risks
 
-- Worker-side schema/Rust parity and offline validation passed; canonical locked package/contract/full validation, controller lock reconciliation, and lock stability passed after three correction rounds. The property-level evidence identity check remains a documented deterministic Rust semantic rule because Draft 2020-12 cannot express unique-by-property semantics in an array; a focused test pins this behavior. The cached test validator’s `f64` implementation of `type: integer` is supplemented by a narrow exact-decimal check in the contract suite. Independent exact-SHA PASS remains pending.
+- Canonical locked package/contract/full validation, controller lock reconciliation, and lock stability passed after four correction rounds. The property-level evidence identity check remains a documented deterministic Rust semantic rule because Draft 2020-12 cannot express unique-by-property semantics in an array; a focused test pins this behavior. The cached test validator's `f64` implementations of integer and unit-interval boundaries are supplemented by narrow exact-decimal checks in the contract suite. Independent exact-SHA PASS remains pending.
 - No Unicode boundary fixture exercises strings near schema length limits; the Rust validator counts Unicode scalar values and this should be checked during exact-SHA review if it is material.
 - Cross-envelope consistency is intentionally a Rust semantic check because it depends on the paired request. Focused tests exercise foreign evidence, candidate membership, verdict evidence, and deadline accounting.
 - Fixture request/response identifiers are synthetic and deterministic; real provenance values belong to later runtime cards.
 
 ## Recommended next action
 
-Exactly one next action: commit the exact-decimal correction round as a new candidate, then have the same contained Pi/GPT-6 Luna reviewer perform a focused re-review against a clean detached checkout of that exact SHA.
+Exactly one next action: commit the score/confidence boundary correction as a new candidate, then have the same contained Pi/GPT-6 Luna reviewer perform a focused re-review against a clean detached checkout of that exact SHA.

@@ -10,8 +10,8 @@ use crate::error::ProtocolError;
 use crate::evidence::EvidenceRef;
 use crate::request::{Operation, ProtocolVersion, Request};
 use crate::util::{
-    array_field, f64_field, is_uuid, object_fields, object_fields_map, optional_str_field,
-    str_field, uint_field,
+    array_field, f64_field, is_unit_interval_number, is_uuid, object_fields, object_fields_map,
+    optional_str_field, str_field, uint_field,
 };
 
 /// Maximum uncertainty text length in characters.
@@ -367,7 +367,7 @@ impl DecisionResult {
         field: &'static str,
     ) -> Result<f64, ProtocolError> {
         let number = f64_field(object, field)?;
-        if !(0.0..=1.0).contains(&number) {
+        if !object.get(field).is_some_and(is_unit_interval_number) {
             return Err(ProtocolError::InvalidResult {
                 reason: "score value outside the unit interval",
             });
@@ -723,14 +723,17 @@ impl Response {
     fn confidence(value: &Value) -> Result<Confidence, ProtocolError> {
         let object = object_fields(value, CONFIDENCE_FIELDS, CONFIDENCE_FIELDS)?;
         let raw = f64_field(object, "raw")?;
-        if !(0.0..=1.0).contains(&raw) {
+        if !object.get("raw").is_some_and(is_unit_interval_number) {
             return Err(ProtocolError::InvalidConfidence {
                 field: "raw",
                 found: format!("{raw}"),
             });
         }
         let calibrated = f64_field(object, "calibrated")?;
-        if !(0.0..=1.0).contains(&calibrated) {
+        if !object
+            .get("calibrated")
+            .is_some_and(is_unit_interval_number)
+        {
             return Err(ProtocolError::InvalidConfidence {
                 field: "calibrated",
                 found: format!("{calibrated}"),

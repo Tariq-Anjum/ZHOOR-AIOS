@@ -10,7 +10,7 @@
   "uncertainty": "score within the guard band",
   "evidence_refs": [
     {
-      "ref": "evidence://sha256/a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1",
+      "ref": "evidence://sha256/a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1",
       "kind": "tool_result",
       "trust_tier": "observed",
       "source": "tool:disk-usage"

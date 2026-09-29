@@ -3,9 +3,12 @@
 //! This suite enumerates every committed valid and invalid protocol fixture
 //! and pins, for each one, the deterministic Rust validation expectation
 //! (accept, or reject with one specific typed [`ErrorKind`]) plus
-//! deterministic Draft 2020-12 schema parity, round-trip, pairing, coverage,
-//! and hygiene guarantees. Cross-envelope semantic checks are tested
-//! separately because they require the paired request.
+//! full Draft 2020-12 validation when the cached validator can represent the
+//! fixture's numbers, explicit exact checks for inventoried numeric bounds,
+//! round-trip, pairing, coverage, and hygiene guarantees. Unsupported
+//! non-finite numeric values use a safe projection for full schema checking;
+//! the original remains checked exactly and by Rust. Cross-envelope semantic
+//! checks are tested separately because they require the paired request.
 
 use std::collections::BTreeSet;
 use std::fs;
@@ -38,75 +41,335 @@ fn compiled_schema(name: &str) -> Validator {
     })
 }
 
-/// `jsonschema` 0.33 evaluates integer-ness and numeric bounds through `f64`,
-/// which can round high-precision decimals onto a boundary. Keep its full
-/// Draft 2020-12 validation and supplement the protocol's exact integer and
-/// unit-interval constraints using serde_json's arbitrary-precision number
-/// representation.
-fn exact_numeric_constraints_hold(schema: &Value, instance: &Value, root: &Value) -> bool {
-    if let Some(reference) = schema.get("$ref").and_then(Value::as_str) {
-        let pointer = reference.strip_prefix('#').unwrap_or(reference);
-        let Some(referenced_schema) = root.pointer(pointer) else {
-            return false;
+#[derive(Clone, Copy)]
+enum NumericRuleKind {
+    Integer { minimum: u64, maximum: u64 },
+    UnitInterval,
+}
+
+#[derive(Clone, Copy)]
+struct NumericRule {
+    schema_pointer: &'static str,
+    instance_pointer: &'static str,
+    kind: NumericRuleKind,
+    safe_projection: &'static str,
+}
+
+/// This inventory intentionally enumerates the protocol's numeric assertions
+/// instead of interpreting arbitrary JSON Schema. New or changed numeric
+/// schema nodes must update this list and its pinned keywords/bounds.
+const NUMERIC_RULES: &[NumericRule] = &[
+    NumericRule {
+        schema_pointer: "/$defs/constraints/properties/max_choices",
+        instance_pointer: "/constraints/max_choices",
+        kind: NumericRuleKind::Integer {
+            minimum: 0,
+            maximum: 64,
+        },
+        safe_projection: "1",
+    },
+    NumericRule {
+        schema_pointer: "/$defs/constraints/properties/input_token_budget",
+        instance_pointer: "/constraints/input_token_budget",
+        kind: NumericRuleKind::Integer {
+            minimum: 1,
+            maximum: 100000,
+        },
+        safe_projection: "1",
+    },
+    NumericRule {
+        schema_pointer: "/$defs/deadline/properties/queue_ms",
+        instance_pointer: "/deadline/queue_ms",
+        kind: NumericRuleKind::Integer {
+            minimum: 0,
+            maximum: 60000,
+        },
+        safe_projection: "0",
+    },
+    NumericRule {
+        schema_pointer: "/$defs/deadline/properties/execution_ms",
+        instance_pointer: "/deadline/execution_ms",
+        kind: NumericRuleKind::Integer {
+            minimum: 1,
+            maximum: 600000,
+        },
+        safe_projection: "1",
+    },
+    NumericRule {
+        schema_pointer: "/$defs/confidence/properties/raw",
+        instance_pointer: "/confidence/raw",
+        kind: NumericRuleKind::UnitInterval,
+        safe_projection: "0.5",
+    },
+    NumericRule {
+        schema_pointer: "/$defs/confidence/properties/calibrated",
+        instance_pointer: "/confidence/calibrated",
+        kind: NumericRuleKind::UnitInterval,
+        safe_projection: "0.5",
+    },
+    NumericRule {
+        schema_pointer: "/$defs/latency/properties/queue_ms",
+        instance_pointer: "/latency/queue_ms",
+        kind: NumericRuleKind::Integer {
+            minimum: 0,
+            maximum: 600000,
+        },
+        safe_projection: "0",
+    },
+    NumericRule {
+        schema_pointer: "/$defs/latency/properties/load_ms",
+        instance_pointer: "/latency/load_ms",
+        kind: NumericRuleKind::Integer {
+            minimum: 0,
+            maximum: 600000,
+        },
+        safe_projection: "0",
+    },
+    NumericRule {
+        schema_pointer: "/$defs/latency/properties/inference_ms",
+        instance_pointer: "/latency/inference_ms",
+        kind: NumericRuleKind::Integer {
+            minimum: 0,
+            maximum: 600000,
+        },
+        safe_projection: "0",
+    },
+    NumericRule {
+        schema_pointer: "/$defs/scoreValue/properties/score",
+        instance_pointer: "/result/value/score",
+        kind: NumericRuleKind::UnitInterval,
+        safe_projection: "0.5",
+    },
+    NumericRule {
+        schema_pointer: "/$defs/scoreValue/properties/threshold",
+        instance_pointer: "/result/value/threshold",
+        kind: NumericRuleKind::UnitInterval,
+        safe_projection: "0.5",
+    },
+];
+
+fn exact_numeric_constraints_hold(schema: &Value, instance: &Value) -> bool {
+    NUMERIC_RULES.iter().all(|rule| {
+        let Some(value) = instance.pointer(rule.instance_pointer) else {
+            return true;
         };
-        if !exact_numeric_constraints_hold(referenced_schema, instance, root) {
-            return false;
-        }
-    }
-
-    if schema.get("type").and_then(Value::as_str) == Some("integer")
-        && !instance
-            .as_number()
-            .is_some_and(is_exact_mathematical_integer)
-    {
-        return false;
-    }
-
-    if schema.get("type").and_then(Value::as_str) == Some("number")
-        && schema.get("minimum").and_then(Value::as_u64) == Some(0)
-        && schema.get("maximum").and_then(Value::as_u64) == Some(1)
-        && !instance
-            .as_number()
-            .is_some_and(is_exact_unit_interval_number)
-    {
-        return false;
-    }
-
-    if let (Some(properties), Some(object)) = (
-        schema.get("properties").and_then(Value::as_object),
-        instance.as_object(),
-    ) {
-        for (name, property_schema) in properties {
-            if let Some(value) = object.get(name)
-                && !exact_numeric_constraints_hold(property_schema, value, root)
-            {
-                return false;
+        let Some(number) = value.as_number() else {
+            return true; // Full schema validation owns the JSON type assertion.
+        };
+        let schema_node = schema.pointer(rule.schema_pointer).unwrap_or_else(|| {
+            panic!(
+                "numeric schema inventory path missing: {}",
+                rule.schema_pointer
+            )
+        });
+        match rule.kind {
+            NumericRuleKind::Integer { minimum, maximum } => {
+                assert_numeric_schema(
+                    schema_node,
+                    "integer",
+                    minimum,
+                    maximum,
+                    rule.schema_pointer,
+                );
+                exact_integer_in_range(number, minimum, maximum)
+            }
+            NumericRuleKind::UnitInterval => {
+                assert_eq!(
+                    schema_node.get("type").and_then(Value::as_str),
+                    Some("number"),
+                    "numeric schema type drift at {}",
+                    rule.schema_pointer
+                );
+                assert_eq!(
+                    schema_node.get("minimum").and_then(Value::as_u64),
+                    Some(0),
+                    "numeric schema minimum drift at {}",
+                    rule.schema_pointer
+                );
+                assert_eq!(
+                    schema_node.get("maximum").and_then(Value::as_u64),
+                    Some(1),
+                    "numeric schema maximum drift at {}",
+                    rule.schema_pointer
+                );
+                is_exact_unit_interval_number(number)
             }
         }
-    }
+    })
+}
 
-    if let (Some(item_schema), Some(items)) = (schema.get("items"), instance.as_array()) {
-        for item in items {
-            if !exact_numeric_constraints_hold(item_schema, item, root) {
-                return false;
-            }
-        }
-    }
+fn assert_numeric_schema(
+    schema: &Value,
+    expected_type: &str,
+    minimum: u64,
+    maximum: u64,
+    pointer: &str,
+) {
+    assert_eq!(
+        schema.get("type").and_then(Value::as_str),
+        Some(expected_type),
+        "numeric schema type drift at {pointer}"
+    );
+    assert_eq!(
+        schema.get("minimum").and_then(Value::as_u64),
+        Some(minimum),
+        "numeric schema minimum drift at {pointer}"
+    );
+    assert_eq!(
+        schema.get("maximum").and_then(Value::as_u64),
+        Some(maximum),
+        "numeric schema maximum drift at {pointer}"
+    );
+}
 
-    for keyword in ["allOf", "then", "else"] {
-        if let Some(subschemas) = schema.get(keyword).and_then(Value::as_array) {
-            for subschema in subschemas {
-                if !exact_numeric_constraints_hold(subschema, instance, root) {
-                    return false;
-                }
-            }
-        } else if let Some(subschema) = schema.get(keyword).filter(|value| value.is_object())
-            && !exact_numeric_constraints_hold(subschema, instance, root)
+fn assert_numeric_schema_inventory(request_schema: &Value, response_schema: &Value) {
+    for rule in NUMERIC_RULES {
+        let schema = if rule.instance_pointer.starts_with("/constraints/")
+            || rule.instance_pointer.starts_with("/deadline/")
         {
-            return false;
+            request_schema
+        } else {
+            response_schema
+        };
+        let node = schema.pointer(rule.schema_pointer).unwrap_or_else(|| {
+            panic!(
+                "numeric schema inventory path missing: {}",
+                rule.schema_pointer
+            )
+        });
+        match rule.kind {
+            NumericRuleKind::Integer { minimum, maximum } => {
+                assert_numeric_schema(node, "integer", minimum, maximum, rule.schema_pointer);
+            }
+            NumericRuleKind::UnitInterval => {
+                assert_eq!(node.get("type").and_then(Value::as_str), Some("number"));
+                assert_eq!(node.get("minimum").and_then(Value::as_u64), Some(0));
+                assert_eq!(node.get("maximum").and_then(Value::as_u64), Some(1));
+            }
         }
     }
-    true
+}
+
+fn exact_integer_in_range(number: &serde_json::Number, minimum: u64, maximum: u64) -> bool {
+    exact_integer_value(number).is_some_and(|value| (minimum..=maximum).contains(&value))
+}
+
+fn exact_integer_value(number: &serde_json::Number) -> Option<u64> {
+    let token = number.to_string();
+    if !is_exact_mathematical_integer(number) {
+        return None;
+    }
+    let (mantissa, exponent_text) = token
+        .split_once(['e', 'E'])
+        .map_or((token.as_str(), None), |(mantissa, exponent)| {
+            (mantissa, Some(exponent))
+        });
+    let unsigned_mantissa = mantissa.strip_prefix('-').unwrap_or(mantissa);
+    let (whole, fraction) = unsigned_mantissa
+        .split_once('.')
+        .unwrap_or((unsigned_mantissa, ""));
+    let digits = format!("{whole}{fraction}");
+    if digits.bytes().all(|byte| byte == b'0') {
+        return Some(0);
+    }
+    if mantissa.starts_with('-') {
+        return None;
+    }
+    let exponent = exponent_text.map_or(Some(0), |text| text.parse::<i64>().ok())?;
+    let position = i64::try_from(whole.len()).ok()?.checked_add(exponent)?;
+    if position <= 0 {
+        return Some(0);
+    }
+    let digit_count = i64::try_from(digits.len()).ok()?;
+    let integer_digits = if position >= digit_count {
+        let total = usize::try_from(position).ok()?;
+        if total > 20 {
+            return None;
+        }
+        format!("{digits}{}", "0".repeat(total - digits.len()))
+    } else {
+        let position = usize::try_from(position).ok()?;
+        if !digits[position..].bytes().all(|byte| byte == b'0') {
+            return None;
+        }
+        digits[..position].to_owned()
+    };
+    let significant = integer_digits.trim_start_matches('0');
+    if significant.is_empty() {
+        Some(0)
+    } else {
+        significant.parse().ok()
+    }
+}
+
+/// For a fixture with an exact numeric violation, replace only the explicitly
+/// inventoried numeric leaf with an in-range sentinel. Full schema validation
+/// must then pass on the clone; exact checks remain against the original.
+fn project_numeric_violations(schema: &Value, instance: &mut Value) {
+    for rule in NUMERIC_RULES {
+        let Some(value) = instance.pointer(rule.instance_pointer) else {
+            continue;
+        };
+        let Some(number) = value.as_number() else {
+            continue;
+        };
+        let valid = match rule.kind {
+            NumericRuleKind::Integer { minimum, maximum } => {
+                exact_integer_in_range(number, minimum, maximum)
+            }
+            NumericRuleKind::UnitInterval => is_exact_unit_interval_number(number),
+        };
+        if valid {
+            continue;
+        }
+        let schema_node = schema.pointer(rule.schema_pointer).unwrap_or_else(|| {
+            panic!(
+                "numeric schema inventory path missing: {}",
+                rule.schema_pointer
+            )
+        });
+        let replacement: Value =
+            serde_json::from_str(rule.safe_projection).expect("static numeric sentinel");
+        assert!(replacement.is_number());
+        let replacement_is_valid = match rule.kind {
+            NumericRuleKind::Integer { minimum, maximum } => replacement
+                .as_number()
+                .is_some_and(|number| exact_integer_in_range(number, minimum, maximum)),
+            NumericRuleKind::UnitInterval => replacement
+                .as_number()
+                .is_some_and(is_exact_unit_interval_number),
+        };
+        assert!(
+            replacement_is_valid,
+            "invalid safe numeric projection at {}",
+            rule.instance_pointer
+        );
+        assert!(
+            instance.pointer_mut(rule.instance_pointer).is_some(),
+            "numeric instance path disappeared"
+        );
+        *instance
+            .pointer_mut(rule.instance_pointer)
+            .expect("numeric instance path checked") = replacement;
+        // Recheck inventory shape even when this is the first encountered violating value.
+        match rule.kind {
+            NumericRuleKind::Integer { minimum, maximum } => assert_numeric_schema(
+                schema_node,
+                "integer",
+                minimum,
+                maximum,
+                rule.schema_pointer,
+            ),
+            NumericRuleKind::UnitInterval => {
+                assert_eq!(
+                    schema_node.get("type").and_then(Value::as_str),
+                    Some("number")
+                );
+                assert_eq!(schema_node.get("minimum").and_then(Value::as_u64), Some(0));
+                assert_eq!(schema_node.get("maximum").and_then(Value::as_u64), Some(1));
+            }
+        }
+    }
 }
 
 fn is_exact_mathematical_integer(number: &serde_json::Number) -> bool {
@@ -321,6 +584,10 @@ const INVALID_EXPECTATIONS: &[(&str, ErrorKind)] = &[
         "response-confidence-negative-near-zero.json",
         ErrorKind::InvalidConfidence,
     ),
+    (
+        "response-confidence-exponent-overflow.json",
+        ErrorKind::InvalidConfidence,
+    ),
     ("response-unknown-field.json", ErrorKind::UnknownField),
     ("response-missing-request-id.json", ErrorKind::MissingField),
     ("response-malformed-trace-id.json", ErrorKind::InvalidId),
@@ -340,6 +607,10 @@ const INVALID_EXPECTATIONS: &[(&str, ErrorKind)] = &[
     ),
     (
         "response-score-negative-near-zero.json",
+        ErrorKind::InvalidResult,
+    ),
+    (
+        "response-score-exponent-overflow.json",
         ErrorKind::InvalidResult,
     ),
     ("response-invalid-verdict.json", ErrorKind::InvalidResult),
@@ -370,6 +641,10 @@ const RESPONSE_PAIRS: &[(&str, &str)] = &[
         "response-confidence-negative-near-zero.json",
         "request-score.json",
     ),
+    (
+        "response-confidence-exponent-overflow.json",
+        "request-score.json",
+    ),
     ("response-unknown-field.json", "request-score.json"),
     ("response-missing-request-id.json", "request-score.json"),
     ("response-malformed-trace-id.json", "request-score.json"),
@@ -383,6 +658,10 @@ const RESPONSE_PAIRS: &[(&str, &str)] = &[
     ),
     (
         "response-score-negative-near-zero.json",
+        "request-score.json",
+    ),
+    (
+        "response-score-exponent-overflow.json",
         "request-score.json",
     ),
     ("response-invalid-verdict.json", "request-verify.json"),
@@ -670,8 +949,20 @@ fn every_fixture_matches_schema_and_rust_expectations() {
             } else {
                 panic!("fixture {name} is not classified as a request or response");
             };
-            let schema_accepts = schema.is_valid(&document)
-                && exact_numeric_constraints_hold(schema_document, &document, schema_document);
+            let exact_numeric_constraints =
+                exact_numeric_constraints_hold(schema_document, &document);
+            let schema_accepts = if exact_numeric_constraints {
+                schema.is_valid(&document)
+            } else {
+                let mut projected = document.clone();
+                project_numeric_violations(schema_document, &mut projected);
+                if let Err(error) = schema.validate(&projected) {
+                    panic!(
+                        "fixture {category}/{name} should pass full schema validation after its exact numeric violation is projected: {error}"
+                    );
+                }
+                false
+            };
             let rust_accepts = parse_envelope(&name, &document).is_ok();
             assert_eq!(
                 schema_accepts, expected_accept,
@@ -895,6 +1186,13 @@ fn canonical_schemas_pin_draft_2020_12() {
         request["$defs"]["evidenceReference"], response["$defs"]["evidenceReference"],
         "duplicated self-contained evidence-reference definitions must stay identical"
     );
+}
+
+#[test]
+fn canonical_schemas_pin_numeric_assertion_inventory() {
+    let request_schema = read_json(&schema_dir().join("request-v1.schema.json"));
+    let response_schema = read_json(&schema_dir().join("response-v1.schema.json"));
+    assert_numeric_schema_inventory(&request_schema, &response_schema);
 }
 
 #[test]

@@ -366,13 +366,15 @@ impl DecisionResult {
         object: &serde_json::Map<String, Value>,
         field: &'static str,
     ) -> Result<f64, ProtocolError> {
-        let number = f64_field(object, field)?;
-        if !object.get(field).is_some_and(is_unit_interval_number) {
+        let value = object
+            .get(field)
+            .ok_or(ProtocolError::MissingField { field })?;
+        if value.is_number() && !is_unit_interval_number(value) {
             return Err(ProtocolError::InvalidResult {
                 reason: "score value outside the unit interval",
             });
         }
-        Ok(number)
+        f64_field(object, field)
     }
 
     fn extracted_field(value: &Value) -> Result<ExtractedField, ProtocolError> {
@@ -722,23 +724,28 @@ impl Response {
 
     fn confidence(value: &Value) -> Result<Confidence, ProtocolError> {
         let object = object_fields(value, CONFIDENCE_FIELDS, CONFIDENCE_FIELDS)?;
-        let raw = f64_field(object, "raw")?;
-        if !object.get("raw").is_some_and(is_unit_interval_number) {
+        let raw_value = object
+            .get("raw")
+            .ok_or(ProtocolError::MissingField { field: "raw" })?;
+        if raw_value.is_number() && !is_unit_interval_number(raw_value) {
             return Err(ProtocolError::InvalidConfidence {
                 field: "raw",
-                found: format!("{raw}"),
+                found: raw_value.to_string(),
+            });
+        }
+        let raw = f64_field(object, "raw")?;
+        let calibrated_value = object
+            .get("calibrated")
+            .ok_or(ProtocolError::MissingField {
+                field: "calibrated",
+            })?;
+        if calibrated_value.is_number() && !is_unit_interval_number(calibrated_value) {
+            return Err(ProtocolError::InvalidConfidence {
+                field: "calibrated",
+                found: calibrated_value.to_string(),
             });
         }
         let calibrated = f64_field(object, "calibrated")?;
-        if !object
-            .get("calibrated")
-            .is_some_and(is_unit_interval_number)
-        {
-            return Err(ProtocolError::InvalidConfidence {
-                field: "calibrated",
-                found: format!("{calibrated}"),
-            });
-        }
         let calibration_ref = str_field(object, "calibration_ref", 1, 256)?;
         Ok(Confidence {
             raw,

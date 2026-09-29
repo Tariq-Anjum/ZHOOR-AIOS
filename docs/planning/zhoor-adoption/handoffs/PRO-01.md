@@ -2,7 +2,7 @@
 
 ## Status
 
-`fourth review correction applied; canonical locked validation PASS; focused Luna re-review pending`
+`architecture/security adjudication complete; fifth correction validated offline; new candidate commit and fresh exact-SHA review pending`
 
 ## Task identity
 
@@ -17,7 +17,7 @@
 
 ## Success condition (restated)
 
-Versioned v1 request/response/evidence/confidence/disposition/result-kind/deadline/error contracts under `schemas/protocol/**`; deterministic Rust semantic validation in `zhoor-protocol` under `crates/protocol/**`; positive/negative fixtures under `fixtures/protocol/valid/**` and `fixtures/protocol/invalid/**`; and a `protocol_contract` integration target enumerating every committed fixture with canonical Draft 2020-12 schema expectation, Rust expectation, and accept/reject agreement. Controller source audit corrections and implementation integration are complete. The fourth Luna exact-SHA review returned `CHANGES_REQUIRED` for decimal rounding at score/confidence unit-interval boundaries. The correction is applied; package, contract, and full locked offline validation pass with a stable root lockfile, and a new focused exact-SHA review is pending. No transport, server, model integration, execution grant, policy engine, registry, trace implementation, backend API, database, or async framework.
+Versioned v1 request/response/evidence/confidence/disposition/result-kind/deadline/error contracts under `schemas/protocol/**`; deterministic Rust semantic validation in `zhoor-protocol` under `crates/protocol/**`; positive/negative fixtures under `fixtures/protocol/valid/**` and `fixtures/protocol/invalid/**`; and a `protocol_contract` integration target enumerating every committed fixture with canonical Draft 2020-12 schema expectation, Rust expectation, and accept/reject agreement. Controller source audit corrections and implementation integration are complete. The fifth Luna exact-SHA review returned `CHANGES_REQUIRED` for typed error behavior on exponent-overflow score/confidence inputs. The correction is applied but unvalidated; work is paused for architecture/security review after two validation-design failures. No transport, server, model integration, execution grant, policy engine, registry, trace implementation, backend API, database, or async framework.
 
 ## Schema test dependency resolution
 
@@ -105,6 +105,37 @@ The fourth fresh Pi/Luna review at `4cd48269b5c7312fdceaaae3131bf325b8d6ca2e` re
 
 Controller correction adds exact decimal-token comparison against `[0,1]` before score/confidence values are converted into the typed `f64` fields. Four invalid response fixtures cover score and confidence just above one and just below zero. The contract suite supplements only the schema's current `type: number`, `minimum: 0`, `maximum: 1` nodes because cached `jsonschema 0.33.0` uses `f64` for those comparisons; full Draft 2020-12 validation remains enabled. Unit tests cover endpoints, integral exponent forms, high-precision fractions, tiny negatives, and extreme exponents. Canonical package validation passed with 17 unit and 10 contract tests; standalone contract validation passed with 10 tests; full workspace validation passed. The root lock SHA remained `517b2bdab93379075eceb07fb1170360e2d7af7cb2c0ce2469fedc9179af2c40`. The controller is preparing a new candidate for focused re-review. No dependency or schema-language change was made.
 
+## Fifth exact-SHA review and correction
+
+The fifth fresh Pi/Luna review at `480d4e801e53480beced1a609622a027d3806828` returned `CHANGES_REQUIRED`. It found score and confidence validators called `f64_field` before checking exact bounds. Inputs such as `1e400` and `-1e400` therefore failed as `MalformedJson` when conversion was non-finite, instead of the protocol's typed `InvalidResult` or `InvalidConfidence` bound errors. The exact comparator itself passed review for signs, signed zero, decimal positions, trailing zeros, and exponent behavior. The sanitized report is preserved under the run root; its emitted RUN_TASK omitted `PRO01`, while the exact assigned task ID was `ZHOOR-20260929-PRO01-PROTOCOL-01-REVIEWER-LUNA-05`. The Pi process was stopped using the verified pane exit key and then verified gone; old idle Herdr shell panes remain.
+
+The follow-up checks exact unit-interval bounds before converting accepted values to `f64`, preserving malformed-type errors and returning typed bounds errors for exponent-overflow numbers. Two additional invalid fixtures exercise overflow in calibrated confidence and score threshold, pinning `InvalidConfidence` and `InvalidResult`. The exact comparator unit test covers positive and negative overflow exponents. No new package or root lock change is expected. Canonical locked validation and focused Luna re-review are pending.
+
+### Validation-design stop and architecture adjudication
+
+The follow-up correction was uncommitted and had not passed canonical validation when the stop was entered. The first attempt at `./scripts/validate.sh --package zhoor-protocol` reached `protocol_contract` and panicked inside cached `jsonschema 0.33.0` numeric handling (`numeric.rs:27`, “Always valid”) on exponent-overflow JSON. After adding a test-only normalization path so the full validator could inspect other keywords, the focused contract test failed because `response-confidence-exponent-overflow.json` also contained a malformed evidence hash (58 hexadecimal characters instead of the schema-required 64). The adjudication-authorized retest exposed this independent fixture defect; the two exponent-overflow fixtures and three existing near-boundary score/confidence fixtures now use valid 64-character synthetic evidence hashes so each exact numeric invalid fixture has no unrelated schema violation. The full validation sequence for the correction was not completed at the stop checkpoint. `Cargo.lock` remains at SHA-256 `517b2bdab93379075eceb07fb1170360e2d7af7cb2c0ce2469fedc9179af2c40`.
+
+Independent architecture/security adjudication was completed by fresh contained Pi/GPT-6 Luna xhigh lane `pro01-arch-review` at `ff434f70d64bf9bb9f0728e0f36a1d1361d98955`. Evidence: `/tmp/zhoor-pro01/ZHOOR-20260929-PRO01-PROTOCOL-01/architecture-adjudication-luna.md`. It concluded that Draft 2020-12 numeric assertions apply to mathematical values; `jsonschema 0.33.0` can compile/meta-validate schemas and validate where its numeric behavior is reliable, but is not an arbitrary-precision oracle and a panic is not rejection. A sound minimal test design is an explicit inventory of numeric schema nodes with pinned type/bounds and exact checks on original fixture values. For finite exact violations, the library may still be called but its rounded numeric result cannot override the exact check. For non-finite values it cannot represent, replace only inventoried numeric leaves with in-range sentinels in a clone, require full schema validation of the clone, and separately assert exact numeric rejection and Rust's typed error against the original. This is a hybrid test result, not direct jsonschema validation of the original overflow value. The previous generic partial schema walker has been replaced; a dedicated test pins the numeric schema inventory and bounds.
+
+The reviewer noted that accepted in-range score/confidence values are represented as Rust `f64`, so some tiny or near-endpoint decimals can round after exact raw-value bounds validation. The controller resolves this as the existing v1 typed representation: exact wire-value preservation is not a protocol requirement, while exact inclusive `[0,1]` checking before conversion is. No second challenger is required. Any future exact-decimal downstream requirement needs an explicit protocol change. No production validator, schema, acceptance expectation, dependency, or network behavior is being changed.
+
+The current correction retains the two exponent-overflow invalid fixtures and typed expectations: confidence overflow → `InvalidConfidence`; score/threshold overflow → `InvalidResult`. The validator supplement now has an explicit inventory of bounded numeric schema nodes with pinned types/ranges; finite exact violations are decided by the exact check, and non-finite values are tested through a clone that replaces only inventoried leaves with safe sentinels and must pass full schema validation. The originals remain subject to exact checks and Rust typed errors. All five exact numeric invalid fixtures now have valid 64-character evidence hashes so the intended numeric bound/integrality violation is their only schema failure.
+
+## Post-adjudication validation checkpoint
+
+Canonical validation passed after the test-only numeric design correction:
+
+- `./scripts/validate.sh --package zhoor-protocol` — PASS; 17 unit tests and 11 contract tests, clippy/check, debug and release package builds.
+- `cargo test --offline --locked -p zhoor-protocol --test protocol_contract` — PASS; 11 contract tests.
+- `./scripts/validate.sh` — PASS; full workspace tests, clippy/check, and debug/release builds, all offline and locked.
+- `git diff --check` over the tracked PRO-01 correction files — PASS.
+- Overflow fixture JSON parses and each evidence reference has exactly 64 hexadecimal characters — PASS.
+- Root `Cargo.lock` SHA-256 before and after validation: `517b2bdab93379075eceb07fb1170360e2d7af7cb2c0ce2469fedc9179af2c40` (unchanged).
+- Protected baseline reconciliation: 28/28 status/path/SHA-256 records match. Nine non-protected dirty paths remain in the PRO-01 correction scope: three Rust files, five numeric fixtures, and the PRO-01 handoff.
+- Board remains `PRO-01 = REVIEW`; no later card started.
+
+No candidate commit or final exact-SHA acceptance review exists yet. The next action is to stage the exact nine PRO-01 correction paths, create a new correction commit without rewriting prior history, and request a fresh contained Luna exact-SHA review. Topology policy/helper commits are already integrated through `ff434f70d64bf9bb9f0728e0f36a1d1361d98955`; Herdr topology evidence is recorded in `/tmp/zhoor-herdr-topology/topology-test-evidence.md`.
+
 ## Assumptions to confirm at review
 
 - The bounded v1 `worker_kind` set (`skill_router`, `risk_judge`) matches the current worker roster; adding a worker is a deliberate protocol version event.
@@ -114,11 +145,11 @@ Controller correction adds exact decimal-token comparison against `[0,1]` before
 
 ## Residual risks
 
-- Canonical locked package/contract/full validation, controller lock reconciliation, and lock stability passed after four correction rounds. The property-level evidence identity check remains a documented deterministic Rust semantic rule because Draft 2020-12 cannot express unique-by-property semantics in an array; a focused test pins this behavior. The cached test validator's `f64` implementations of integer and unit-interval boundaries are supplemented by narrow exact-decimal checks in the contract suite. Independent exact-SHA PASS remains pending.
+- Canonical locked package/contract/full validation, controller lock reconciliation, and lock stability passed after four correction rounds; rerun canonical validation for the fifth correction. The property-level evidence identity check remains a documented deterministic Rust semantic rule because Draft 2020-12 cannot express unique-by-property semantics in an array; a focused test pins this behavior. The cached test validator's `f64` implementations of integer and unit-interval boundaries are supplemented by narrow exact-decimal checks in the contract suite. Independent exact-SHA PASS remains pending.
 - No Unicode boundary fixture exercises strings near schema length limits; the Rust validator counts Unicode scalar values and this should be checked during exact-SHA review if it is material.
 - Cross-envelope consistency is intentionally a Rust semantic check because it depends on the paired request. Focused tests exercise foreign evidence, candidate membership, verdict evidence, and deadline accounting.
 - Fixture request/response identifiers are synthetic and deterministic; real provenance values belong to later runtime cards.
 
 ## Recommended next action
 
-Exactly one next action: commit the score/confidence boundary correction as a new candidate, then have the same contained Pi/GPT-6 Luna reviewer perform a focused re-review against a clean detached checkout of that exact SHA.
+Exactly one next action: create the validated PRO-01 correction candidate commit from the nine exact task-owned paths, then request a fresh contained exact-SHA acceptance review.

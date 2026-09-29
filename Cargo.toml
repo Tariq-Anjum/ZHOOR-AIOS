@@ -6,4 +6,4 @@ license = "MIT"
 description = "ZHOOR decision-fabric command-line entry point"
 
 [workspace]
-members = ["crates/system-info"]
+members = ["crates/*"]

@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - "**/*.rs"
+      - "crates/**"
       - "Cargo.toml"
       - "Cargo.lock"
       - "rust-toolchain.toml"
@@ -13,6 +14,7 @@ on:
   pull_request:
     paths:
       - "**/*.rs"
+      - "crates/**"
       - "Cargo.toml"
       - "Cargo.lock"
       - "rust-toolchain.toml"

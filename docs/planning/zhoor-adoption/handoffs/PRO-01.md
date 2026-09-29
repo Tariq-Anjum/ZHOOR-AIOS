@@ -2,7 +2,7 @@
 
 ## Status
 
-`architecture/security adjudication complete; fifth correction validated offline; new candidate commit and fresh exact-SHA review pending`
+`architecture/security adjudication complete; candidate 209d1fbb38fd7f23b763ad3c3048f46f998bf697 validated offline and exact-SHA reviewed PASS; board closure and publication pending`
 
 ## Task identity
 
@@ -134,7 +134,16 @@ Canonical validation passed after the test-only numeric design correction:
 - Protected baseline reconciliation: 28/28 status/path/SHA-256 records match. Nine non-protected dirty paths remain in the PRO-01 correction scope: three Rust files, five numeric fixtures, and the PRO-01 handoff.
 - Board remains `PRO-01 = REVIEW`; no later card started.
 
-No candidate commit or final exact-SHA acceptance review exists yet. The next action is to stage the exact nine PRO-01 correction paths, create a new correction commit without rewriting prior history, and request a fresh contained Luna exact-SHA review. Topology policy/helper commits are already integrated through `ff434f70d64bf9bb9f0728e0f36a1d1361d98955`; Herdr topology evidence is recorded in `/tmp/zhoor-herdr-topology/topology-test-evidence.md`.
+Following this validation checkpoint, the controller committed the nine exact PRO-01 correction paths as candidate `209d1fbb38fd7f23b763ad3c3048f46f998bf697` without rewriting prior history. A fresh contained Pi/GPT-6 Luna xhigh reviewer returned PASS with no findings at that exact SHA. The controller independently verified the detached review checkout SHA because the reviewer guard correctly denied `.git/HEAD`; the reviewer did not rerun commands. Topology policy/containment commits are integrated in the candidate's ancestry through `ff434f70d64bf9bb9f0728e0f36a1d1361d98955`. A later controller-only auth-handoff helper commit `5f4f474757b8204abb8f6969ada9122c08beea71` is on the integration branch after the candidate and changed only `scripts/zhoor_herdr.py` and its tests. Herdr topology evidence is recorded in `/tmp/zhoor-herdr-topology/topology-test-evidence.md`.
+
+## Final exact-SHA acceptance review
+
+- Candidate: `209d1fbb38fd7f23b763ad3c3048f46f998bf697`; detached review checkout matched that exact SHA and was clean.
+- Reviewer: fresh Pi 0.87.1 lane `pro01-review-luna-08`, controller-routed `openai-codex` / GPT-6 Luna / xhigh; `AGENT_CONTAINMENT=PASS` before the packet was sent.
+- Herdr topology: tab `wG:tQ`, interactive pane `wG:p1N`, managed Sidebar `wG:p1P`; focus restored to controller tab `wG:tE` and remained there. Pi exited with ctrl+d and live agent absence was verified; the completed tab is retained.
+- Verdict: `PASS`; findings `NONE`. The reviewer examined the numeric boundary/error behavior, exact test-only schema supplementation, fixtures, protocol semantics, and handoff.
+- Review evidence: `/tmp/zhoor-pro01/ZHOOR-20260929-PRO01-PROTOCOL-01/review-result-209d1fb.md`; containment evidence: `/tmp/zhoor-pro01/ZHOOR-20260929-PRO01-PROTOCOL-01/review-containment-pass-209d1fb-08.md`.
+- Limitation: the reviewer could not inspect `.git/HEAD` or rerun validation because it had read-only file tools. The controller independently verified the exact checkout SHA and supplied the canonical offline/locked validation results recorded above.
 
 ## Assumptions to confirm at review
 
@@ -145,11 +154,11 @@ No candidate commit or final exact-SHA acceptance review exists yet. The next ac
 
 ## Residual risks
 
-- Canonical locked package/contract/full validation, controller lock reconciliation, and lock stability passed after four correction rounds; rerun canonical validation for the fifth correction. The property-level evidence identity check remains a documented deterministic Rust semantic rule because Draft 2020-12 cannot express unique-by-property semantics in an array; a focused test pins this behavior. The cached test validator's `f64` implementations of integer and unit-interval boundaries are supplemented by narrow exact-decimal checks in the contract suite. Independent exact-SHA PASS remains pending.
-- No Unicode boundary fixture exercises strings near schema length limits; the Rust validator counts Unicode scalar values and this should be checked during exact-SHA review if it is material.
+- Canonical locked package/contract/full validation and `git diff --check` passed after the fifth correction at the exact candidate SHA. The independent exact-SHA review returned PASS with no findings. The property-level evidence identity check remains a documented deterministic Rust semantic rule because Draft 2020-12 cannot express unique-by-property semantics in an array; a focused test pins this behavior. The cached test validator's `f64` implementations of integer and unit-interval boundaries are supplemented by narrow exact-decimal checks in the contract suite.
+- No dedicated Unicode boundary fixture exercises strings near schema length limits. The reviewer found no blocking issue; Rust counts Unicode scalar values. This remains a non-blocking coverage limitation.
 - Cross-envelope consistency is intentionally a Rust semantic check because it depends on the paired request. Focused tests exercise foreign evidence, candidate membership, verdict evidence, and deadline accounting.
 - Fixture request/response identifiers are synthetic and deterministic; real provenance values belong to later runtime cards.
 
 ## Recommended next action
 
-Exactly one next action: create the validated PRO-01 correction candidate commit from the nine exact task-owned paths, then request a fresh contained exact-SHA acceptance review.
+Exactly one next action: record the exact-SHA PASS, transition PRO-01 from REVIEW to DONE in the board closure commit, reconcile the 28 protected records, verify the remote relationship, and publish only by normal fast-forward if the remote has not diverged. Stop after PRO-01; do not start a later card.

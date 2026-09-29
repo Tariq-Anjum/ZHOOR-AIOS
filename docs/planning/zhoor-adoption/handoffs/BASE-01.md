@@ -2,7 +2,7 @@
 
 ## Status
 
-`BASE-01 closure recorded; independent exact-SHA Luna review PASS; publication pending`
+`BASE-01 DONE; independent exact-SHA Luna review PASS; publication verified`
 
 ## Success condition
 
@@ -132,9 +132,9 @@ The worker did not access or modify the canonical worktree (`/mnt/MD/AI-tools/ZH
 ## Closure record
 
 - Reviewed implementation candidate: `546706dc18cd6d06d1cdbdd4f8eb228d3c42dd29`; Luna exact-SHA review `PASS`, with its initial medium finding resolved and first/focused review evidence preserved in `docs/planning/zhoor-adoption/handoffs/reviews/BASE-01-herdr-review.md`.
-- Closure control change: BASE-01 `REVIEW` → `DONE`; PRO-01 `BLOCKED` → `READY`; all later dependency-gated cards remain `BLOCKED`. `WORK_BOARD.md` current-owner-action prose now states PRO-01 as the next action.
-- Closure commit and publication evidence will be recorded in the external orchestrator state after publication.
+- Closure control change: commit `1790b1654ad91a4fa4d6b8e47df7e89edfb6f943` changed BASE-01 `REVIEW` → `DONE`; PRO-01 `BLOCKED` → `READY`; all later dependency-gated cards remain `BLOCKED`. `WORK_BOARD.md` current-owner-action prose now states PRO-01 as the next action.
+- Publication: normal non-force fast-forward push to `origin/integration/zhoor-adoption` succeeded; local and remote both matched `1790b1654ad91a4fa4d6b8e47df7e89edfb6f943` before this final handoff-only update.
 
 ## Recommended next action
 
-- Exactly one next action: fetch and verify the remote remains an ancestor, then publish `integration/zhoor-adoption` by normal fast-forward push and verify local/remote equality.
+- Exactly one next action: begin PRO-01 in a subsequent authorized session; PRO-01 was not started during BASE-01.

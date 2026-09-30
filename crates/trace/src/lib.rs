@@ -274,7 +274,7 @@ impl DecisionTrace {
     pub fn from_json_str(text: &str) -> Result<Self, TraceError> {
         // Preserve the original decimal spelling long enough to reject values
         // outside [0, 1] before conversion to f64 can round them onto a bound.
-        let value: serde_json::Value =
+        let mut value: serde_json::Value =
             serde_json::from_str(text).map_err(|_| TraceError::InvalidTrace)?;
         if !required_nullable_fields_present(&value)
             || !json_confidence_in_unit_interval(&value, "raw")
@@ -282,6 +282,7 @@ impl DecisionTrace {
         {
             return Err(TraceError::InvalidTrace);
         }
+        normalize_schema_integer_fields(&mut value);
         let trace: Self = serde_json::from_value(value).map_err(|_| TraceError::InvalidTrace)?;
         trace.validate()?;
         Ok(trace)
@@ -556,6 +557,94 @@ fn required_nullable_fields_present(value: &serde_json::Value) -> bool {
         .iter()
         .all(|field| object.contains_key(*field))
     })
+}
+
+// Draft 2020-12 defines integer mathematically, so decimal and exponent
+// spellings of whole numbers are valid. Normalize only exact non-negative
+// u64 values before serde's typed u64 deserializer sees them.
+fn normalize_schema_integer_fields(value: &mut serde_json::Value) {
+    let Some(object) = value.as_object_mut() else {
+        return;
+    };
+    normalize_schema_integer_field(object, "recorded_at_unix_ms");
+    if let Some(latency) = object
+        .get_mut("latency")
+        .and_then(serde_json::Value::as_object_mut)
+    {
+        for field in ["queue_ms", "load_ms", "inference_ms"] {
+            normalize_schema_integer_field(latency, field);
+        }
+    }
+}
+
+fn normalize_schema_integer_field(
+    object: &mut serde_json::Map<String, serde_json::Value>,
+    field: &str,
+) {
+    let Some(value) = object.get_mut(field) else {
+        return;
+    };
+    let integer = value.as_number().and_then(exact_u64_integer);
+    if let Some(integer) = integer {
+        *value = serde_json::Value::Number(integer.into());
+    }
+}
+
+// Convert the exact serde_json number token only if it represents a
+// mathematical integer in the u64 domain. This avoids f64 rounding at bounds.
+fn exact_u64_integer(number: &serde_json::Number) -> Option<u64> {
+    if let Some(integer) = number.as_u64() {
+        return Some(integer);
+    }
+
+    let token = number.to_string();
+    let (mantissa, exponent_text) = token
+        .split_once(['e', 'E'])
+        .map_or((token.as_str(), None), |(mantissa, exponent)| {
+            (mantissa, Some(exponent))
+        });
+    let negative = mantissa.starts_with('-');
+    let unsigned_mantissa = mantissa.strip_prefix('-').unwrap_or(mantissa);
+    let (whole, fraction) = unsigned_mantissa
+        .split_once('.')
+        .map_or((unsigned_mantissa, ""), |(whole, fraction)| {
+            (whole, fraction)
+        });
+    let digits = format!("{whole}{fraction}");
+    if digits.is_empty() || !digits.bytes().all(|byte| byte.is_ascii_digit()) {
+        return None;
+    }
+    if digits.bytes().all(|byte| byte == b'0') {
+        return Some(0);
+    }
+    if negative {
+        return None;
+    }
+
+    let exponent = exponent_text.map_or(Some(0), |text| text.parse::<i64>().ok())?;
+    let decimal_position = i64::try_from(whole.len()).ok()?.checked_add(exponent)?;
+    if decimal_position <= 0 {
+        return None;
+    }
+
+    let digit_count = i64::try_from(digits.len()).ok()?;
+    if decimal_position < digit_count
+        && digits[usize::try_from(decimal_position).ok()?..]
+            .bytes()
+            .any(|byte| byte != b'0')
+    {
+        return None;
+    }
+
+    let integer_digits = &digits[..usize::try_from(decimal_position.min(digit_count)).ok()?];
+    let significant = integer_digits.trim_start_matches('0');
+    let appended_zeroes = usize::try_from((decimal_position - digit_count).max(0)).ok()?;
+    if significant.len().checked_add(appended_zeroes)? > 20 {
+        return None;
+    }
+    let mut integer = significant.to_owned();
+    integer.push_str(&"0".repeat(appended_zeroes));
+    integer.parse().ok()
 }
 
 // The input is already a syntactically valid JSON number. Compare its exact

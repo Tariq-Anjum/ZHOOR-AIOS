@@ -249,6 +249,57 @@ fn timestamp_schema_bound_matches_rust_u64() {
 }
 
 #[test]
+fn schema_integer_decimal_and_exponent_forms_match_rust_parser() {
+    let root = repo_root();
+    let fixture =
+        fs::read_to_string(root.join("fixtures/trace/valid/trace-v1.json")).expect("trace fixture");
+    let cases = [
+        (
+            "\"recorded_at_unix_ms\": 1759000000000",
+            "\"recorded_at_unix_ms\": 1759000000000.0",
+        ),
+        ("\"queue_ms\": 4", "\"queue_ms\": 4.0"),
+        ("\"load_ms\": 1", "\"load_ms\": 1e0"),
+        ("\"inference_ms\": 22", "\"inference_ms\": 2.2e1"),
+    ];
+
+    for (integer_token, decimal_token) in cases {
+        let text = fixture.replacen(integer_token, decimal_token, 1);
+        let instance = read_json_value(&text);
+        assert!(
+            schema().is_valid(&instance),
+            "schema accepts {decimal_token}"
+        );
+        let trace = DecisionTrace::from_json_str(&text)
+            .unwrap_or_else(|error| panic!("Rust parser accepts {decimal_token}: {error:?}"));
+        assert_eq!(trace.recorded_at_unix_ms, 1_759_000_000_000);
+        assert_eq!(trace.latency.queue_ms, 4);
+        assert_eq!(trace.latency.load_ms, 1);
+        assert_eq!(trace.latency.inference_ms, 22);
+    }
+
+    for (integer_token, fractional_token) in [
+        (
+            "\"recorded_at_unix_ms\": 1759000000000",
+            "\"recorded_at_unix_ms\": 1759000000000.5",
+        ),
+        ("\"queue_ms\": 4", "\"queue_ms\": 4.5"),
+    ] {
+        let text = fixture.replacen(integer_token, fractional_token, 1);
+        let instance = read_json_value(&text);
+        assert!(
+            !schema().is_valid(&instance),
+            "schema rejects {fractional_token}"
+        );
+        assert_eq!(
+            DecisionTrace::from_json_str(&text),
+            Err(TraceError::InvalidTrace),
+            "Rust parser rejects {fractional_token}"
+        );
+    }
+}
+
+#[test]
 fn nullable_fields_are_required_and_operation_matches_result_kind() {
     let root = repo_root();
     let fixture =

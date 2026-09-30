@@ -184,6 +184,41 @@ file tools, and a controller-managed guard that blocks paths outside the
 assigned worktree. The helper fails closed for harnesses without a verified
 containment profile.
 
+For permanent reviewer lanes, select only an explicit helper tier:
+`--audit-tier primary` launches Pi with `openai` / ChatGPT subscription OAuth,
+`gpt-6.1-sol`, and `high`; `--audit-tier secondary` fixes the same provider and
+model at `xhigh`. The helper rejects provider/model/reasoning overrides and
+unapproved Pi options. `openai-codex` is legacy and is not an accepted ZHOOR
+review route. The helper requires the provider credential to be OAuth with the
+installed ChatGPT direct-use scope; API-key credentials are rejected. It
+passes the complete credential through a sealed anonymous file descriptor,
+not a regular auth file. Never print or copy credential values.
+
+Before either route starts, verify `pi auth check --provider openai --json
+--no-refresh` reports `ready`, `openai`, and `oauth`; when ready, repeat the
+normal readiness check without `--credentials` so Pi can refresh its own
+credential. Verify the installed Pi catalog exposes `openai/gpt-6.1-sol` and
+supports the tier's reasoning effort. If auth or model availability fails,
+stop; do not fall back to an API key, `openai-codex`, or weaker containment.
+
+Reviewer launches use exactly `--tools read,grep,find,ls` and preserve
+`--no-extensions`, `--no-skills`, `--no-prompt-templates`, `--no-themes`,
+`--no-context-files`, and `--no-approve`. The helper adds only its own
+controller-managed read-only guard extension. No model-facing bash, write,
+edit, codemode, tool-search, MCP tool, or other extension is permitted. Pi's
+interactive `!` and `!!` commands reach `user_bash`; the guard replaces that
+event with a bounded denial and exit 126 before local shell execution.
+
+The primary auditor is the normal independent reviewer for important
+implementation cards. Require the secondary critical auditor for security or
+trust boundaries, authentication/authorization, grant/trust-root,
+execution/enforcement, privilege, identity, daemon/service lifecycle,
+transport, filesystem enforcement, architecture/interface changes, important
+milestone closure, material primary `CHANGES_REQUIRED`, unresolved reviewer /
+controller disagreement, and containment/orchestration security changes. Keep
+the secondary report blinded to the primary verdict and findings until it has
+formed an independent verdict. Workers remain on their existing routes.
+
 Before relying on a topology change, test tab creation, no-focus behavior,
 one-pane verification, role uniqueness, fail-closed behavior, and prompt/read/
 wait/status/stop operations. Do not create demonstration agents with source

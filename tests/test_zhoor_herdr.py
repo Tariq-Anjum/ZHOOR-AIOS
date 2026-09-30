@@ -80,16 +80,14 @@ def spawn_args(cwd: Path, scratch: Path) -> SimpleNamespace:
         role="ARCH",
         name="pro01-arch-review",
         kind="pi",
+        audit_tier="primary",
         workspace="workspace",
         cwd=str(cwd),
         worktree=str(cwd),
         scratch=str(scratch),
         starting_sha=SHA,
-        label="ARCH · Pi · Luna-XH",
-        provider="openai",
-        model="GPT-6 Luna",
-        reasoning="xhigh",
-        agent_args=["--", "--provider", "openai", "--model", "gpt-6-luna", "--thinking", "xhigh", "--no-extensions", "--no-skills", "--no-prompt-templates", "--no-themes", "--no-context-files", "--no-approve", "--tools", "read,grep,find,ls", "--name", "pro01-arch-review", "--system-prompt", "Role-only handshake; inspect no source."],
+        label="ARCH · Pi · Sol-high",
+        agent_args=["--", "--provider", "openai", "--model", "gpt-6.1-sol", "--thinking", "high", "--no-extensions", "--no-skills", "--no-prompt-templates", "--no-themes", "--no-context-files", "--no-approve", "--tools", "read,grep,find,ls", "--name", "pro01-arch-review", "--system-prompt", "Role-only handshake; inspect no source."],
     )
 
 
@@ -136,6 +134,8 @@ class ZhoorHerdrTopologyTests(unittest.TestCase):
         self.assertEqual(lane["pane_id"], "root-pane")
         self.assertEqual(lane["containment_status"], "PENDING")
         self.assertEqual(lane["status"], "ROLE_HANDSHAKE_PENDING")
+        self.assertEqual(lane["audit_tier"], "primary")
+        self.assertEqual((lane["provider"], lane["model"], lane["reasoning"]), ("openai", "gpt-6.1-sol", "high"))
         self.assertEqual(lane["interactive_pane_ids"], ["root-pane"])
         self.assertEqual(lane["managed_ui_pane_ids"], ["extra-pane-1"])
         self.assertFalse(lane["focus_changed_on_create"])
@@ -180,10 +180,9 @@ class ZhoorHerdrTopologyTests(unittest.TestCase):
         }
         self.auth_store.write_text(json.dumps(auth))
         args = spawn_args(self.cwd, self.scratch)
-        args.provider = "openai-codex"
         args.agent_args[args.agent_args.index("--provider") + 1] = "openai-codex"
         fake = FakeHerdr(self.cwd)
-        with self.assertRaisesRegex(zhoor_herdr.LaneError, "only provider=openai"):
+        with self.assertRaisesRegex(zhoor_herdr.LaneError, "does not match audit tier"):
             zhoor_herdr.spawn_agent(args, runner=fake, registry_path=self.registry)
         self.assertFalse(any(call[:3] == ["herdr", "tab", "create"] for call in fake.calls))
 
@@ -236,8 +235,8 @@ print(json.dumps({
         args = spawn_args(self.cwd, self.scratch)
         with patch.object(zhoor_herdr.shutil, "which", return_value=str(fake_pi)):
             zhoor_herdr._prepare_pi_containment(
-                args.agent_args[1:], provider=args.provider, model=args.model,
-                reasoning=args.reasoning, scratch=self.scratch,
+                args.agent_args[1:], route=zhoor_herdr.resolve_audit_route(args.audit_tier),
+                scratch=self.scratch,
             )
         wrapper = self.scratch / "bin" / "pi"
         result = subprocess.run([str(wrapper)], text=True, capture_output=True, check=False)
@@ -264,8 +263,8 @@ print(json.dumps({
         args = spawn_args(self.cwd, self.scratch)
         with patch.object(zhoor_herdr.shutil, "which", return_value=str(fake_pi)):
             zhoor_herdr._prepare_pi_containment(
-                args.agent_args[1:], provider=args.provider, model=args.model,
-                reasoning=args.reasoning, scratch=self.scratch,
+                args.agent_args[1:], route=zhoor_herdr.resolve_audit_route(args.audit_tier),
+                scratch=self.scratch,
             )
         credential = dict(self.oauth_credential, type="api_key")
         self.auth_store.write_text(json.dumps({"openai": credential}))
@@ -281,10 +280,9 @@ print(json.dumps({
         auth = {"wrong-provider": self.oauth_credential}
         self.auth_store.write_text(json.dumps(auth))
         args = spawn_args(self.cwd, self.scratch)
-        args.provider = "wrong-provider"
         args.agent_args[args.agent_args.index("--provider") + 1] = "wrong-provider"
         fake = FakeHerdr(self.cwd)
-        with self.assertRaisesRegex(zhoor_herdr.LaneError, "only provider=openai"):
+        with self.assertRaisesRegex(zhoor_herdr.LaneError, "does not match audit tier"):
             zhoor_herdr.spawn_agent(args, runner=fake, registry_path=self.registry)
         self.assertFalse(any(call[:3] == ["herdr", "tab", "create"] for call in fake.calls))
 
@@ -512,6 +510,114 @@ console.log(JSON.stringify({{ registered: [...handlers.keys()], result: result ?
             "input": {"path": "escape.txt"},
         })
         self.assertTrue(report["result"]["block"])
+
+
+class ZhoorAuditRoutingTests(unittest.TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.root = Path(self.temp.name)
+        self.scratch = self.root / "scratch"
+        self.scratch.mkdir(mode=0o700)
+        self.worktree = self.root / "worktree"
+        self.worktree.mkdir()
+        self.auth_store = self.root / "auth.json"
+        self.auth_store.write_text(json.dumps({"openai": {
+            "type": "oauth", "access": "synthetic-routing-access",
+            "refresh": "synthetic-routing-refresh", "expires": 2_000_000_000_000,
+            "clientId": "synthetic-routing-client",
+            "scopes": ["chatgpt.tokens.use.direct"],
+        }}))
+        self.auth_patch = patch.object(zhoor_herdr, "PI_AUTH_STORE", self.auth_store)
+        self.auth_patch.start()
+
+    def tearDown(self):
+        self.auth_patch.stop()
+        self.temp.cleanup()
+
+    @staticmethod
+    def native_args(provider="openai", model="gpt-6.1-sol", thinking="high", extra=()):
+        return [
+            "--provider", provider,
+            "--model", model,
+            "--thinking", thinking,
+            "--no-extensions", "--no-skills", "--no-prompt-templates",
+            "--no-themes", "--no-context-files", "--no-approve",
+            "--tools", "read,grep,find,ls",
+            "--name", "typed-audit-review",
+            "--system-prompt", "Read-only independent review.",
+            *extra,
+        ]
+
+    def test_primary_and_secondary_routes_are_fixed(self):
+        primary = zhoor_herdr.resolve_audit_route("primary")
+        secondary = zhoor_herdr.resolve_audit_route("secondary")
+        self.assertEqual(
+            (primary.audit_tier, primary.provider, primary.model, primary.reasoning),
+            ("primary", "openai", "gpt-6.1-sol", "high"),
+        )
+        self.assertEqual(
+            (secondary.audit_tier, secondary.provider, secondary.model, secondary.reasoning),
+            ("secondary", "openai", "gpt-6.1-sol", "xhigh"),
+        )
+
+    def test_role_name_does_not_select_or_change_audit_tier(self):
+        args = spawn_args(self.worktree, self.scratch)
+        args.role = "secondary-critical-reviewer"
+        lane = zhoor_herdr.spawn_agent(
+            args,
+            runner=FakeHerdr(self.worktree, panes=1),
+            registry_path=self.root / "registry.json",
+        )
+        self.assertEqual(lane["audit_tier"], "primary")
+        self.assertEqual((lane["model"], lane["reasoning"]), ("gpt-6.1-sol", "high"))
+
+    def test_unknown_audit_tier_is_rejected(self):
+        with self.assertRaises(zhoor_herdr.LaneError):
+            zhoor_herdr.resolve_audit_route("tertiary")
+
+    def test_spawn_parser_accepts_tier_without_route_overrides(self):
+        argv = [
+            "spawn", "--role", "arbitrary-role", "--name", "reviewer",
+            "--kind", "pi", "--workspace", "wH",
+            "--cwd", str(self.worktree), "--worktree", str(self.worktree),
+            "--scratch", str(self.scratch), "--starting-sha", SHA,
+            "--label", "review lane", "--audit-tier", "primary", "--",
+            *self.native_args(),
+        ]
+        args = zhoor_herdr.parser().parse_args(argv)
+        self.assertEqual(args.audit_tier, "primary")
+        self.assertFalse(hasattr(args, "provider"))
+        self.assertFalse(hasattr(args, "model"))
+        self.assertFalse(hasattr(args, "reasoning"))
+
+    def test_tier_rejects_mismatched_provider_model_or_reasoning(self):
+        combinations = (
+            ("primary", "openai", "gpt-6.1-sol", "xhigh"),
+            ("secondary", "openai", "gpt-6.1-sol", "high"),
+            ("primary", "openai", "gpt-6-luna", "high"),
+            ("primary", "openai-codex", "gpt-6.1-sol", "high"),
+        )
+        for tier, provider, model, thinking in combinations:
+            with self.subTest(tier=tier, provider=provider, model=model, thinking=thinking):
+                route = zhoor_herdr.resolve_audit_route(tier)
+                with self.assertRaisesRegex(zhoor_herdr.LaneError, "does not match audit tier"):
+                    zhoor_herdr._prepare_pi_containment(
+                        self.native_args(provider, model, thinking),
+                        route=route,
+                        scratch=self.scratch,
+                    )
+
+    def test_tier_rejects_extensions_mcp_and_model_switch_surfaces(self):
+        route = zhoor_herdr.resolve_audit_route("primary")
+        for extra in (("-e", "unapproved.ts"), ("--extension", "unapproved.ts"),
+                      ("--models", "openai/*"), ("--mcp-config", "mcp.json"),
+                      ("--skill", "unapproved-skill"), ("--prompt-template", "template"),
+                      ("--theme", "theme")):
+            with self.subTest(extra=extra):
+                with self.assertRaisesRegex(zhoor_herdr.LaneError, "unapproved Pi launch option"):
+                    zhoor_herdr._prepare_pi_containment(
+                        self.native_args(extra=extra), route=route, scratch=self.scratch,
+                    )
 
 
 if __name__ == "__main__":

@@ -13,9 +13,10 @@ import stat
 import subprocess
 import sys
 import tempfile
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any, Callable, Literal
 
 
 STATE_ROOT = Path(os.environ.get("XDG_STATE_HOME", Path.home() / ".local/state"))
@@ -28,10 +29,31 @@ TERMINAL_LANE_STATES = {
 }
 OPENAI_CHATGPT_DIRECT_SCOPE = "chatgpt.tokens.use.direct"
 Runner = Callable[..., subprocess.CompletedProcess[str]]
+AuditTier = Literal["primary", "secondary"]
+
+
+@dataclass(frozen=True)
+class AuditRoute:
+    audit_tier: AuditTier
+    provider: str
+    model: str
+    reasoning: str
+
+
+PRIMARY_AUDIT_ROUTE = AuditRoute("primary", "openai", "gpt-6.1-sol", "high")
+SECONDARY_AUDIT_ROUTE = AuditRoute("secondary", "openai", "gpt-6.1-sol", "xhigh")
 
 
 class LaneError(RuntimeError):
     pass
+
+
+def resolve_audit_route(audit_tier: str) -> AuditRoute:
+    if audit_tier == "primary":
+        return PRIMARY_AUDIT_ROUTE
+    if audit_tier == "secondary":
+        return SECONDARY_AUDIT_ROUTE
+    raise LaneError("audit tier must be primary or secondary")
 
 
 def _is_valid_openai_chatgpt_oauth(provider: str, credential: Any) -> bool:
@@ -54,13 +76,61 @@ def _is_valid_openai_chatgpt_oauth(provider: str, credential: Any) -> bool:
     )
 
 
+def _validate_pi_launch_args(agent_args: list[str], route: AuditRoute) -> None:
+    route_values = {
+        "--provider": route.provider,
+        "--model": route.model,
+        "--thinking": route.reasoning,
+        "--tools": "read,grep,find,ls",
+        "--name": None,
+        "--system-prompt": None,
+    }
+    required_flags = {
+        "--no-extensions", "--no-skills", "--no-prompt-templates",
+        "--no-themes", "--no-context-files", "--no-approve",
+    }
+    seen_values: dict[str, str] = {}
+    seen_flags: set[str] = set()
+    index = 0
+    while index < len(agent_args):
+        flag = agent_args[index]
+        if flag in required_flags:
+            if flag in seen_flags:
+                raise LaneError("Pi launch contains a duplicate containment flag")
+            seen_flags.add(flag)
+            index += 1
+            continue
+        if flag not in route_values:
+            raise LaneError(f"unapproved Pi launch option or argument: {flag}")
+        if flag in seen_values or index + 1 >= len(agent_args):
+            raise LaneError("Pi launch is missing or duplicates a required option value")
+        value = agent_args[index + 1]
+        if not value:
+            raise LaneError("Pi launch contains an empty required option value")
+        expected = route_values[flag]
+        if expected is not None and value != expected:
+            if flag == "--tools":
+                raise LaneError("Pi containment requires exactly the read-only file tools")
+            raise LaneError(f"Pi launch does not match audit tier {route.audit_tier}")
+        seen_values[flag] = value
+        index += 2
+
+    if seen_flags != required_flags:
+        raise LaneError("Pi launch is missing required containment flags")
+    if set(seen_values) != set(route_values):
+        raise LaneError("Pi launch is missing required route/tool/session options")
+    if seen_values["--tools"] != "read,grep,find,ls":
+        raise LaneError("Pi containment requires exactly the read-only file tools")
+
+
 def _prepare_pi_containment(
-    agent_args: list[str], *, provider: str, model: str, reasoning: str,
-    scratch: Path,
+    agent_args: list[str], *, route: AuditRoute, scratch: Path,
 ) -> tuple[list[str], dict[str, str]]:
     """Install a clean-environment Pi launcher and a read-only path guard."""
-    if provider != "openai" or reasoning != "xhigh":
-        raise LaneError("this reviewer profile permits only provider=openai with xhigh reasoning")
+    if route not in (PRIMARY_AUDIT_ROUTE, SECONDARY_AUDIT_ROUTE):
+        raise LaneError("review route is not a registered audit tier")
+    _validate_pi_launch_args(agent_args, route)
+    provider = route.provider
 
     # Confirm that the approved provider-scoped ChatGPT OAuth credential exists
     # before a tab is created. Values stay in controller memory and are never rendered.
@@ -71,27 +141,6 @@ def _prepare_pi_containment(
             raise ValueError
     except (OSError, json.JSONDecodeError, ValueError, TypeError):
         raise LaneError("OpenAI ChatGPT OAuth credential is missing or invalid") from None
-
-    def option_value(flag: str) -> str | None:
-        indexes = [i for i, value in enumerate(agent_args) if value == flag]
-        if len(indexes) != 1 or indexes[0] + 1 >= len(agent_args):
-            return None
-        return agent_args[indexes[0] + 1]
-
-    model_id = option_value("--model")
-    normalized_model = re.sub(r"\s+", "-", model.lower())
-    if option_value("--provider") != provider or option_value("--thinking") != reasoning:
-        raise LaneError("Pi launch route does not match the registered provider/reasoning")
-    if model_id != normalized_model:
-        raise LaneError("Pi launch model does not match the registered model")
-    tools_value = option_value("--tools")
-    if not tools_value or set(tools_value.split(",")) != {"read", "grep", "find", "ls"}:
-        raise LaneError("Pi containment requires exactly the read-only file tools")
-    required = {"--no-extensions", "--no-skills", "--no-prompt-templates", "--no-themes", "--no-context-files", "--no-approve"}
-    if not required.issubset(agent_args) or "--api-key" in agent_args or "--extension" in agent_args:
-        raise LaneError("Pi launch must disable discovery and use controller-managed credentials and guard")
-    if option_value("--name") is None:
-        raise LaneError("Pi launch must use a fresh named session")
 
     pi_executable = shutil.which("pi")
     if not pi_executable:
@@ -341,6 +390,7 @@ def _restore_focus(controller_tab_id: str | None, *, runner: Runner) -> tuple[bo
 
 
 def spawn_agent(args: argparse.Namespace, *, runner: Runner = subprocess.run, registry_path: Path = REGISTRY) -> dict[str, Any]:
+    route = resolve_audit_route(args.audit_tier)
     if not AGENT_NAME.fullmatch(args.name):
         raise LaneError("agent name is not valid for Herdr")
     if not args.cwd or not args.worktree or not args.scratch or not args.starting_sha:
@@ -351,8 +401,6 @@ def spawn_agent(args: argparse.Namespace, *, runner: Runner = subprocess.run, re
     scratch_stat = scratch.stat()
     if scratch_stat.st_uid != os.getuid() or stat.S_IMODE(scratch_stat.st_mode) & 0o077:
         raise LaneError("assigned scratch directory must be owned by the controller user and private")
-    if not args.provider or not args.model or not args.reasoning:
-        raise LaneError("provider, model, and reasoning must be explicit")
     if args.kind != "pi":
         raise LaneError("no verified containment profile is installed for this agent harness")
     agent_args = list(args.agent_args)
@@ -392,10 +440,7 @@ def spawn_agent(args: argparse.Namespace, *, runner: Runner = subprocess.run, re
             runtime_path.mkdir(mode=0o700, parents=True, exist_ok=True)
             os.chmod(runtime_path, 0o700)
         lane_env = [f"{key}={value}" for key, value in runtime_paths.items()]
-        containment_args, launch_env = _prepare_pi_containment(
-            agent_args, provider=args.provider, model=args.model,
-            reasoning=args.reasoning, scratch=scratch,
-        )
+        containment_args, launch_env = _prepare_pi_containment(agent_args, route=route, scratch=scratch)
         lane_env.append(f"PATH={launch_env['PATH']}")
         lane_env += ["PI_OFFLINE=1", "PI_TELEMETRY=0", "PI_SKIP_VERSION_CHECK=1"]
         before = _snapshot(runner)
@@ -415,11 +460,12 @@ def spawn_agent(args: argparse.Namespace, *, runner: Runner = subprocess.run, re
             raise LaneError("tab create omitted tab or root pane ID; no fallback permitted")
         lane = {
             "logical_role": args.role,
+            "audit_tier": route.audit_tier,
             "agent_name": args.name,
             "harness": args.kind,
-            "provider": args.provider,
-            "model": args.model,
-            "reasoning": args.reasoning,
+            "provider": route.provider,
+            "model": route.model,
+            "reasoning": route.reasoning,
             "tab_id": tab_id,
             "pane_id": pane_id,
             "cwd": str(cwd.resolve()),
@@ -708,8 +754,9 @@ def parser() -> argparse.ArgumentParser:
     root = argparse.ArgumentParser(description=__doc__)
     sub = root.add_subparsers(dest="command", required=True)
     spawn = sub.add_parser("spawn", help="create a dedicated no-focus one-pane tab and start one named agent")
-    for flag in ("role", "name", "kind", "workspace", "cwd", "worktree", "scratch", "starting-sha", "label", "provider", "model", "reasoning"):
+    for flag in ("role", "name", "kind", "workspace", "cwd", "worktree", "scratch", "starting-sha", "label"):
         spawn.add_argument("--" + flag, required=True)
+    spawn.add_argument("--audit-tier", choices=("primary", "secondary"), required=True)
     spawn.add_argument("agent_args", nargs=argparse.REMAINDER)
     prompt = sub.add_parser("prompt", help="send a prompt to the registered live lane")
     prompt.add_argument("--role", required=True)

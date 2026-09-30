@@ -1,8 +1,7 @@
 # Model and skill allocation
 
-This is a development-agent allocation, not a ZHOOR runtime model policy. Herdr Runtime Server is the
-continuity surface for every session. Exact model quality, price, context, and availability are not part of the
-repository contract; the owner assigns an available agent without changing the card's scope.
+This is a development-agent allocation and orchestration routing policy, not a ZHOOR product runtime model policy. Herdr Runtime Server is the
+continuity surface for every session. Model availability is checked at launch; a missing route does not authorize a containment downgrade.
 
 ## Mandatory stack for every agent
 
@@ -28,16 +27,19 @@ repository contract; the owner assigns an available agent without changing the c
 | `security-reviewer` | Security contracts, adversarial fixtures, and boundary review | Authorization or execution authority |
 | Human owner | Acceptance, adjudication, scope changes, and promotion decisions | Delegating authority to model output |
 
-## Current concrete reviewer mapping
+## Permanent controller and reviewer routing
 
-These are operational observations, not architecture dependencies. Assign by job role and verify availability at session start.
+These are the owner-approved permanent routes for the controller and independent audit lanes. Verify provider auth, exact model, and reasoning support at session start.
 
-| Stable role | Current observed lane | Setting |
-|---|---|---|
-| `architecture-primary` | GPT-6 Sol / Pi | high |
-| `independent-challenger` | GPT-6 Luna / Codex | xhigh |
+| Stable role | Harness | Provider / authentication | Model | Reasoning |
+|---|---|---|---|---|
+| Controller / orchestrator / integrator | Codex | Codex session | GPT-6 Luna | xhigh |
+| Primary independent auditor | Pi | `openai` / ChatGPT subscription OAuth | GPT-6.1 Sol | high |
+| Secondary critical auditor | Pi | `openai` / ChatGPT subscription OAuth | GPT-6.1 Sol | xhigh |
 
-Use another lane when needed only with a different reviewer, independent session, no authorship conflict, and a recorded substitution. Model/provider/harness names do not grant authority.
+The Herdr helper requires an explicit `--audit-tier primary` or `--audit-tier secondary` and fixes provider, model, and reasoning for that tier. It rejects route overrides, `openai-codex`, and unsupported Pi launch surfaces. `openai-codex` is legacy and is not a permanent ZHOOR reviewer route. Reviewer authentication uses Pi's private `openai` OAuth credential; API-key auth is rejected. The route and model catalog must be live-verified before launch. If unavailable, stop and resolve availability without weakening containment.
+
+The primary auditor is the normal independent reviewer for important implementation cards. Use the secondary critical auditor for security/trust boundaries, authentication/authorization, grant/trust-root, execution/enforcement, privilege, identity, daemon/service lifecycle, transport, filesystem enforcement, architecture/interface changes, important milestone closure, material primary `CHANGES_REQUIRED`, unresolved reviewer/controller disagreement, and new containment/orchestration security changes. This maintenance milestone requires both tiers. Keep the secondary review blind to the primary report until it has formed its own verdict. Workers remain on their existing card-specific routes.
 
 ## Job-specific routing
 

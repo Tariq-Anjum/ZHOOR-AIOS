@@ -36,7 +36,7 @@ All commands used the installed Rust 1.98.1 toolchain and --offline; pre-integra
 - git diff --check — PASS
 - Schema fixtures are checked against Draft 2020-12 and the Rust parser; replay checks normalized-input equality, response linkage, sanitization, and error-code-only denial traces. Contract tests also check exact confidence-decimal bounds, the timestamp u64 boundary, required nullable fields, operation/result compatibility, and revalidation of public protocol structs.
 
-## Independent review and correction
+## Contract corrections
 
 - First substantive exact-SHA review: Pi / OpenAI-Codex / GPT-6 Luna / xhigh, read-only, on candidate `aab713dc60d54239d38deea2338c547a38e80827`.
 - Result: CHANGES_REQUIRED. The reviewer found that out-of-range confidence decimals could round into range during f64 parsing, and that the timestamp schema lacked the Rust u64 maximum.
@@ -75,7 +75,7 @@ The controller committed only card-owned implementation and handoff paths, fast-
 
 ## Review handoff
 
-- The first substantive exact-SHA review was performed by a fresh, contained, read-only Pi / OpenAI-Codex / GPT-6 Luna / xhigh session against candidate `aab713dc60d54239d38deea2338c547a38e80827` and returned CHANGES_REQUIRED for confidence decimal rounding and the timestamp schema bound.
-- A preceding reviewer session returned BLOCKED because its persistent system prompt prohibited source inspection; it was stopped before inspecting source. A fresh session performed the substantive review.
-- The first corrected source candidate was `77c1b1d`; the second correction is integrated as `1c54cb0` and canonical validation passes. After this handoff-only commit, freeze the resulting HEAD as the next exact review candidate.
-- Next: create a fresh contained reviewer lane for that exact candidate. The reviewer must not claim to execute Cargo checks; canonical validation evidence is controller-owned. Close TRC-01 only after exact-SHA review PASS and all other gates pass; do not start a later card.
+- Current implementation, schema, and contract tests include exact numeric bounds, required nullable fields including result_kind for non-resolved traces, operation/result compatibility, and revalidation of public protocol structs.
+- Isolated source commit 624bac1 adds the final result_kind-presence correction and awaits canonical integration and locked validation.
+- After a handoff-only update with canonical results, freeze the resulting HEAD and conduct a fresh contained exact-SHA review. The reviewer must not claim to run Cargo commands; validation evidence is controller-owned.
+- Close TRC-01 only after exact-SHA review PASS and all other gates pass. Do not start a later card.

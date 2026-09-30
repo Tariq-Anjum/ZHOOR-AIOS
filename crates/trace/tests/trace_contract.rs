@@ -277,6 +277,34 @@ fn nullable_fields_are_required_and_operation_matches_result_kind() {
         );
     }
 
+    let mut abstained = read_json_value(&fixture);
+    let object = abstained.as_object_mut().expect("trace object");
+    object.insert(
+        "disposition".to_owned(),
+        Value::String("abstained".to_owned()),
+    );
+    object.insert("result_kind".to_owned(), Value::Null);
+    object.insert("error_code".to_owned(), Value::Null);
+    assert!(schema().is_valid(&abstained));
+    assert!(
+        DecisionTrace::from_json_str(
+            &serde_json::to_string(&abstained).expect("abstained trace JSON")
+        )
+        .is_ok()
+    );
+
+    abstained
+        .as_object_mut()
+        .expect("trace object")
+        .remove("result_kind");
+    assert!(!schema().is_valid(&abstained));
+    assert_eq!(
+        DecisionTrace::from_json_str(
+            &serde_json::to_string(&abstained).expect("trace without result_kind")
+        ),
+        Err(TraceError::InvalidTrace)
+    );
+
     let mismatched = fixture.replace("\"operation\": \"score\"", "\"operation\": \"select\"");
     let instance = read_json_value(&mismatched);
     assert!(!schema().is_valid(&instance));

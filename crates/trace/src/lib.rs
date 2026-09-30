@@ -549,6 +549,7 @@ fn required_nullable_fields_present(value: &serde_json::Value) -> bool {
         [
             "model_version",
             "registry_version",
+            "result_kind",
             "error_code",
             "receipt_ref",
         ]

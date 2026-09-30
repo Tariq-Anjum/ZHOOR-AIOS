@@ -1,0 +1,26 @@
+{
+  "protocol_version": "1",
+  "request_id": "22222222-2222-4222-8222-222222222222",
+  "operation": "score",
+  "worker_kind": "risk_judge",
+  "goal": "Assess the operational risk of the proposed action.",
+  "evidence": [
+    {
+      "ref": "evidence://sha256/a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1",
+      "kind": "tool_result",
+      "trust_tier": "observed",
+      "source": "tool:disk-usage"
+    },
+    {
+      "ref": "evidence://sha256/b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2",
+      "kind": "registry",
+      "trust_tier": "verified",
+      "source": "registry:skills"
+    }
+  ],
+  "candidates": [],
+  "constraints": { "max_choices": 1, "input_token_budget": 500 },
+  "deadline": { "queue_ms": 25, "execution_ms": 100 },
+  "policy_ref": "risk-policy-v1",
+  "provenance": { "client": "zhoor-cli", "session_ref": "session-0002" }
+}

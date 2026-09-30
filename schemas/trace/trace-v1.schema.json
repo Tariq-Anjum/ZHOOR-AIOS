@@ -1,0 +1,198 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:zhoor:trace:v1",
+  "title": "ZHOOR sanitized decision trace, version 1",
+  "description": "Sanitized replay metadata for protocol-level decisions. Request/response free text and bodies are represented only by domain-separated SHA-256 hashes. Hashes are integrity/equality identifiers, not anonymization; replay input remains caller-supplied.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "trace_version",
+    "trace_id",
+    "request_id",
+    "protocol_version",
+    "operation",
+    "worker_kind",
+    "worker_version",
+    "model_version",
+    "policy_version_hash",
+    "registry_version",
+    "input_hash",
+    "response_hash",
+    "route",
+    "result_kind",
+    "confidence",
+    "disposition",
+    "evidence_refs",
+    "latency",
+    "error_code",
+    "receipt_ref",
+    "recorded_at_unix_ms"
+  ],
+  "properties": {
+    "trace_version": { "const": "1" },
+    "trace_id": { "$ref": "#/$defs/uuid" },
+    "request_id": { "$ref": "#/$defs/uuid" },
+    "protocol_version": { "const": "1" },
+    "operation": { "enum": ["select", "score", "extract", "verify"] },
+    "worker_kind": { "enum": ["skill_router", "risk_judge"] },
+    "worker_version": { "$ref": "#/$defs/versionLabel" },
+    "model_version": { "oneOf": [{ "$ref": "#/$defs/versionLabel" }, { "type": "null" }] },
+    "policy_version_hash": { "$ref": "#/$defs/hash" },
+    "registry_version": { "oneOf": [{ "$ref": "#/$defs/versionLabel" }, { "type": "null" }] },
+    "input_hash": { "$ref": "#/$defs/hash" },
+    "response_hash": { "$ref": "#/$defs/hash" },
+    "route": { "enum": ["deterministic", "index", "local", "remote"] },
+    "result_kind": {
+      "oneOf": [
+        { "enum": ["choice", "score", "extract", "verdict"] },
+        { "type": "null" }
+      ]
+    },
+    "confidence": { "$ref": "#/$defs/confidence" },
+    "disposition": { "enum": ["resolved", "abstained", "escalated", "denied"] },
+    "evidence_refs": {
+      "type": "array",
+      "maxItems": 64,
+      "items": { "$ref": "#/$defs/evidenceReference" }
+    },
+    "latency": { "$ref": "#/$defs/latency" },
+    "error_code": {
+      "oneOf": [
+        {
+          "enum": [
+            "unknown_operation",
+            "unknown_worker_kind",
+            "unknown_result_kind",
+            "invalid_disposition",
+            "unknown_trust_tier",
+            "unknown_backend",
+            "invalid_confidence",
+            "invalid_budget",
+            "invalid_deadline",
+            "invalid_id",
+            "missing_field",
+            "unknown_field",
+            "invalid_evidence_reference",
+            "over_budget",
+            "inconsistent_envelope",
+            "invalid_result",
+            "malformed_json",
+            "denied_by_policy"
+          ]
+        },
+        { "type": "null" }
+      ]
+    },
+    "receipt_ref": {
+      "oneOf": [
+        { "type": "string", "pattern": "^receipt://sha256/[0-9a-f]{64}$" },
+        { "type": "null" }
+      ]
+    },
+    "recorded_at_unix_ms": { "type": "integer", "minimum": 0 }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": { "disposition": { "const": "resolved" } },
+        "required": ["disposition"]
+      },
+      "then": {
+        "properties": {
+          "result_kind": { "enum": ["choice", "score", "extract", "verdict"] },
+          "error_code": { "type": "null" }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": { "disposition": { "const": "denied" } },
+        "required": ["disposition"]
+      },
+      "then": {
+        "properties": {
+          "result_kind": { "type": "null" },
+          "error_code": {
+            "enum": [
+              "unknown_operation",
+              "unknown_worker_kind",
+              "unknown_result_kind",
+              "invalid_disposition",
+              "unknown_trust_tier",
+              "unknown_backend",
+              "invalid_confidence",
+              "invalid_budget",
+              "invalid_deadline",
+              "invalid_id",
+              "missing_field",
+              "unknown_field",
+              "invalid_evidence_reference",
+              "over_budget",
+              "inconsistent_envelope",
+              "invalid_result",
+              "malformed_json",
+              "denied_by_policy"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "disposition": { "enum": ["abstained", "escalated"] }
+        },
+        "required": ["disposition"]
+      },
+      "then": {
+        "properties": {
+          "result_kind": { "type": "null" },
+          "error_code": { "type": "null" }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "uuid": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "hash": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "versionLabel": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._+-]*$"
+    },
+    "confidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["raw", "calibrated", "calibration_ref_hash"],
+      "properties": {
+        "raw": { "type": "number", "minimum": 0, "maximum": 1 },
+        "calibrated": { "type": "number", "minimum": 0, "maximum": 1 },
+        "calibration_ref_hash": { "$ref": "#/$defs/hash" }
+      }
+    },
+    "evidenceReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reference", "kind", "trust_tier"],
+      "properties": {
+        "reference": { "type": "string", "pattern": "^evidence://sha256/[0-9a-f]{64}$" },
+        "kind": { "enum": ["user_input", "registry", "tool_result", "memory", "external_document"] },
+        "trust_tier": { "enum": ["untrusted", "observed", "verified", "policy"] }
+      }
+    },
+    "latency": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["queue_ms", "load_ms", "inference_ms"],
+      "properties": {
+        "queue_ms": { "type": "integer", "minimum": 0, "maximum": 600000 },
+        "load_ms": { "type": "integer", "minimum": 0, "maximum": 600000 },
+        "inference_ms": { "type": "integer", "minimum": 0, "maximum": 600000 }
+      }
+    }
+  }
+}

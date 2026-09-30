@@ -1,0 +1,27 @@
+{
+  "trace_version": "2",
+  "trace_id": "aaaaaaaa-0002-4000-8000-000000000002",
+  "request_id": "22222222-2222-4222-8222-222222222222",
+  "protocol_version": "1",
+  "operation": "score",
+  "worker_kind": "risk_judge",
+  "worker_version": "risk-judge-v1",
+  "model_version": null,
+  "policy_version_hash": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+  "registry_version": null,
+  "input_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "response_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "route": "local",
+  "result_kind": "score",
+  "confidence": {
+    "raw": 0.66,
+    "calibrated": 0.61,
+    "calibration_ref_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+  },
+  "disposition": "resolved",
+  "evidence_refs": [],
+  "latency": { "queue_ms": 4, "load_ms": 1, "inference_ms": 22 },
+  "error_code": null,
+  "receipt_ref": null,
+  "recorded_at_unix_ms": 1759000000000
+}

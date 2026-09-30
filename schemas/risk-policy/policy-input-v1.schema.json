@@ -22,6 +22,7 @@
     },
     "signals": {
       "type": "array",
+      "maxItems": 7,
       "uniqueItems": true,
       "items": {
         "enum": [
@@ -38,11 +39,13 @@
     "semantic_ambiguity": { "type": "boolean" },
     "prompt_injection_indicators": {
       "type": "array",
+      "maxItems": 1,
       "uniqueItems": true,
       "items": { "enum": ["safeguard_bypass_instruction"] }
     },
     "evidence_trust_tiers": {
       "type": "array",
+      "maxItems": 4,
       "uniqueItems": true,
       "items": {
         "enum": ["untrusted", "observed", "verified", "policy"]

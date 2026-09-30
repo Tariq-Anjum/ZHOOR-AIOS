@@ -11,6 +11,11 @@ use std::collections::BTreeSet;
 use serde::{Deserialize, Serialize};
 use zhoor_protocol::TrustTier;
 
+const MAX_INPUT_JSON_BYTES: usize = 64 * 1024;
+const MAX_SIGNALS: usize = 7;
+const MAX_PROMPT_INJECTION_INDICATORS: usize = 1;
+const MAX_EVIDENCE_TRUST_TIERS: usize = 4;
+
 /// The only capability whose low-risk behavior is pinned by this v1 policy.
 pub const KNOWN_LOW_RISK_CAPABILITY: &str = "system.info.read";
 
@@ -146,7 +151,7 @@ pub enum EvidenceRequirement {
 }
 
 /// Complete deterministic output for one policy evaluation.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct PolicyAssessment {
     /// Policy version used.
@@ -165,6 +170,50 @@ pub struct PolicyAssessment {
     pub evidence_requirements: Vec<EvidenceRequirement>,
 }
 
+impl<'de> Deserialize<'de> for PolicyAssessment {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        #[derive(Deserialize)]
+        #[serde(deny_unknown_fields)]
+        struct WireAssessment {
+            policy_version: PolicyVersion,
+            risk_level: RiskLevel,
+            scrutiny: ScrutinyRecommendation,
+            state: EvaluationState,
+            advisory_escalation: bool,
+            reasons: Vec<ReasonCode>,
+            evidence_requirements: Vec<EvidenceRequirement>,
+        }
+
+        let wire = WireAssessment::deserialize(deserializer)?;
+        if wire.reasons.iter().copied().collect::<BTreeSet<_>>().len() != wire.reasons.len() {
+            return Err(serde::de::Error::custom("duplicate reason code"));
+        }
+        if wire
+            .evidence_requirements
+            .iter()
+            .copied()
+            .collect::<BTreeSet<_>>()
+            .len()
+            != wire.evidence_requirements.len()
+        {
+            return Err(serde::de::Error::custom("duplicate evidence requirement"));
+        }
+
+        Ok(Self {
+            policy_version: wire.policy_version,
+            risk_level: wire.risk_level,
+            scrutiny: wire.scrutiny,
+            state: wire.state,
+            advisory_escalation: wire.advisory_escalation,
+            reasons: wire.reasons,
+            evidence_requirements: wire.evidence_requirements,
+        })
+    }
+}
+
 /// Deterministic policy input or evaluation error.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PolicyError {
@@ -174,16 +223,29 @@ pub enum PolicyError {
     DuplicateInputFact,
     /// An evidence trust tier is not defined by the accepted protocol.
     UnknownEvidenceTier,
+    /// A JSON input or a directly constructed input exceeds v1 bounds.
+    InputLimitExceeded,
 }
 
 impl PolicyInput {
     /// Parse closed JSON input. Unknown fields, versions, and enum values fail.
     pub fn from_json_str(text: &str) -> Result<Self, serde_json::Error> {
+        if text.len() > MAX_INPUT_JSON_BYTES {
+            return Err(<serde_json::Error as serde::de::Error>::custom(
+                "policy input exceeds the 65536-byte v1 limit",
+            ));
+        }
         serde_json::from_str(text)
     }
 
     /// Evaluate the normalized facts using the pinned v1 policy.
     pub fn evaluate(&self) -> Result<PolicyAssessment, PolicyError> {
+        if self.signals.len() > MAX_SIGNALS
+            || self.prompt_injection_indicators.len() > MAX_PROMPT_INJECTION_INDICATORS
+            || self.evidence_trust_tiers.len() > MAX_EVIDENCE_TRUST_TIERS
+        {
+            return Err(PolicyError::InputLimitExceeded);
+        }
         let capability_len = self.capability.chars().count();
         if !(1..=256).contains(&capability_len)
             || self.capability.trim() != self.capability
@@ -194,11 +256,11 @@ impl PolicyInput {
 
         let signals: BTreeSet<_> = self.signals.iter().copied().collect();
         let injection: BTreeSet<_> = self.prompt_injection_indicators.iter().copied().collect();
+        let mut evidence_names = BTreeSet::new();
         let duplicate_evidence = self
             .evidence_trust_tiers
             .iter()
-            .enumerate()
-            .any(|(index, tier)| self.evidence_trust_tiers[..index].contains(tier));
+            .any(|tier| !evidence_names.insert(tier.as_str()));
         if signals.len() != self.signals.len()
             || injection.len() != self.prompt_injection_indicators.len()
             || duplicate_evidence
@@ -451,5 +513,21 @@ mod tests {
         assert!(PolicyInput::from_json_str(
             r#"{"policy_version":"1","capability":"system.info.read","signals":[],"semantic_ambiguity":false,"prompt_injection_indicators":[],"evidence_trust_tiers":["observed"],"allow_mutation":true}"#
         ).is_err());
+    }
+
+    #[test]
+    fn oversized_json_and_direct_inputs_fail_closed() {
+        let oversized_json = format!("{}{}", " ".repeat(MAX_INPUT_JSON_BYTES), "{}");
+        assert!(PolicyInput::from_json_str(&oversized_json).is_err());
+
+        let mut oversized = input();
+        oversized.evidence_trust_tiers = vec![
+            "untrusted".to_owned(),
+            "observed".to_owned(),
+            "verified".to_owned(),
+            "policy".to_owned(),
+            "untrusted".to_owned(),
+        ];
+        assert_eq!(oversized.evaluate(), Err(PolicyError::InputLimitExceeded));
     }
 }

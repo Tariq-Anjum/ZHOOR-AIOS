@@ -64,7 +64,7 @@
 - D-018: PASS, all 28 status/path/content-hash records reconciled immediately before closure.
 - Board transition: POL-01 REVIEW → DONE in commit `9219483974ac46d464ccc93703e91bc29a4b9abc`. PRO-01, PRO-02, REG-01, and TRC-01 remain DONE; SEC-01, WRK-01, and WRK-02 remain BLOCKED. No later card was started.
 - Herdr: five fresh read-only review sessions were created across correction rounds; the first was stopped before verdict, rounds 2–4 returned CHANGES_REQUIRED and were stopped/completed, and round 5 returned PASS and was stopped/completed. Only the Codex controller remains active.
-- Closure handoff update: pending commit. Publication: pending normal fetch/ancestry check and push; no force push, main promotion, tag, or release.
+- Closure transition commit: `9219483974ac46d464ccc93703e91bc29a4b9abc`; closure evidence handoff commit: `9de0215a45a2f1d768f2281318407d9922780eb0`. The closure checkpoint was normally fast-forward pushed after fetch/ancestry verification, and local/remote SHAs matched at that checkpoint. The subsequent handoff-only update follows the same normal fast-forward publication path. No force push, main promotion, tag, or release.
 - Residual limitations: v1 only recognizes `system.info.read` as a known low-risk capability; signals and prompt-injection indicator are caller-supplied facts; evidence trust tiers do not authenticate evidence or prove source independence; policy output remains advisory.
 - Explicit boundary: no grants issued, no authoritative execution denial invented, no secrets resolved, no capabilities executed, and no network/model dependency added.
 

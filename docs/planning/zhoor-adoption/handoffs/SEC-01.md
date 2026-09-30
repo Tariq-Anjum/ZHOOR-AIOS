@@ -64,6 +64,19 @@ Toolchain: installed Rust `1.98.1`; commands were offline.
 - Worker validation with Rust 1.98.1, offline: fmt check, clippy, check, tests (2 unit + 12 contract), debug build, release build — PASS. Task-scoped `git diff --check` — PASS.
 - A new exact-SHA review by a fresh contained reviewer is required for this correction. No prior PASS carries forward.
 
+## Containment recovery and final review
+
+- Root cause: installed Pi v0.99.1 routes interactive `!` commands through `user_bash`, separately from ordinary `tool_call`. The canonical read-only guard in `scripts/zhoor_pi_readonly_guard.ts` intercepted only `tool_call`; therefore `--tools read,grep,find,ls` did not block Pi's interactive shell path. `scripts/zhoor_herdr.py` copies that guard. Neither canonical script was modified in this SEC review.
+- RED reproduction: with the original guard in a fresh disposable checkout containing no SEC source, `! /usr/bin/printf ZHOOR_USER_BASH_SENTINEL` executed and printed the sentinel; the checkout stayed clean.
+- GREEN: an out-of-repository controller copy added only a `user_bash` handler returning `ZHOOR read-only review containment forbids user shell execution` and exit 126. The same harmless sentinel was blocked with no output. Read/grep/find/ls inside the test checkout succeeded; outside-worktree read was blocked; write and bash model tools were absent.
+- Final review used the immutable disposable guard at `/tmp/zhoor-audit/ZHOOR-20260930T140229Z-SEC-01/review-tools-r5/zhoor_pi_readonly_guard.ts`, SHA-256 `fc5f4ad477bb389eec6550996d6c9dda4950132b3b26dbc46aae1d8c6ecd51b9`, mode 0400. Its actual reviewer-lane sentinel probe was blocked before source packet. Containment evidence: `/tmp/zhoor-audit/ZHOOR-20260930T140229Z-SEC-01/reviewer-scratch-r5/containment-evidence.md`; scratch mode 0700.
+- One attempted r4 lane was stopped without a verdict after its architecture read exceeded the bounded section 8 range. It is not review evidence and was replaced by fresh r5.
+- Final source candidate `7783d20b350290a22f197d13923e127767c13ab5` received `PASS`, no findings, from fresh Pi / OpenAI-Codex / GPT-6 Luna / xhigh / read-only independent review. Immutable report: `docs/planning/zhoor-adoption/handoffs/reviews/SEC-01-luna-r5.md`. The reviewer's process was stopped and verified absent; Herdr lane recorded `COMPLETED` with `AGENT_CONTAINMENT=PASS`. The reviewer did not run Cargo/Git or claim independent SHA verification.
+- Fresh canonical validation on the exact source candidate: `./scripts/validate.sh --package zhoor-aiosd-contracts` — PASS; `cargo +1.98.1 test --offline --locked -p zhoor-aiosd-contracts --test aiosd_contract` — PASS (12 tests); `./scripts/validate.sh` — PASS, exit 0, all workspace checks locked/offline. The active compiler was Rust 1.98.1.
+- Candidate source diff check `git diff --check 4456113a13143f95cd086c36ecf71a2257f5242a..7783d20b350290a22f197d13923e127767c13ab5 -- schemas/aiosd crates/aiosd-contracts fixtures/aiosd docs/contracts/aiosd docs/planning/zhoor-adoption/handoffs/SEC-01.md` — PASS.
+- D-018 after validation: PASS, 28 expected/current, 0 mismatches, 0 extras. Cargo.lock remained `817767a6295e13774cb4f23264ca1fe001e434841e2df79241c7aa03a21ceae1` after locked validation. Board remains SEC-01 `REVIEW`; WRK-01, WRK-02, EVAL-00, GRANT-01, AIOSD-01, AIOSD-02 and all later cards remain `BLOCKED`.
+- Residual orchestration debt: permanently harden the canonical Pi read-only containment helper to block `user_bash` with regression coverage in a separately scoped controller/operations task. Do not fold that tooling change into the reviewed SEC candidate or start that task automatically.
+
 ## Canonical integration and validation
 
 - Implementation commit: `5bcc7750763d7cdf7b5977a083fc9e4931480125`; task-owned SEC paths only.

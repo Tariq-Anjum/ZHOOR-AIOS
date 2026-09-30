@@ -49,6 +49,25 @@
 - Fourth exact-SHA review: candidate a6b7893e0a6d8c1f51d46283cb922c0f9bbb546b; Pi/OpenAI-Codex/GPT-6 Luna/xhigh/read-only, fresh contained session; verdict CHANGES_REQUIRED because C0 and DEL parity classes were not fixture-pinned. Reviewer report: `docs/planning/zhoor-adoption/handoffs/reviews/POL-01-herdr-review-r4.md`; no Cargo commands were run by reviewer.
 - Review correction: commit `274fd5b77689a4148fbe53d099aa0ef25598694d` adds invalid C0 and DEL capability fixtures; the contract inventory compares each invalid fixture against schema and bounded Rust parsing/evaluation. After this correction, `./scripts/validate.sh --package zhoor-risk-policy` passed with 12 unit tests and 3 contract test functions; the targeted locked contract test passed; full `./scripts/validate.sh` passed. Cargo.lock stayed at SHA-256 `2ead4aae23cd06bfb70b681acd6635a1fae685991e1d974a9fa9b14eda6c7f50` throughout locked validation. Fresh exact-SHA review PASS: candidate `9890525fe98e872b89c9f7d2750b89e087cb24e6`, Pi/OpenAI-Codex/GPT-6 Luna/xhigh/read-only; report `docs/planning/zhoor-adoption/handoffs/reviews/POL-01-herdr-review.md`. Reviewer ran no commands. Closure and publication: pending.
 
+## Closure checkpoint
+
+- Run ID: `ZHOOR-20260930T120000Z-POL-01`.
+- Starting canonical local/remote SHA: `9e12c30cd6ec0a677d062d1bc529e5cd90db42fa`.
+- Owner authorization: D-023, commit `cb8581948d0769295b937281b5cff299a5e4e506`; POL-01 BLOCKED → READY.
+- READY → ASSIGNED commit: `9f88a8c248a0fc7e03b8f8f0efa916d6cca28b27`.
+- Implementation commits: `5fa9c2ebcb6ad3357cdb883084b8c9736b425b14`, `f86c7431cae6ba4bbc4cd870d957dee89c75d10d`, `1051f3970b2b67c086eb1c2ef07153b2ea3bde1e`, `881385613d5f7faa1f7a56c8a687da609fac1611`, and `274fd5b77689a4148fbe53d099aa0ef25598694d`.
+- Root Cargo.lock reconciliation: commit `b5ede62a51bf9c2ef62d660a14ffb58dd020927a`; worker-stage lock delta was not committed by the worker.
+- Exact reviewed candidate: `9890525fe98e872b89c9f7d2750b89e087cb24e6`; PASS by fresh Pi / OpenAI-Codex / GPT-6 Luna / xhigh / read-only review after containment PASS. Review report: `docs/planning/zhoor-adoption/handoffs/reviews/POL-01-herdr-review.md`. Reviewer did not run Cargo.
+- Post-correction targeted validation: `./scripts/validate.sh --package zhoor-risk-policy` PASS (12 unit tests, 3 contract-test functions, format, Clippy, check, debug and release builds); `cargo +1.98.1 test --offline --locked -p zhoor-risk-policy --test risk_policy_contract` PASS (3 contract-test functions); full `./scripts/validate.sh` PASS. All Cargo work remained offline.
+- Task-owned `git diff --check` from assignment through candidate: PASS.
+- Cargo.lock SHA-256 before reconciliation: `8f7a3f52711204eb3bc5ad0ddb81f5cead9184fee82cb6bc0b9f0669c153275a`; reconciled value before/after all locked validation: `2ead4aae23cd06bfb70b681acd6635a1fae685991e1d974a9fa9b14eda6c7f50` (unchanged during locked validation).
+- D-018: PASS, all 28 status/path/content-hash records reconciled immediately before closure.
+- Board transition: POL-01 REVIEW → DONE in commit `9219483974ac46d464ccc93703e91bc29a4b9abc`. PRO-01, PRO-02, REG-01, and TRC-01 remain DONE; SEC-01, WRK-01, and WRK-02 remain BLOCKED. No later card was started.
+- Herdr: five fresh read-only review sessions were created across correction rounds; the first was stopped before verdict, rounds 2–4 returned CHANGES_REQUIRED and were stopped/completed, and round 5 returned PASS and was stopped/completed. Only the Codex controller remains active.
+- Closure handoff update: pending commit. Publication: pending normal fetch/ancestry check and push; no force push, main promotion, tag, or release.
+- Residual limitations: v1 only recognizes `system.info.read` as a known low-risk capability; signals and prompt-injection indicator are caller-supplied facts; evidence trust tiers do not authenticate evidence or prove source independence; policy output remains advisory.
+- Explicit boundary: no grants issued, no authoritative execution denial invented, no secrets resolved, no capabilities executed, and no network/model dependency added.
+
 ## Limitations
 
 - This v1 policy knows only system.info.read as a low-risk capability; other capability IDs abstain unless a later accepted policy version adds them.

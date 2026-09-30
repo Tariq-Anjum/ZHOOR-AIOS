@@ -1,9 +1,18 @@
 from __future__ import annotations
 
+import fcntl
 import json
 import os
+import pty
+import re
+import select
+import shutil
+import signal
+import struct
 import subprocess
 import tempfile
+import termios
+import time
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
@@ -459,6 +468,159 @@ print(json.dumps({
         self.assertEqual(fake.calls[-1][:3], ["herdr", "agent", "prompt"])
 
 
+class ZhoorInstalledPiAuthTests(unittest.TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.root = Path(self.temp.name)
+        self.worktree = self.root / "worktree"
+        self.worktree.mkdir()
+        self.scratch = self.root / "scratch"
+        self.scratch.mkdir(mode=0o700)
+        self.auth_store = self.root / "controller-auth.json"
+        self.auth_store.write_text("{}")
+        self.auth_patch = patch.object(zhoor_herdr, "PI_AUTH_STORE", self.auth_store)
+        self.auth_patch.start()
+
+    def tearDown(self):
+        self.auth_patch.stop()
+        self.temp.cleanup()
+
+    @staticmethod
+    def installed_pi_auth_modules():
+        pi = Path(shutil.which("pi") or "").resolve()
+        package = next(
+            (parent for parent in (pi, *pi.parents)
+             if (parent / "dist/core/auth-storage.js").is_file()),
+            None,
+        )
+        if package is None:
+            raise AssertionError("installed Pi auth storage module was not found")
+        auth_storage = package / "dist/core/auth-storage.js"
+        pi_ai_resolver = package / "node_modules/@earendil-works/pi-ai/dist/auth/resolve.js"
+        if not pi_ai_resolver.is_file():
+            raise AssertionError("installed Pi auth resolver module was not found")
+        return auth_storage.as_uri(), pi_ai_resolver.as_uri()
+
+    def run_installed_auth_resolution(self, *, fail_persistence=False):
+        auth_storage_uri, resolver_uri = self.installed_pi_auth_modules()
+        node_script = self.root / "exercise-installed-auth.mjs"
+        node_source = r'''import { existsSync, readlinkSync } from "node:fs";
+import { AuthStorage } from __AUTH_STORAGE_URI__;
+import { resolveProviderAuth } from __RESOLVER_URI__;
+const authPath = process.env.PI_CODING_AGENT_DIR + "/auth.json";
+const storage = AuthStorage.create();
+let refreshCalls = 0;
+const provider = {
+  id: "openai",
+  auth: { oauth: {
+    refresh: async (credential) => {
+      refreshCalls++;
+      await new Promise((resolve) => setTimeout(resolve, 40));
+      return { ...credential, access: "synthetic-refreshed-access", expires: Date.now() + 3600000 };
+    },
+    toAuth: async (credential) => ({ token: credential.access }),
+  } },
+};
+const context = { env: async () => undefined, fileExists: () => false };
+const outcomes = await Promise.allSettled([
+  resolveProviderAuth(provider, storage, context),
+  resolveProviderAuth(provider, storage, context),
+]);
+const failedSafely = outcomes.length === 2 && outcomes.every((item) =>
+  item.status === "rejected" &&
+  String(item.reason?.message ?? "").includes("Credential store modify failed for openai"));
+const passed = outcomes.length === 2 && outcomes.every((item) =>
+  item.status === "fulfilled" && item.value?.source === "OAuth" &&
+  item.value?.auth?.token === "synthetic-refreshed-access");
+const persisted = await storage.read("openai");
+const descriptorTarget = readlinkSync("/proc/self/fd/3");
+console.log(JSON.stringify({
+  refresh_calls: refreshCalls,
+  oauth_results: passed,
+  persistence_failed_safely: failedSafely,
+  persisted_refreshed_credential: persisted?.access === "synthetic-refreshed-access",
+  complete_oauth_structure_preserved: persisted?.clientId === "synthetic-test-client" &&
+    persisted?.scopes?.includes("chatgpt.tokens.use.direct") === true &&
+    persisted?.accountMetadata?.tenant === "synthetic-test-tenant",
+  persisted_original_after_failure: persisted?.access === "synthetic-test-access",
+  auth_path_is_fd_symlink: readlinkSync(authPath) === "/proc/self/fd/3",
+  descriptor_is_anonymous_memfd: descriptorTarget.includes("memfd:pi-provider-auth"),
+  lock_removed: !existsSync(authPath + ".lock"),
+}));
+'''.replace("__AUTH_STORAGE_URI__", json.dumps(auth_storage_uri)).replace(
+            "__RESOLVER_URI__", json.dumps(resolver_uri)
+        )
+        node_script.write_text(node_source)
+        fake_pi = self.root / ("fake-pi-readonly" if fail_persistence else "fake-pi")
+        chmod_fd = "os.fchmod(3, 0o400)" if fail_persistence else "pass"
+        fake_pi.write_text(
+            "#!/usr/bin/python3\n"
+            "import os, subprocess, sys\n"
+            f"{chmod_fd}\n"
+            f"result = subprocess.run(['node', {str(node_script)!r}], "
+            "text=True, capture_output=True, pass_fds=(3,), check=False)\n"
+            "sys.stdout.write(result.stdout)\n"
+            "if result.returncode:\n"
+            "    print('installed Pi auth integration failed safely', file=sys.stderr)\n"
+            "raise SystemExit(result.returncode)\n"
+        )
+        fake_pi.chmod(0o700)
+        credential = {
+            "type": "oauth",
+            "access": "synthetic-test-access",
+            "refresh": "synthetic-test-refresh",
+            "expires": 1,
+            "clientId": "synthetic-test-client",
+            "scopes": ["openid", "chatgpt.tokens.use.direct"],
+            "accountMetadata": {"tenant": "synthetic-test-tenant"},
+        }
+        self.auth_store.write_text(json.dumps({"openai": credential}))
+        source_bytes_before = self.auth_store.read_bytes()
+        args = spawn_args(self.worktree, self.scratch)
+        with patch.object(zhoor_herdr.shutil, "which", return_value=str(fake_pi)):
+            zhoor_herdr._prepare_pi_containment(
+                args.agent_args[1:],
+                route=zhoor_herdr.resolve_audit_route(args.audit_tier),
+                scratch=self.scratch,
+            )
+        result = subprocess.run(
+            [str(self.scratch / "bin" / "pi")],
+            text=True,
+            capture_output=True,
+            env={"PATH": "/usr/bin:/bin", "LANG": "C.UTF-8"},
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(self.auth_store.read_bytes(), source_bytes_before)
+        report = json.loads(result.stdout)
+        self.assertNotIn("synthetic-test-access", result.stdout)
+        self.assertNotIn("synthetic-test-refresh", result.stdout)
+        auth_path = self.scratch / "pi-config" / "auth.json"
+        self.assertTrue(auth_path.is_symlink())
+        self.assertFalse(auth_path.with_name("auth.json.lock").exists())
+        return report
+
+    def test_installed_pi_auth_storage_refreshes_concurrently_inside_memfd(self):
+        report = self.run_installed_auth_resolution()
+        self.assertEqual(report["refresh_calls"], 1)
+        self.assertTrue(report["oauth_results"])
+        self.assertTrue(report["persisted_refreshed_credential"])
+        self.assertTrue(report["complete_oauth_structure_preserved"])
+        self.assertTrue(report["auth_path_is_fd_symlink"])
+        self.assertTrue(report["descriptor_is_anonymous_memfd"])
+        self.assertTrue(report["lock_removed"])
+
+    def test_installed_pi_auth_storage_fails_closed_when_memfd_cannot_be_updated(self):
+        report = self.run_installed_auth_resolution(fail_persistence=True)
+        self.assertGreaterEqual(report["refresh_calls"], 1)
+        self.assertFalse(report["oauth_results"])
+        self.assertTrue(report["persistence_failed_safely"])
+        self.assertTrue(report["persisted_original_after_failure"])
+        self.assertTrue(report["auth_path_is_fd_symlink"])
+        self.assertTrue(report["descriptor_is_anonymous_memfd"])
+        self.assertTrue(report["lock_removed"])
+
+
 class ZhoorReadonlyGuardTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
@@ -550,6 +712,191 @@ console.log(JSON.stringify({{ registered: [...handlers.keys()], result: result ?
             "input": {"path": "escape.txt"},
         })
         self.assertTrue(report["result"]["block"])
+
+
+class ZhoorInstalledPiCliTests(unittest.TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.root = Path(self.temp.name)
+        self.worktree = self.root / "worktree"
+        self.worktree.mkdir()
+        self.scratch_runs = 0
+        self.auth_store = self.root / "controller-auth.json"
+        credential = {
+            "type": "oauth",
+            "access": "synthetic-cli-access",
+            "refresh": "synthetic-cli-refresh",
+            "expires": 2_000_000_000_000,
+            "clientId": "synthetic-cli-client",
+            "scopes": ["openid", "chatgpt.tokens.use.direct"],
+        }
+        self.auth_store.write_text(json.dumps({"openai": credential}))
+        self.auth_patch = patch.object(zhoor_herdr, "PI_AUTH_STORE", self.auth_store)
+        self.auth_patch.start()
+
+    def tearDown(self):
+        self.auth_patch.stop()
+        self.temp.cleanup()
+
+    @staticmethod
+    def strip_terminal_control(data: bytes) -> str:
+        clean = re.sub(rb"\x1b(?:\[[0-?]*[ -/]*[@-~]|\][^\x07]*(?:\x07|\x1b\\))", b"", data)
+        return clean.decode("utf-8", errors="replace").replace("\r", "")
+
+    def run_interactive_pi(self, commands, *, guard_source=None, expect_block=True):
+        self.scratch_runs += 1
+        self.scratch = self.root / f"scratch-{self.scratch_runs}"
+        self.scratch.mkdir(mode=0o700)
+        args = [
+            "--provider", "openai",
+            "--model", "gpt-6.1-sol",
+            "--thinking", "high",
+            "--no-extensions",
+            "--no-skills",
+            "--no-prompt-templates",
+            "--no-themes",
+            "--no-context-files",
+            "--no-approve",
+            "--tools", "read,grep,find,ls",
+            "--name", f"zhoor-user-bash-regression-{self.scratch_runs}",
+            "--system-prompt", "Installed Pi user shell containment regression.",
+        ]
+        sandbox_args, _ = zhoor_herdr._prepare_pi_containment(
+            args,
+            route=zhoor_herdr.resolve_audit_route("primary"),
+            scratch=self.scratch,
+        )
+        guard_path = Path(sandbox_args[sandbox_args.index("--extension") + 1])
+        if guard_source is not None:
+            guard_path.chmod(0o600)
+            guard_path.write_text(guard_source)
+            guard_path.chmod(0o400)
+
+        master, slave = pty.openpty()
+        fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack("HHHH", 42, 140, 0, 0))
+        process = subprocess.Popen(
+            [str(self.scratch / "bin" / "pi"), *args, *sandbox_args],
+            cwd=self.worktree,
+            stdin=slave,
+            stdout=slave,
+            stderr=slave,
+            env={"PATH": "/usr/bin:/bin", "LANG": "C.UTF-8", "TERM": "xterm-256color"},
+            start_new_session=True,
+            close_fds=True,
+        )
+        os.close(slave)
+        output = bytearray()
+
+        def submit_and_receive(command, marker, side_effect, timeout=30):
+            deadline = time.monotonic() + timeout
+            next_submit = time.monotonic()
+            command_submitted = False
+            while time.monotonic() < deadline:
+                now = time.monotonic()
+                if not command_submitted:
+                    os.write(master, (command + "\r").encode())
+                    command_submitted = True
+                    next_submit = now + 2
+                ready, _, _ = select.select([master], [], [], 0.1)
+                if ready:
+                    try:
+                        chunk = os.read(master, 65536)
+                    except OSError:
+                        break
+                    if not chunk:
+                        break
+                    output.extend(chunk)
+                    text = self.strip_terminal_control(output)
+                    if expect_block and marker in text and "(exit 126)" in text:
+                        return
+                    if not expect_block and side_effect.exists():
+                        return
+                # Pi deliberately retains submitted input while startup hooks load.
+                # Re-submit the still-visible line until the normal handler is active.
+                if time.monotonic() >= next_submit:
+                    os.write(master, b"\r")
+                    next_submit = time.monotonic() + 2
+                if process.poll() is not None:
+                    break
+            text = self.strip_terminal_control(output)
+            safe_tail = re.sub(r"synthetic-[A-Za-z0-9_-]+", "<redacted>", text[-1200:])
+            raise AssertionError(
+                "installed Pi did not reach the expected interactive result; "
+                f"process_exit={process.poll()}, output_tail={safe_tail!r}"
+            )
+
+        try:
+            # Give the real TUI time to mount before sending key input.
+            ready, _, _ = select.select([master], [], [], 2)
+            if ready:
+                try:
+                    output.extend(os.read(master, 65536))
+                except OSError:
+                    pass
+            for command, marker, side_effect in commands:
+                submit_and_receive(command, marker, side_effect)
+            return self.strip_terminal_control(output)
+        finally:
+            try:
+                os.killpg(process.pid, signal.SIGTERM)
+            except ProcessLookupError:
+                pass
+            try:
+                process.wait(timeout=3)
+            except subprocess.TimeoutExpired:
+                try:
+                    os.killpg(process.pid, signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+                process.wait(timeout=3)
+            os.close(master)
+
+    def test_installed_pi_cli_blocks_bang_and_double_bang_shell_dispatch(self):
+        base_guard = subprocess.run(
+            [
+                "git", "show",
+                "9a9a6ee3d9b1f3bfeb22b9124153226671d6a91b:scripts/zhoor_pi_readonly_guard.ts",
+            ],
+            cwd=Path(__file__).parents[1],
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        self.assertEqual(base_guard.returncode, 0, base_guard.stderr)
+        legacy_side_effect = self.root / "legacy-shell-ran"
+        denial = "ZHOOR read-only containment denied user shell execution"
+        legacy_command = (
+            "! /usr/bin/printf ZHOOR_LEGACY_USER_BASH_SENTINEL; "
+            f"/usr/bin/touch {legacy_side_effect}"
+        )
+        legacy_output = self.run_interactive_pi(
+            [(legacy_command, denial, legacy_side_effect)],
+            guard_source=base_guard.stdout,
+            expect_block=False,
+        )
+        self.assertTrue(legacy_side_effect.exists())
+        self.assertNotIn(denial, legacy_output)
+
+        cases = [
+            (
+                "! /usr/bin/printf ZHOOR_PRIMARY_USER_BASH_SENTINEL; "
+                f"/usr/bin/touch {self.root / 'primary-shell-ran'}",
+                denial,
+                self.root / "primary-shell-ran",
+            ),
+            (
+                "!! /usr/bin/printf ZHOOR_SECONDARY_USER_BASH_SENTINEL; "
+                f"/usr/bin/touch {self.root / 'secondary-shell-ran'}",
+                denial,
+                self.root / "secondary-shell-ran",
+            ),
+        ]
+        for command, denial, side_effect in cases:
+            with self.subTest(command=command[:2]):
+                output = self.run_interactive_pi([(command, denial, side_effect)])
+                self.assertIn(denial, output)
+                self.assertGreaterEqual(output.count("(exit 126)"), 1)
+                self.assertFalse(side_effect.exists())
 
 
 class ZhoorAuditRoutingTests(unittest.TestCase):

@@ -262,7 +262,16 @@ impl DecisionTrace {
     }
 
     pub fn from_json_str(text: &str) -> Result<Self, TraceError> {
-        let trace: Self = serde_json::from_str(text).map_err(|_| TraceError::InvalidTrace)?;
+        // Preserve the original decimal spelling long enough to reject values
+        // outside [0, 1] before conversion to f64 can round them onto a bound.
+        let value: serde_json::Value =
+            serde_json::from_str(text).map_err(|_| TraceError::InvalidTrace)?;
+        if !json_confidence_in_unit_interval(&value, "raw")
+            || !json_confidence_in_unit_interval(&value, "calibrated")
+        {
+            return Err(TraceError::InvalidTrace);
+        }
+        let trace: Self = serde_json::from_value(value).map_err(|_| TraceError::InvalidTrace)?;
         trace.validate()?;
         Ok(trace)
     }
@@ -501,6 +510,57 @@ fn is_hash(value: &str) -> bool {
 
 fn valid_confidence(value: f64) -> bool {
     value.is_finite() && (0.0..=1.0).contains(&value)
+}
+
+fn json_confidence_in_unit_interval(value: &serde_json::Value, field: &str) -> bool {
+    value
+        .get("confidence")
+        .and_then(|confidence| confidence.get(field))
+        .and_then(serde_json::Value::as_number)
+        .is_some_and(|number| decimal_in_unit_interval(&number.to_string()))
+}
+
+// The input is already a syntactically valid JSON number. Compare its exact
+// decimal value against 0 and 1 without converting it to a floating-point type.
+fn decimal_in_unit_interval(number: &str) -> bool {
+    let (negative, unsigned) = number
+        .strip_prefix('-')
+        .map_or((false, number), |unsigned| (true, unsigned));
+    let (mantissa, exponent) = unsigned
+        .find(['e', 'E'])
+        .map_or((unsigned, 0_i64), |index| {
+            let exponent = unsigned[index + 1..].parse::<i64>().unwrap_or_else(|_| {
+                if unsigned[index + 1..].starts_with('-') {
+                    i64::MIN
+                } else {
+                    i64::MAX
+                }
+            });
+            (&unsigned[..index], exponent)
+        });
+    let (integer, fraction) = mantissa.split_once('.').unwrap_or((mantissa, ""));
+    let digits = format!("{integer}{fraction}");
+    let leading_zeroes = digits.bytes().take_while(|byte| *byte == b'0').count();
+    if leading_zeroes == digits.len() {
+        return true;
+    }
+    if negative {
+        return false;
+    }
+
+    let decimal_position = (integer.len() as i64)
+        .saturating_add(exponent)
+        .saturating_sub(leading_zeroes as i64);
+    if decimal_position < 1 {
+        return true;
+    }
+    if decimal_position > 1 {
+        return false;
+    }
+
+    let significant = &digits[leading_zeroes..];
+    significant.as_bytes()[0] == b'1'
+        && significant.as_bytes()[1..].iter().all(|byte| *byte == b'0')
 }
 
 fn optional_valid_receipt(value: Option<&str>) -> bool {

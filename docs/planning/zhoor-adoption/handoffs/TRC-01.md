@@ -29,12 +29,20 @@ All commands used the installed Rust 1.98.1 toolchain and --offline; pre-integra
 - cargo fmt --all -- --check — PASS
 - cargo clippy -p zhoor-trace --all-targets --offline -- -D warnings — PASS
 - cargo check -p zhoor-trace --all-targets --offline — PASS
-- cargo test -p zhoor-trace --offline — PASS (4 unit, 5 contract, 0 doctests)
-- cargo test --offline -p zhoor-trace --test trace_contract — PASS (5 contract tests)
+- cargo test -p zhoor-trace --offline — PASS (4 unit, 7 contract, 0 doctests)
+- cargo test --offline -p zhoor-trace --test trace_contract — PASS (7 contract tests)
 - cargo build -p zhoor-trace --offline — PASS
 - cargo build -p zhoor-trace --release --offline — PASS
 - git diff --check — PASS
-- Schema fixtures are checked against Draft 2020-12 and the Rust parser; replay checks normalized-input equality, response linkage, sanitization, and error-code-only denial traces.
+- Schema fixtures are checked against Draft 2020-12 and the Rust parser; replay checks normalized-input equality, response linkage, sanitization, and error-code-only denial traces. Contract tests also check exact confidence-decimal bounds and the timestamp u64 boundary.
+
+## Independent review and correction
+
+- First substantive exact-SHA review: Pi / OpenAI-Codex / GPT-6 Luna / xhigh, read-only, on candidate `aab713dc60d54239d38deea2338c547a38e80827`.
+- Result: CHANGES_REQUIRED. The reviewer found that out-of-range confidence decimals could round into range during f64 parsing, and that the timestamp schema lacked the Rust u64 maximum.
+- Corrections: `from_json_str` now checks the original arbitrary-precision confidence decimals against [0, 1] before f64 deserialization; the schema caps timestamps at 18446744073709551615. Added boundary contract coverage for confidence and timestamps.
+- The initial reviewer session returned BLOCKED because its persistent system prompt prohibited source inspection; it was stopped before any source review. A fresh contained reviewer session performed the substantive review. No source changes were made from the blocked session.
+- Corrected candidate SHA and fresh exact-SHA review are pending integration and canonical validation. No reviewer has approved the corrected candidate yet.
 
 ## Root lockfile
 
@@ -64,4 +72,7 @@ The controller committed only card-owned implementation and handoff paths, fast-
 
 ## Review handoff
 
-Next action: controller moves only TRC-01 from ASSIGNED to REVIEW after final protected-baseline verification, captures the resulting exact candidate SHA, then conducts one fresh contained read-only Pi/GPT-6 Luna/xhigh review in a detached worktree. The reviewer must not claim to have executed Cargo checks; canonical validation evidence above is controller-owned.
+- The first substantive exact-SHA review was performed by a fresh, contained, read-only Pi / OpenAI-Codex / GPT-6 Luna / xhigh session against candidate `aab713dc60d54239d38deea2338c547a38e80827` and returned CHANGES_REQUIRED for confidence decimal rounding and the timestamp schema bound.
+- A preceding reviewer session returned BLOCKED because its persistent system prompt prohibited source inspection; it was stopped before inspecting source. A fresh session performed the substantive review.
+- The implementation correction is being integrated from the isolated worktree. The corrected candidate SHA will be recorded after integration and canonical locked validation.
+- Next: create a fresh contained reviewer lane for the corrected exact candidate. The reviewer must not claim to execute Cargo checks; canonical validation evidence is controller-owned. Close TRC-01 only after exact-SHA review PASS and all other gates pass; do not start a later card.

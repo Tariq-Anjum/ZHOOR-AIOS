@@ -186,3 +186,68 @@ fn unsafe_labels_and_receipt_references_are_rejected() {
         Err(TraceError::InvalidContext)
     );
 }
+
+#[test]
+fn confidence_decimal_bounds_match_schema_without_float_rounding() {
+    let root = repo_root();
+    let fixture =
+        fs::read_to_string(root.join("fixtures/trace/valid/trace-v1.json")).expect("trace fixture");
+    let schema_document = read_json(&root.join("schemas/trace/trace-v1.schema.json"));
+    assert_eq!(
+        schema_document["$defs"]["confidence"]["properties"]["raw"]["maximum"],
+        1
+    );
+    assert_eq!(
+        schema_document["$defs"]["confidence"]["properties"]["calibrated"]["maximum"],
+        1
+    );
+    let outside_upper_bound = fixture.replace("\"raw\": 0.66", "\"raw\": 1.00000000000000001");
+    assert_eq!(
+        DecisionTrace::from_json_str(&outside_upper_bound),
+        Err(TraceError::InvalidTrace)
+    );
+
+    let outside_lower_bound = fixture.replace("\"raw\": 0.66", "\"raw\": -0.00000000000000001");
+    assert_eq!(
+        DecisionTrace::from_json_str(&outside_lower_bound),
+        Err(TraceError::InvalidTrace)
+    );
+
+    let calibrated_outside_upper_bound = fixture.replace(
+        "\"calibrated\": 0.61",
+        "\"calibrated\": 1.00000000000000001",
+    );
+    assert_eq!(
+        DecisionTrace::from_json_str(&calibrated_outside_upper_bound),
+        Err(TraceError::InvalidTrace)
+    );
+}
+
+#[test]
+fn timestamp_schema_bound_matches_rust_u64() {
+    let root = repo_root();
+    let fixture =
+        fs::read_to_string(root.join("fixtures/trace/valid/trace-v1.json")).expect("trace fixture");
+    let at_maximum = fixture.replace(
+        "\"recorded_at_unix_ms\": 1759000000000",
+        "\"recorded_at_unix_ms\": 18446744073709551615",
+    );
+    let instance = read_json_value(&at_maximum);
+    assert!(schema().is_valid(&instance));
+    assert!(DecisionTrace::from_json_str(&at_maximum).is_ok());
+
+    let above_maximum = fixture.replace(
+        "\"recorded_at_unix_ms\": 1759000000000",
+        "\"recorded_at_unix_ms\": 18446744073709551616",
+    );
+    let instance = read_json_value(&above_maximum);
+    assert!(!schema().is_valid(&instance));
+    assert_eq!(
+        DecisionTrace::from_json_str(&above_maximum),
+        Err(TraceError::InvalidTrace)
+    );
+}
+
+fn read_json_value(text: &str) -> Value {
+    serde_json::from_str(text).expect("valid JSON instance")
+}

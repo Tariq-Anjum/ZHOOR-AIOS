@@ -7,7 +7,10 @@
 - Owner contract authorization SHA: `366577a238cfb2f8500c981ab98e8f7824b5797b`
 - Assignment SHA: `a2bc3ea1fc17bb5b9bed26052d4dfe64ea303f94`
 - Implementation worktree: `/tmp/zhoor-pro-02/ZHOOR-20260930T101500Z-PRO-02/worker`, branch `work/pro-02-20260930-resumed`
-- Current status: `ASSIGNED`; implementation changes are in progress and remain uncommitted
+- Current status: `REVIEW`; implementation and lockfile reconciliation have been integrated
+- Isolated implementation commit: `7f37e3e00530e1f78ffe49b5c4f936671633a5ac`
+- Integrated implementation SHA: `0d55e9db596608c6ce47e2ea063615092c0c4662`
+- Cargo.lock reconciliation commit: `c81bdb3aca1d924ba05dac87c3d1acdf387f5e2f`
 - Prior exact-SHA architecture challenge: `OWNER_CONTRACT_DECISION_REQUIRED` at prior assignment `2cb8d54560079d1a012ee5014e1b96dd9f15f1a0`; the owner resolved format placement in D-021
 - Prior challenge lane: contained Pi / OpenAI-Codex / GPT-6 Luna xhigh / read-only; `AGENT_CONTAINMENT=PASS`; stopped after result capture
 - Prior challenge evidence: `/tmp/zhoor-pro-02/ZHOOR-20260930T081737Z-PRO-02/architecture-challenge-result.md`
@@ -36,9 +39,11 @@ The new identity fixtures cover valid root metadata, absent/malformed/unsupporte
 ## Validation evidence
 
 - Pre-integration unlocked/offline package sequence: PASS — `cargo +1.98.1 fmt --all -- --check`; `cargo +1.98.1 clippy --offline -p zhoor-protocol --all-targets -- -D warnings`; `cargo +1.98.1 check --offline -p zhoor-protocol --all-targets`; `cargo +1.98.1 test --offline -p zhoor-protocol` (21 unit tests, 14 contract tests, doctests).
-- Canonical post-integration targeted validation: pending.
-- Canonical full validation and `git diff --check`: pending.
-- Root `Cargo.lock` baseline hash before package resolution: `4585fbd4546d6b79045c87a83f4796dafe5144ff628cb4cb5fd297bc4f1a2150`; generated worktree hash after adding the direct dependency: `4447c1d03b40adb9e0217b7cf20c6845e30986555ae475a9b0fb074b19cc0e32`. Locked post-integration validation must leave the reconciled root hash unchanged.
+- Canonical post-integration targeted validation: PASS — `./scripts/validate.sh --package zhoor-protocol`; `cargo +1.98.1 test --offline --locked -p zhoor-protocol --test protocol_contract` (14 tests).
+- Canonical full validation: PASS — `./scripts/validate.sh` (workspace lint, check, tests, docs, debug/release builds).
+- `git diff --check` on the complete PRO-02 change range from assignment `a2bc3ea1fc17bb5b9bed26052d4dfe64ea303f94` through current implementation/lock commits: PASS. The unscoped working-tree `git diff --check` reports trailing spaces in pre-existing D-018-protected job-card edits; those paths remain unchanged and preserved.
+- Root `Cargo.lock` SHA-256 before resolution: `4585fbd4546d6b79045c87a83f4796dafe5144ff628cb4cb5fd297bc4f1a2150`; post-reconciliation and before/after locked validation: `4447c1d03b40adb9e0217b7cf20c6845e30986555ae475a9b0fb074b19cc0e32` (unchanged by locked validation).
+- D-018: PASS; all 28 status/path/SHA-256 records match, with zero extras.
 - Exact-SHA independent review: pending; require `AGENT_CONTAINMENT=PASS` first.
 
 ## Closure and stop

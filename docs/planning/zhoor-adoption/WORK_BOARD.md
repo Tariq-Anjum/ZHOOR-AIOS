@@ -16,7 +16,7 @@ Before any downstream implementation card becomes `READY`, `ARC-03` must replace
 | BASE-01 | DONE | ARC-03 | Minimal verified project scaffold | implementation-low-cost | independent-challenger | `Cargo.toml`; `Cargo.lock`; `rust-toolchain.toml`; `.cargo/**`; `.github/workflows/zhoor.yml`; `scripts/validate.sh`; `src/**`; `tests/smoke.rs`; `docs/planning/zhoor-adoption/handoffs/BASE-01.md` |
 | PRO-01 | DONE | BASE-01 | Versioned decision protocol and fixtures | implementation-low-cost | security-reviewer | `schemas/protocol/**`; `crates/protocol/**`; `fixtures/protocol/**`; `docs/planning/zhoor-adoption/handoffs/PRO-01.md` |
 | PRO-02 | DONE | PRO-01 | Registry descriptor identity/version contract | implementation-low-cost | independent-architecture-reviewer | `schemas/protocol/**`; `crates/protocol/**`; `fixtures/protocol/**`; `docs/planning/zhoor-adoption/handoffs/PRO-02.md` |
-| REG-01 | BLOCKED | PRO-01, PRO-02 | Compact descriptor registry/index loader | implementation-low-cost | evaluation-reviewer | `schemas/registry/**`; `crates/registry/**`; `fixtures/registry/**`; `docs/planning/zhoor-adoption/handoffs/REG-01.md` |
+| REG-01 | READY | PRO-01, PRO-02 | Compact descriptor registry/index loader | implementation-low-cost | evaluation-reviewer | `schemas/registry/**`; `crates/registry/**`; `fixtures/registry/**`; `docs/planning/zhoor-adoption/handoffs/REG-01.md` |
 | POL-01 | BLOCKED | PRO-01 | Deterministic risk rules and recommendations | implementation-low-cost | security-reviewer | `schemas/risk-policy/**`; `crates/risk-policy/**`; `fixtures/risk-policy/**`; `docs/planning/zhoor-adoption/handoffs/POL-01.md` |
 | TRC-01 | DONE | PRO-01 | Sanitized trace writer and replay | implementation-low-cost | evaluation-reviewer | `schemas/trace/**`; `crates/trace/**`; `fixtures/trace/**`; `docs/planning/zhoor-adoption/handoffs/TRC-01.md` |
 | SEC-01 | BLOCKED | PRO-01 | `aiosd`/grant contracts and hostile fixtures | security-reviewer | independent-challenger | `schemas/aiosd/**`; `crates/aiosd-contracts/**`; `fixtures/aiosd/**`; `docs/contracts/aiosd/**`; `docs/planning/zhoor-adoption/handoffs/SEC-01.md` |
@@ -48,7 +48,7 @@ Before any downstream implementation card becomes `READY`, `ARC-03` must replace
 
 ## Parallelism
 
-- `REG-01` remains BLOCKED until `PRO-02` is DONE and the owner separately authorizes resumption. Other cards retain their current board gates.
+- D-022 authorizes only REG-01 resumption after PRO-02 DONE; REG-01 is READY pending the unique-authorization gate and separate assignment. POL-01, SEC-01, WRK-01, and WRK-02 remain BLOCKED.
 - `WRK-01` and `WRK-02` may run in parallel after dependencies merge.
 - `EVAL-01` and `EVAL-02` may run in parallel; then `EVAL-03` and `EVAL-04` may run in parallel.
 - From `AUD-01` onward, serialize except where a later accepted ADR explicitly changes the security order.
@@ -57,4 +57,4 @@ Before any downstream implementation card becomes `READY`, `ARC-03` must replace
 
 Done: ARC-01, ARC-02, ARC-03, and BASE-01 are complete. ADR-0003 is accepted, and the minimal Rust workspace scaffold passed deterministic validation and independent exact-SHA review.
 
-Done: PRO-02 is closed under D-021. REG-01 remains `BLOCKED` pending a separate owner authorization; POL-01, SEC-01, WRK-01, and WRK-02 remain `BLOCKED`. No later card was started.
+Done: PRO-02 is closed under D-021. Under D-022, REG-01 alone is `READY` for resumption; POL-01, SEC-01, WRK-01, and WRK-02 remain `BLOCKED`. No other card is authorized.

@@ -22,6 +22,14 @@ Protocol v1 does not define that descriptor contract:
 
 Implementing version/hash validation now would require REG-01 to invent contract semantics that the card assigns to protocol authority. No protocol, schema, fixture, or implementation changes were made.
 
-## Next action
+## Original blocker disposition
 
-Owner/PRO-01 follow-up must define whether descriptor identity/version/hash fields are required and their exact v1 contract. Keep REG-01 BLOCKED until that contract is accepted; then resume REG-01 from a fresh assignment SHA and worktree. POL-01, SEC-01, WRK-01, and WRK-02 remain BLOCKED and were not started.
+At the original stop, PRO-01 follow-up was required because the protocol-owned descriptor identity/version/hash contract was missing. PRO-02 has since defined and published that contract, and the owner has separately authorized REG-01 resumption under D-022. The original blocked attempt remains historical evidence and was not rewritten.
+
+## Owner-authorized resumption after PRO-02
+
+- Starting published checkpoint: `e09341a45658c1c7f2fd5bba113e14f4f883f98a` (local and remote matched).
+- PRO-02 is DONE and published. Its accepted contract is recorded in D-021 and `handoffs/PRO-02.md`.
+- D-022 records the new owner decision to resume only REG-01 and transition `BLOCKED → READY`. The earlier blocked attempt above remains part of the history.
+- Current phase after authorization: `READY`; no REG-01 implementation source has been started in this resumed run.
+- POL-01, SEC-01, WRK-01, and WRK-02 remain BLOCKED. No other card is authorized.

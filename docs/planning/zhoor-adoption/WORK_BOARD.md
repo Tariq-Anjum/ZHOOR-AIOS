@@ -15,7 +15,8 @@ Before any downstream implementation card becomes `READY`, `ARC-03` must replace
 | ARC-03 | DONE | ARC-02 DONE + independent review | Toolchain ADR, canonical commands, pinned paths | architecture-primary | independent-challenger + owner | `docs/architecture/adr/ADR-0003-*.md`; `docs/development/ZHOOR_TOOLCHAIN.md`; `docs/planning/zhoor-adoption/WORK_BOARD.md`; downstream path/validation sections; `docs/planning/zhoor-adoption/handoffs/ARC-03.md` |
 | BASE-01 | DONE | ARC-03 | Minimal verified project scaffold | implementation-low-cost | independent-challenger | `Cargo.toml`; `Cargo.lock`; `rust-toolchain.toml`; `.cargo/**`; `.github/workflows/zhoor.yml`; `scripts/validate.sh`; `src/**`; `tests/smoke.rs`; `docs/planning/zhoor-adoption/handoffs/BASE-01.md` |
 | PRO-01 | DONE | BASE-01 | Versioned decision protocol and fixtures | implementation-low-cost | security-reviewer | `schemas/protocol/**`; `crates/protocol/**`; `fixtures/protocol/**`; `docs/planning/zhoor-adoption/handoffs/PRO-01.md` |
-| REG-01 | BLOCKED | PRO-01 | Compact descriptor registry/index loader | implementation-low-cost | evaluation-reviewer | `schemas/registry/**`; `crates/registry/**`; `fixtures/registry/**`; `docs/planning/zhoor-adoption/handoffs/REG-01.md` |
+| PRO-02 | READY | PRO-01 | Registry descriptor identity/version contract | implementation-low-cost | independent-architecture-reviewer | `schemas/protocol/**`; `crates/protocol/**`; `fixtures/protocol/**`; `docs/planning/zhoor-adoption/handoffs/PRO-02.md` |
+| REG-01 | BLOCKED | PRO-01, PRO-02 | Compact descriptor registry/index loader | implementation-low-cost | evaluation-reviewer | `schemas/registry/**`; `crates/registry/**`; `fixtures/registry/**`; `docs/planning/zhoor-adoption/handoffs/REG-01.md` |
 | POL-01 | BLOCKED | PRO-01 | Deterministic risk rules and recommendations | implementation-low-cost | security-reviewer | `schemas/risk-policy/**`; `crates/risk-policy/**`; `fixtures/risk-policy/**`; `docs/planning/zhoor-adoption/handoffs/POL-01.md` |
 | TRC-01 | DONE | PRO-01 | Sanitized trace writer and replay | implementation-low-cost | evaluation-reviewer | `schemas/trace/**`; `crates/trace/**`; `fixtures/trace/**`; `docs/planning/zhoor-adoption/handoffs/TRC-01.md` |
 | SEC-01 | BLOCKED | PRO-01 | `aiosd`/grant contracts and hostile fixtures | security-reviewer | independent-challenger | `schemas/aiosd/**`; `crates/aiosd-contracts/**`; `fixtures/aiosd/**`; `docs/contracts/aiosd/**`; `docs/planning/zhoor-adoption/handoffs/SEC-01.md` |
@@ -47,7 +48,7 @@ Before any downstream implementation card becomes `READY`, `ARC-03` must replace
 
 ## Parallelism
 
-- After `PRO-01`, `REG-01`, `POL-01`, `TRC-01`, and `SEC-01` may use separate worktrees only after ARC-03 has pinned disjoint paths.
+- `REG-01` remains BLOCKED until `PRO-02` is DONE and the owner separately authorizes resumption. Other cards retain their current board gates.
 - `WRK-01` and `WRK-02` may run in parallel after dependencies merge.
 - `EVAL-01` and `EVAL-02` may run in parallel; then `EVAL-03` and `EVAL-04` may run in parallel.
 - From `AUD-01` onward, serialize except where a later accepted ADR explicitly changes the security order.
@@ -56,4 +57,4 @@ Before any downstream implementation card becomes `READY`, `ARC-03` must replace
 
 Done: ARC-01, ARC-02, ARC-03, and BASE-01 are complete. ADR-0003 is accepted, and the minimal Rust workspace scaffold passed deterministic validation and independent exact-SHA review.
 
-Next: PRO-01 — versioned decision protocol and fixtures. PRO-01 is the only `READY` card; every later card remains `BLOCKED`.
+Next: PRO-02 — registry descriptor identity/version contract. PRO-02 is the only `READY` card. REG-01 remains `BLOCKED` pending PRO-02 and a separate owner authorization; POL-01, SEC-01, WRK-01, and WRK-02 remain `BLOCKED`.

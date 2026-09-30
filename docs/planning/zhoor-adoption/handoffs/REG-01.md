@@ -29,6 +29,8 @@ At the original stop, PRO-01 follow-up was required because the protocol-owned d
 ## Owner-authorized resumption after PRO-02
 
 - Starting published checkpoint: `e09341a45658c1c7f2fd5bba113e14f4f883f98a` (local and remote matched).
+- Owner resumption decision: D-022 in authorization commit `9fd93c05532b2a0aadeb667863adf93b39cfafa7`.
+- Separate assignment commit: `ace9810760ed72232e74cf37a92d61a91b25e8c3` (`READY → ASSIGNED`).
 - PRO-02 is DONE and published. Its accepted contract is recorded in D-021 and `handoffs/PRO-02.md`.
 - D-022 records the new owner decision to resume only REG-01 and transition `BLOCKED → READY`. The earlier blocked attempt above remains part of the history.
 - The post-authorization gate confirmed REG-01 was the sole READY implementation card; it was then moved `READY → ASSIGNED` in a separate controller commit.
@@ -61,3 +63,19 @@ At the original stop, PRO-01 follow-up was required because the protocol-owned d
 - No `SKILL.md` body was opened or read during loading or lookup; the production crate has no filesystem, network, model, or persistence dependency. Artifact hashes are syntax-checked only.
 - Residual contract boundary: caller context supplies exact requirement tokens; the registry does not inspect the host. JSON Schema covers document shape while Rust enforces cross-entry duplicate-ID and context-satisfaction rules that Draft 2020-12 cannot express directly.
 - Deterministic validation is complete. The controller now transitions REG-01 `ASSIGNED → REVIEW`; the resulting exact candidate SHA is the only eligible review target.
+
+## Exact-SHA independent review
+
+- Review candidate: `8ba33c8c1f68efec27f4817c848d76e1e66c02d9`.
+- Verdict: **PASS**, no blocking findings.
+- Route: fresh Pi 0.87.1 session; provider route configured OpenAI/Codex; Pi displayed GPT-6 Luna / xhigh; read-only tools; separate Herdr tab. `AGENT_CONTAINMENT=PASS` was recorded before the source-bearing packet.
+- Evidence: `docs/planning/zhoor-adoption/handoffs/reviews/REG-01-herdr-review.md`.
+- The reviewer inspected source/schema/fixtures and protocol ownership but had no shell capability and did not run Cargo. Controller validation above is a separate evidence stream.
+
+## Closure
+
+REG-01 is DONE after the canonical targeted and full offline validation passed, the exact-SHA independent review passed, no blocking finding remained, the reconciled lock stayed unchanged during locked validation, and D-018 matched all 28 protected records with zero mismatches. The exact reviewed implementation candidate remains `8ba33c8c1f68efec27f4817c848d76e1e66c02d9`.
+
+No `SKILL.md` body was opened or read during registry loading or lookup. Artifact hashes are syntax-checked only; digest verification belongs to a later lazy artifact-loading boundary. REG-01 does not install, update, download, execute, or persist skills or registry history. REG-01's Rust layer enforces duplicate-ID and caller-context requirement semantics that JSON Schema Draft 2020-12 cannot express directly.
+
+REG-01 closure does not authorize WRK-01. WRK-01, POL-01, SEC-01, and WRK-02 remain BLOCKED, and no later card was started.

@@ -191,8 +191,10 @@ model at `xhigh`. The helper rejects provider/model/reasoning overrides and
 unapproved Pi options. `openai-codex` is legacy and is not an accepted ZHOOR
 review route. The helper requires the provider credential to be OAuth with the
 installed ChatGPT direct-use scope; API-key credentials are rejected. It
-passes the complete credential through a sealed anonymous file descriptor,
-not a regular auth file. Never print or copy credential values.
+passes the complete credential through an anonymous memfd-backed handoff. Pi
+may refresh that lane-local copy; the controller's private source credential
+is not modified by the reviewer. No regular auth file is created. Never print
+or copy credential values.
 
 Before either route starts, verify `pi auth check --provider openai --json
 --no-refresh` reports `ready`, `openai`, and `oauth`; when ready, repeat the

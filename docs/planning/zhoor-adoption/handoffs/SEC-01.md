@@ -54,6 +54,16 @@ Toolchain: installed Rust `1.98.1`; commands were offline.
 - Corrected canonical integration commit: `ebfcc243b66bf720f1ee75c82160aa88b940fe7e`.
 - The first independent review lane was stopped after its report; no reviewer process remains active. The follow-up review must use a fresh session and exact candidate SHA.
 
+## Review correction r2
+
+- Fresh exact-SHA candidate `4456113a13143f95cd086c36ecf71a2257f5242a` received `CHANGES_REQUIRED` from the contained Pi / OpenAI-Codex / GPT-6 Luna / xhigh reviewer. Immutable findings are in `docs/planning/zhoor-adoption/handoffs/reviews/SEC-01-luna-r3.md` (report commit `2f4e68c36a24a2bfa77e21cffcb23000d27ed07c`).
+- Finding 1: JSON Schema `uniqueItems` compared complete evidence objects while Rust rejected duplicate evidence references. Changed SEC v1 evidence wire values to a closed object keyed by canonical protocol evidence reference; schema key grammar and 1–64 bounds now match typed parsing. The bounded Rust map visitor rejects malformed keys, duplicate decoded raw keys (including escaped duplicates), unknown metadata fields, and more than 64 entries before vector growth. Internal evidence bindings and the frozen claims transcript remain sorted by canonical reference.
+- Finding 2: schema descriptor descriptions rejected ASCII controls while Rust rejected all Unicode controls. Extended the schema control range through U+009F and added a U+0085 schema/parser regression.
+- Updated positive fixtures and contract documentation for evidence maps. Added 65-entry and duplicate raw-key cases. No dependency or protocol-owned changes.
+- Correction worktree `/tmp/zhoor-sec-01/ZHOOR-20260930T140229Z-SEC-01/correction-r2`, based on report commit `2f4e68c36a24a2bfa77e21cffcb23000d27ed07c`; task-owned files only. Root Cargo.lock remained unchanged at SHA-256 `817767a6295e13774cb4f23264ca1fe001e434841e2df79241c7aa03a21ceae1`.
+- Worker validation with Rust 1.98.1, offline: fmt check, clippy, check, tests (2 unit + 12 contract), debug build, release build — PASS. Task-scoped `git diff --check` — PASS.
+- A new exact-SHA review by a fresh contained reviewer is required for this correction. No prior PASS carries forward.
+
 ## Canonical integration and validation
 
 - Implementation commit: `5bcc7750763d7cdf7b5977a083fc9e4931480125`; task-owned SEC paths only.

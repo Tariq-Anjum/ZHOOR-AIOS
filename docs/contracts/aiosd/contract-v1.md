@@ -31,11 +31,15 @@ capability-descriptor metadata for this introspection operation. It has no
 filesystem path meaning. Shell, service, package, network, mutation, and
 generic future scopes are not represented.
 
-Evidence uses the protocol-owned `EvidenceRef` grammar. At least one reference
-and a decision hash are required. Evidence references are unique by content
-reference. Grant and request evidence arrays are compared as sets after
-bytewise ordering by canonical reference; each binding includes the reference
-digest, evidence kind, trust tier, and exact UTF-8 source label.
+Evidence uses a closed JSON object keyed by the protocol-owned canonical
+`evidence://sha256/<64 lowercase hex>` reference. Each value contains only
+`kind`, `trust_tier`, and `source`; at least one reference and a decision hash
+are required, with at most 64 entries. Keys make evidence identity explicit
+in the schema data model. The bounded Rust parser also rejects duplicate raw
+JSON member names after decoding escapes. Grant and request evidence maps are
+compared as sets after bytewise ordering by canonical reference; each binding
+includes the reference digest, evidence kind, trust tier, and exact UTF-8
+source label.
 
 ## Grant claims and authenticator envelope
 
@@ -181,11 +185,14 @@ architecture requirements remain binding for a future authorized
 path-bearing operation and later aiosd enforcement.
 
 The parser rejects JSON payloads over 65,536 bytes before parsing. Evidence
-arrays are capped at 64 and use the protocol-owned bounded reference shape;
-the descriptor array is capped at one. Authenticator proof bytes are capped
-at 4,096. All owned strings have schema and Rust length/grammar checks. Array
-count bounds are enforced by a custom deserializer before vector growth beyond
-the limit.
+maps are capped at 64 entries and use the protocol-owned bounded reference
+shape; the descriptor array is capped at one. Authenticator proof bytes are
+capped at 4,096. All owned strings have schema and Rust length/grammar checks.
+Evidence-map and array count bounds are enforced by custom deserializers before
+vector growth beyond the limit.
+
+Descriptor descriptions reject Unicode control characters in both schema and
+Rust validation, including the C1 range U+0080–U+009F.
 
 ## Explicit non-goals
 

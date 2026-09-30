@@ -8,6 +8,9 @@ use zhoor_aiosd_contracts::{
     ValidationContext, capabilities_describe_argument_sha256, check_grant_bindings,
 };
 
+const EVIDENCE_REF: &str =
+    "evidence://sha256/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+
 fn repo_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
 }
@@ -119,9 +122,24 @@ fn request_hostile_fixtures_fail_schema_and_parser() {
     }
 
     let mut value = valid_request_value();
-    value["evidence"] = json!([]);
-    value["grant"]["evidence"] = json!([]);
+    value["evidence"] = json!({});
+    value["grant"]["evidence"] = json!({});
     cases.push(("missing provenance", value, false));
+
+    let mut value = valid_request_value();
+    let metadata = value["evidence"][EVIDENCE_REF].clone();
+    value["evidence"]["evidence://sha256/not-a-digest"] = metadata;
+    value["evidence"]
+        .as_object_mut()
+        .unwrap()
+        .remove(EVIDENCE_REF);
+    value["grant"]["evidence"] = value["evidence"].clone();
+    cases.push(("malformed evidence reference key", value, false));
+
+    let mut value = valid_request_value();
+    value["evidence"][EVIDENCE_REF]["unexpected"] = json!(true);
+    value["grant"]["evidence"] = value["evidence"].clone();
+    cases.push(("unknown evidence metadata field", value, false));
 
     let mut value = valid_request_value();
     value["grant"]["authenticator"] = Value::Null;
@@ -158,7 +176,7 @@ fn request_hostile_fixtures_fail_schema_and_parser() {
     cases.push(("decision substitution", value, true));
 
     let mut value = valid_request_value();
-    value["grant"]["evidence"][0]["source"] = json!("other source");
+    value["grant"]["evidence"][EVIDENCE_REF]["source"] = json!("other source");
     cases.push(("evidence binding mismatch", value, true));
 
     let mut value = valid_request_value();
@@ -175,22 +193,12 @@ fn request_hostile_fixtures_fail_schema_and_parser() {
     cases.push(("hash grammar/case", value, false));
 
     let mut value = valid_request_value();
-    let duplicate = value["evidence"][0].clone();
-    value["evidence"].as_array_mut().unwrap().push(duplicate);
-    value["grant"]["evidence"] = value["evidence"].clone();
-    cases.push(("duplicate evidence identifier", value, false));
-
-    let mut value = valid_request_value();
-    value["evidence"][0]["source"] = json!("first source");
-    let mut duplicate = value["evidence"][0].clone();
-    duplicate["source"] = json!("second source");
-    value["evidence"].as_array_mut().unwrap().push(duplicate);
-    value["grant"]["evidence"] = value["evidence"].clone();
-    cases.push(("duplicate reference with altered provenance", value, true));
-
-    let mut value = valid_request_value();
-    let item = value["evidence"][0].clone();
-    value["evidence"] = json!(vec![item; 65]);
+    let metadata = value["evidence"][EVIDENCE_REF].clone();
+    let mut evidence = serde_json::Map::new();
+    for index in 0..65 {
+        evidence.insert(format!("evidence://sha256/{index:064x}"), metadata.clone());
+    }
+    value["evidence"] = Value::Object(evidence);
     value["grant"]["evidence"] = value["evidence"].clone();
     cases.push(("too many evidence items", value, false));
 
@@ -206,6 +214,36 @@ fn request_hostile_fixtures_fail_schema_and_parser() {
             "parser accepted {label}"
         );
     }
+
+    let value = valid_request_value();
+    let valid_bytes = serde_json::to_string(&value).expect("serialize request");
+    let duplicate_key = format!(
+        r#"{{"{EVIDENCE_REF}":{{"kind":"user_input","trust_tier":"untrusted","source":"first"}},"{EVIDENCE_REF}":{{"kind":"user_input","trust_tier":"untrusted","source":"second"}}}}"#
+    );
+    let evidence_field = format!(
+        "\"evidence\":{}",
+        serde_json::to_string(&value["evidence"]).unwrap()
+    );
+    let duplicated =
+        valid_bytes.replacen(&evidence_field, &format!("\"evidence\":{duplicate_key}"), 1);
+    assert_ne!(
+        valid_bytes, duplicated,
+        "duplicate evidence fixture must match"
+    );
+    assert!(AiosdRequest::from_json_bytes(duplicated.as_bytes()).is_err());
+
+    let escaped_ref = serde_json::to_string(EVIDENCE_REF)
+        .unwrap()
+        .replacen('a', "\\u0061", 1);
+    let escaped_duplicate = format!(
+        r#"{{"{EVIDENCE_REF}":{{"kind":"user_input","trust_tier":"untrusted","source":"first"}},{escaped_ref}:{{"kind":"user_input","trust_tier":"untrusted","source":"second"}}}}"#
+    );
+    let duplicated = valid_bytes.replacen(
+        &evidence_field,
+        &format!("\"evidence\":{escaped_duplicate}"),
+        1,
+    );
+    assert!(AiosdRequest::from_json_bytes(duplicated.as_bytes()).is_err());
 }
 
 #[test]
@@ -341,7 +379,7 @@ fn every_variable_frozen_claim_changes_the_transcript() {
     variants.push(("decision_hash", value));
 
     let mut value = base.clone();
-    value["evidence"][0]["source"] = json!("different provenance");
+    value["evidence"][EVIDENCE_REF]["source"] = json!("different provenance");
     value["grant"]["evidence"] = value["evidence"].clone();
     variants.push(("evidence binding", value));
 
@@ -383,19 +421,41 @@ fn every_variable_frozen_claim_changes_the_transcript() {
 #[test]
 fn evidence_order_does_not_change_the_claims_transcript() {
     let mut first = valid_request_value();
-    let mut second_evidence = first["evidence"][0].clone();
-    second_evidence["ref"] = json!(format!("evidence://sha256/{}", "d".repeat(64)));
-    second_evidence["source"] = json!("second evidence source");
-    first["evidence"]
-        .as_array_mut()
-        .unwrap()
-        .push(second_evidence);
+    let second_ref = format!("evidence://sha256/{}", "d".repeat(64));
+    let second_evidence = json!({
+        "kind": "registry",
+        "trust_tier": "verified",
+        "source": "second evidence source"
+    });
+    first["evidence"][&second_ref] = second_evidence;
     first["grant"]["evidence"] = first["evidence"].clone();
 
-    let mut reversed = first.clone();
-    reversed["evidence"].as_array_mut().unwrap().reverse();
-    reversed["grant"]["evidence"] = reversed["evidence"].clone();
-    assert_eq!(transcript(&first), transcript(&reversed));
+    let encoded = serde_json::to_string(&first).expect("serialize request");
+    let evidence = serde_json::to_string(&first["evidence"]).expect("serialize evidence map");
+    let reversed_evidence = format!(
+        r#"{{"{second_ref}":{{"kind":"registry","trust_tier":"verified","source":"second evidence source"}},"{EVIDENCE_REF}":{{"kind":"user_input","trust_tier":"untrusted","source":"SEC-01 contract fixture"}}}}"#
+    );
+    let reversed = encoded.replacen(
+        &format!("\"evidence\":{evidence}"),
+        &format!("\"evidence\":{reversed_evidence}"),
+        1,
+    );
+    assert!(
+        serde_json::from_str::<Value>(&reversed).is_ok(),
+        "{reversed}"
+    );
+    let first_bytes = serde_json::to_vec(&first).expect("serialize request");
+    let first_transcript = AiosdRequest::from_json_bytes(&first_bytes)
+        .expect("valid request")
+        .grant()
+        .claims_transcript()
+        .expect("claims transcript");
+    let reversed_transcript = AiosdRequest::from_json_bytes(reversed.as_bytes())
+        .expect("valid reversed evidence map")
+        .grant()
+        .claims_transcript()
+        .expect("claims transcript");
+    assert_eq!(first_transcript, reversed_transcript);
 }
 
 #[test]
@@ -414,6 +474,19 @@ fn raw_duplicate_json_members_reject_before_generic_value_collapse() {
     );
     assert_ne!(bytes, duplicated_expiry, "expiry needle must match");
     assert!(AiosdRequest::from_json_bytes(duplicated_expiry.as_bytes()).is_err());
+
+    let escaped_ref = serde_json::to_string(EVIDENCE_REF)
+        .unwrap()
+        .replacen('a', "\\u0061", 1);
+    let duplicated_evidence = bytes.replace(
+        &format!("\"{EVIDENCE_REF}\":{{"),
+        &format!("\"{EVIDENCE_REF}\":{{\"kind\":\"user_input\",\"trust_tier\":\"untrusted\",\"source\":\"first\"}},{escaped_ref}:{{"),
+    );
+    assert_ne!(
+        bytes, duplicated_evidence,
+        "evidence duplicate fixture must match"
+    );
+    assert!(AiosdRequest::from_json_bytes(duplicated_evidence.as_bytes()).is_err());
 }
 
 #[test]
@@ -624,6 +697,13 @@ fn response_frame_descriptor_count_matches_closed_outcome() {
     assert!(!validator("frame").is_valid(&response_frame));
     let payload =
         serde_json::to_vec(&response_frame).expect("serialize control-character descriptor");
+    let mut bytes = (payload.len() as u32).to_be_bytes().to_vec();
+    bytes.extend_from_slice(&payload);
+    assert!(Frame::from_complete_bytes(&bytes).is_err());
+
+    response_frame["response"]["descriptors"][0]["description"] = json!("hidden\u{0085}control");
+    assert!(!validator("frame").is_valid(&response_frame));
+    let payload = serde_json::to_vec(&response_frame).expect("serialize C1 control descriptor");
     let mut bytes = (payload.len() as u32).to_be_bytes().to_vec();
     bytes.extend_from_slice(&payload);
     assert!(Frame::from_complete_bytes(&bytes).is_err());

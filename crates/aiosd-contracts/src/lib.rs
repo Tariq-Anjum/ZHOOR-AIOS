@@ -8,7 +8,7 @@
 
 use std::fmt::Write as _;
 
-use serde::de::{self, SeqAccess, Visitor};
+use serde::de::{self, MapAccess, SeqAccess, Visitor};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use zhoor_protocol::{EvidenceKind, EvidenceRef, TrustTier};
@@ -725,12 +725,89 @@ struct WireAuthenticator {
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
+struct WireEvidenceMetadata {
+    kind: String,
+    trust_tier: String,
+    source: String,
+}
+
+#[derive(Debug, Clone)]
 struct WireEvidence {
-    #[serde(rename = "ref")]
     reference: String,
     kind: String,
     trust_tier: String,
     source: String,
+}
+
+#[derive(Debug, Clone)]
+struct BoundedEvidence(Vec<WireEvidence>);
+
+impl<'de> Deserialize<'de> for BoundedEvidence {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        struct EvidenceMapVisitor;
+
+        impl<'de> Visitor<'de> for EvidenceMapVisitor {
+            type Value = BoundedEvidence;
+
+            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                write!(
+                    formatter,
+                    "an object of at most {MAX_EVIDENCE_REFS} evidence references"
+                )
+            }
+
+            fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
+            where
+                A: MapAccess<'de>,
+            {
+                if map
+                    .size_hint()
+                    .is_some_and(|count| count > MAX_EVIDENCE_REFS)
+                {
+                    return Err(de::Error::custom(
+                        "evidence object exceeds the v1 item limit",
+                    ));
+                }
+                let mut values =
+                    Vec::with_capacity(map.size_hint().unwrap_or(0).min(MAX_EVIDENCE_REFS));
+                loop {
+                    if values.len() == MAX_EVIDENCE_REFS {
+                        if map.next_key::<de::IgnoredAny>()?.is_some() {
+                            return Err(de::Error::custom(
+                                "evidence object exceeds the v1 item limit",
+                            ));
+                        }
+                        break;
+                    }
+                    let Some(reference) = map.next_key::<String>()? else {
+                        break;
+                    };
+                    if !EvidenceRef::is_canonical_reference(&reference) {
+                        return Err(de::Error::custom("invalid evidence reference key"));
+                    }
+                    if values
+                        .iter()
+                        .any(|item: &WireEvidence| item.reference == reference)
+                    {
+                        return Err(de::Error::custom("duplicate evidence reference key"));
+                    }
+                    let metadata = map.next_value::<WireEvidenceMetadata>()?;
+                    values.push(WireEvidence {
+                        reference,
+                        kind: metadata.kind,
+                        trust_tier: metadata.trust_tier,
+                        source: metadata.source,
+                    });
+                }
+                Ok(BoundedEvidence(values))
+            }
+        }
+
+        deserializer.deserialize_map(EvidenceMapVisitor)
+    }
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -747,7 +824,7 @@ struct WireGrant {
     expires_at_unix_ms: u64,
     trace_id: String,
     decision_hash: String,
-    evidence: BoundedVec<WireEvidence, MAX_EVIDENCE_REFS>,
+    evidence: BoundedEvidence,
     authenticator: WireAuthenticator,
 }
 
@@ -761,7 +838,7 @@ struct WireRequest {
     arguments: WireEmptyArguments,
     resource_scope: WireResourceScope,
     decision_hash: String,
-    evidence: BoundedVec<WireEvidence, MAX_EVIDENCE_REFS>,
+    evidence: BoundedEvidence,
     grant: WireGrant,
 }
 
@@ -781,7 +858,7 @@ struct WireReceipt {
     completed_at_unix_ms: u64,
     trace_id: String,
     decision_hash: String,
-    evidence: BoundedVec<WireEvidence, MAX_EVIDENCE_REFS>,
+    evidence: BoundedEvidence,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -795,7 +872,7 @@ struct WirePostcondition {
     trace_id: String,
     grant_id: String,
     receipt_id: String,
-    evidence: BoundedVec<WireEvidence, MAX_EVIDENCE_REFS>,
+    evidence: BoundedEvidence,
 }
 
 #[derive(Debug, Clone, Deserialize)]

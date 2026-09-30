@@ -6,19 +6,21 @@
   "arguments": {},
   "resource_scope": "registered_capability_descriptor_metadata",
   "decision_hash": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-  "evidence": [
-    {
-      "ref": "evidence://sha256/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "evidence": {
+    "evidence://sha256/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa": {
       "kind": "user_input",
       "trust_tier": "untrusted",
       "source": "SEC-01 contract fixture"
     }
-  ],
+  },
   "grant": {
     "grant_version": "1",
     "grant_id": "33333333-3333-4333-8333-333333333333",
     "issuer_id": "local-policy",
-    "client_identity": { "kind": "unix_uid", "uid": 1000 },
+    "client_identity": {
+      "kind": "unix_uid",
+      "uid": 1000
+    },
     "capability_id": "capabilities.describe",
     "argument_sha256": "sha256:44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
     "resource_scope": "registered_capability_descriptor_metadata",
@@ -26,14 +28,16 @@
     "expires_at_unix_ms": 2000,
     "trace_id": "22222222-2222-4222-8222-222222222222",
     "decision_hash": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-    "evidence": [
-      {
-        "ref": "evidence://sha256/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "evidence": {
+      "evidence://sha256/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa": {
         "kind": "user_input",
         "trust_tier": "untrusted",
         "source": "SEC-01 contract fixture"
       }
-    ],
-    "authenticator": { "format": "opaque-v1", "proof": "00" }
+    },
+    "authenticator": {
+      "format": "opaque-v1",
+      "proof": "00"
+    }
   }
 }

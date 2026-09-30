@@ -3,7 +3,10 @@
   "receipt_id": "44444444-4444-4444-8444-444444444444",
   "request_id": "11111111-1111-4111-8111-111111111111",
   "grant_id": "33333333-3333-4333-8333-333333333333",
-  "caller_identity": { "kind": "unix_uid", "uid": 1000 },
+  "caller_identity": {
+    "kind": "unix_uid",
+    "uid": 1000
+  },
   "capability_id": "capabilities.describe",
   "argument_sha256": "sha256:44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
   "outcome": "succeeded",
@@ -12,12 +15,11 @@
   "completed_at_unix_ms": 1001,
   "trace_id": "22222222-2222-4222-8222-222222222222",
   "decision_hash": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-  "evidence": [
-    {
-      "ref": "evidence://sha256/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "evidence": {
+    "evidence://sha256/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa": {
       "kind": "user_input",
       "trust_tier": "untrusted",
       "source": "SEC-01 contract fixture"
     }
-  ]
+  }
 }

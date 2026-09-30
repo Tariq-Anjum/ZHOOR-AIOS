@@ -44,7 +44,14 @@ The new identity fixtures cover valid root metadata, absent/malformed/unsupporte
 - `git diff --check` on the complete PRO-02 change range from assignment `a2bc3ea1fc17bb5b9bed26052d4dfe64ea303f94` through current implementation/lock commits: PASS. The unscoped working-tree `git diff --check` reports trailing spaces in pre-existing D-018-protected job-card edits; those paths remain unchanged and preserved.
 - Root `Cargo.lock` SHA-256 before resolution: `4585fbd4546d6b79045c87a83f4796dafe5144ff628cb4cb5fd297bc4f1a2150`; post-reconciliation and before/after locked validation: `4447c1d03b40adb9e0217b7cf20c6845e30986555ae475a9b0fb074b19cc0e32` (unchanged by locked validation).
 - D-018: PASS; all 28 status/path/SHA-256 records match, with zero extras.
-- Exact-SHA independent review: pending; require `AGENT_CONTAINMENT=PASS` first.
+- Exact-SHA independent review: PASS for candidate `7100cb6fff25cb49238e393cb55f540e143ff04d`; `AGENT_CONTAINMENT=PASS` before packet; report `docs/planning/zhoor-adoption/handoffs/reviews/PRO-02-herdr-review.md`.
+- Reviewer route: fresh contained Pi session in separate Herdr tab; OpenAI/Codex route; GPT-6 Luna / xhigh; read-only tools; exact detached candidate worktree. The reviewer inspected source/schema/fixtures/test code but did not run Cargo. The lane is stopped/completed; only the controller remains active.
+- Review outcome: no blocking findings. The reviewer confirmed the format/hash/snapshot distinctions, request-v1 compatibility, canonical-source scope, expected-version mismatch, protocol/registry ownership boundary, fixture coverage, and absence of security overclaims.
+- D-018 closure recheck: PASS; 28/28 original status/path/SHA-256 records match and there are no extras after recording the review report.
+
+## Closure
+
+PRO-02 is DONE after the targeted and full offline validation passed, the exact-SHA independent review passed with no blockers, D-018 reconciled, and locked validation left the reconciled Cargo.lock hash unchanged. REG-01 remains BLOCKED pending a separate owner authorization. POL-01, SEC-01, WRK-01, and WRK-02 remain BLOCKED; no later card was started.
 
 ## Closure and stop
 

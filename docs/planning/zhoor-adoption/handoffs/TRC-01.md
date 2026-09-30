@@ -42,7 +42,7 @@ All commands used the installed Rust 1.98.1 toolchain and --offline; pre-integra
 - Result: CHANGES_REQUIRED. The reviewer found that out-of-range confidence decimals could round into range during f64 parsing, and that the timestamp schema lacked the Rust u64 maximum.
 - Corrections: `from_json_str` now checks the original arbitrary-precision confidence decimals against [0, 1] before f64 deserialization; the schema caps timestamps at 18446744073709551615. Added boundary contract coverage for confidence and timestamps.
 - The initial reviewer session returned BLOCKED because its persistent system prompt prohibited source inspection; it was stopped before any source review. A fresh contained reviewer session performed the substantive review. No source changes were made from the blocked session.
-- Corrected candidate SHA and fresh exact-SHA review are pending integration and canonical validation. No reviewer has approved the corrected candidate yet.
+- Correction commit `77c1b1d` is integrated. Canonical locked validation passes; the fresh exact-SHA review of the corrected candidate is pending.
 
 ## Root lockfile
 
@@ -60,19 +60,20 @@ The controller committed only card-owned implementation and handoff paths, fast-
 
 ## Canonical integration checkpoint
 
-- Source integration: fast-forward from assignment SHA 3d1c52c52d3d1a6f94deb0e1b48c0813c6b6b049 to implementation SHA 286e42580d547add2bf62f64094c8ef5e80b0cb2.
+- Initial source integration: fast-forward from assignment SHA 3d1c52c52d3d1a6f94deb0e1b48c0813c6b6b049 to implementation SHA 286e42580d547add2bf62f64094c8ef5e80b0cb2.
 - Root lock reconciliation: controller commit 9dff79a692b6e1dc50cc2699073202fe9343f89f; mechanical offline update only. Cargo.lock SHA-256 is 4585fbd4546d6b79045c87a83f4796dafe5144ff628cb4cb5fd297bc4f1a2150.
-- ./scripts/validate.sh --package zhoor-trace — PASS; 4 unit and 5 contract tests, clippy/check, debug and release package builds.
-- cargo test --offline --locked -p zhoor-trace --test trace_contract — PASS; 5 tests.
-- ./scripts/validate.sh — PASS; full workspace validation exit 0, including protocol/system-info/trace tests, locked clippy/check, debug and release builds.
-- Cargo.lock hash before and after locked validation: 4585fbd4546d6b79045c87a83f4796dafe5144ff628cb4cb5fd297bc4f1a2150 (unchanged).
+- Correction commit `77c1b1d` fixes exact confidence decimal validation and bounds the trace timestamp schema at `u64::MAX`.
+- Corrected `./scripts/validate.sh --package zhoor-trace` — PASS; 4 unit and 7 contract tests, locked clippy/check, debug and release package builds.
+- Corrected `cargo test --offline --locked -p zhoor-trace --test trace_contract` — PASS; 7 tests.
+- Corrected `./scripts/validate.sh` — PASS; full locked workspace validation exit 0, including 17 protocol unit + 11 protocol contract, 11 system-info unit, 4 trace unit + 7 trace contract tests, clippy/check, and debug/release builds.
+- Cargo.lock SHA-256 before and after corrected locked validation: 4585fbd4546d6b79045c87a83f4796dafe5144ff628cb4cb5fd297bc4f1a2150 (unchanged).
 - Protected baseline reconciliation: PASS; all 28 status/path/SHA-256 records still match.
 - Repository-wide git diff --check reports trailing whitespace in pre-existing protected dirty job-card files, including jobs/TRC-01.md. Those files were preserved. git show --check on the TRC-01 implementation and lock reconciliation commits passes.
-- At this checkpoint the board remains TRC-01 = ASSIGNED. No review lane has been created and no later card has started.
+- Board state remains TRC-01 = REVIEW; PRO-01 = DONE; REG-01/POL-01/SEC-01 = BLOCKED. No later card has started.
 
 ## Review handoff
 
 - The first substantive exact-SHA review was performed by a fresh, contained, read-only Pi / OpenAI-Codex / GPT-6 Luna / xhigh session against candidate `aab713dc60d54239d38deea2338c547a38e80827` and returned CHANGES_REQUIRED for confidence decimal rounding and the timestamp schema bound.
 - A preceding reviewer session returned BLOCKED because its persistent system prompt prohibited source inspection; it was stopped before inspecting source. A fresh session performed the substantive review.
-- The implementation correction is being integrated from the isolated worktree. The corrected candidate SHA will be recorded after integration and canonical locked validation.
-- Next: create a fresh contained reviewer lane for the corrected exact candidate. The reviewer must not claim to execute Cargo checks; canonical validation evidence is controller-owned. Close TRC-01 only after exact-SHA review PASS and all other gates pass; do not start a later card.
+- The corrected source SHA is `77c1b1d`; after this validation handoff commit, the next HEAD will be frozen as the exact review candidate.
+- Next: create a fresh contained reviewer lane for that exact candidate. The reviewer must not claim to execute Cargo checks; canonical validation evidence is controller-owned. Close TRC-01 only after exact-SHA review PASS and all other gates pass; do not start a later card.

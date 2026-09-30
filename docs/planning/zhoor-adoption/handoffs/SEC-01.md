@@ -51,19 +51,23 @@ Toolchain: installed Rust `1.98.1`; commands were offline.
 - Added a 375-byte spec-derived frozen claims-transcript golden vector, evidence-order invariance coverage, and transcript change/rejection checks for each variable or closed v1 claim.
 - Correction worker validation on Rust 1.98.1, offline: fmt check, clippy, check, tests (2 unit + 12 contract), debug build, release build, and task-scoped diff check — PASS.
 - Correction worker Cargo.lock unchanged; canonical lock reconciliation remains controller-owned.
+- Corrected canonical integration commit: `ebfcc243b66bf720f1ee75c82160aa88b940fe7e`.
+- The first independent review lane was stopped after its report; no reviewer process remains active. The follow-up review must use a fresh session and exact candidate SHA.
 
 ## Canonical integration and validation
 
 - Implementation commit: `5bcc7750763d7cdf7b5977a083fc9e4931480125`; task-owned SEC paths only.
 - Controller lock reconciliation: `43789c473b700e0f03b971ba8bdb9621c206d5b2`; Cargo.lock only. Before hash was `2ead4aae23cd06bfb70b681acd6635a1fae685991e1d974a9fa9b14eda6c7f50`; after hash is `817767a6295e13774cb4f23264ca1fe001e434841e2df79241c7aa03a21ceae1`. The diff adds only the `zhoor-aiosd-contracts` package record; dependency versions were already locked.
 - `./scripts/validate.sh --package zhoor-aiosd-contracts` — PASS; formatting, clippy, check, unit/contract/doc tests, debug/release builds, locked/offline.
-- `cargo +1.98.1 test --offline --locked -p zhoor-aiosd-contracts --test aiosd_contract` — PASS; 8 contract tests.
+- `cargo +1.98.1 test --offline --locked -p zhoor-aiosd-contracts --test aiosd_contract` — PASS; 12 contract tests after the review correction.
 - `./scripts/validate.sh` — PASS; full locked/offline workspace validation, including all tests and debug/release builds.
 - Cargo.lock SHA-256 after locked targeted validation and full validation: `817767a6295e13774cb4f23264ca1fe001e434841e2df79241c7aa03a21ceae1` (unchanged).
 - Task-scoped `git diff --check` — PASS. The whole-worktree diff check continues to report pre-existing trailing whitespace only in protected dirty job/control files; those files remain byte-identical and unstaged.
 - D-018: PASS, 28 expected/current, zero mismatches, zero extras after integration and validation.
-- Board after validation: SEC-01 `ASSIGNED`; WRK-01, WRK-02, EVAL-00, GRANT-01, AIOSD-01, AIOSD-02 remain `BLOCKED`.
-- Exact review candidate SHA, independent review report/verdict, closure SHA, and publication SHA are added after their gates. The separate `ASSIGNED → REVIEW` transition has not yet occurred.
+- Board after validation and review assignment: SEC-01 `REVIEW`; WRK-01, WRK-02, EVAL-00, GRANT-01, AIOSD-01, AIOSD-02 remain `BLOCKED`.
+- First exact review candidate: `cf4dd5228bb363f41abefa0ffc065078a4637dc7`, verdict `CHANGES_REQUIRED`; immutable report `docs/planning/zhoor-adoption/handoffs/reviews/SEC-01-luna-r1.md`. Findings were duplicate raw JSON object members being collapsed before typed parsing, insufficient golden-transcript/mutation coverage, and ambiguous UID-claim wording. All three were corrected in `ebfcc243b66bf720f1ee75c82160aa88b940fe7e` and covered by the added regression tests and documentation.
+- Corrected canonical validation was rerun after `ebfcc243b66bf720f1ee75c82160aa88b940fe7e`: targeted package validation PASS; locked contract test PASS (12 tests); full workspace validation PASS. Cargo.lock remained at SHA-256 `817767a6295e13774cb4f23264ca1fe001e434841e2df79241c7aa03a21ceae1`.
+- D-018 recheck after correction: PASS, 28 expected/current, zero mismatches, zero extras. A fresh exact-SHA review and its report remain required before closure.
 
 ## Ownership and residual limits
 

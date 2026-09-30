@@ -31,5 +31,6 @@ At the original stop, PRO-01 follow-up was required because the protocol-owned d
 - Starting published checkpoint: `e09341a45658c1c7f2fd5bba113e14f4f883f98a` (local and remote matched).
 - PRO-02 is DONE and published. Its accepted contract is recorded in D-021 and `handoffs/PRO-02.md`.
 - D-022 records the new owner decision to resume only REG-01 and transition `BLOCKED → READY`. The earlier blocked attempt above remains part of the history.
-- Current phase after authorization: `READY`; no REG-01 implementation source has been started in this resumed run.
+- The post-authorization gate confirmed REG-01 was the sole READY implementation card; it was then moved `READY → ASSIGNED` in a separate controller commit.
+- Implementation must start from that exact assignment commit in a fresh isolated worktree. No REG-01 implementation source has been started in this resumed run.
 - POL-01, SEC-01, WRK-01, and WRK-02 remain BLOCKED. No other card is authorized.

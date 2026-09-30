@@ -17,7 +17,7 @@ Before any downstream implementation card becomes `READY`, `ARC-03` must replace
 | PRO-01 | DONE | BASE-01 | Versioned decision protocol and fixtures | implementation-low-cost | security-reviewer | `schemas/protocol/**`; `crates/protocol/**`; `fixtures/protocol/**`; `docs/planning/zhoor-adoption/handoffs/PRO-01.md` |
 | PRO-02 | DONE | PRO-01 | Registry descriptor identity/version contract | implementation-low-cost | independent-architecture-reviewer | `schemas/protocol/**`; `crates/protocol/**`; `fixtures/protocol/**`; `docs/planning/zhoor-adoption/handoffs/PRO-02.md` |
 | REG-01 | DONE | PRO-01, PRO-02 | Compact descriptor registry/index loader | implementation-low-cost | evaluation-reviewer | `schemas/registry/**`; `crates/registry/**`; `fixtures/registry/**`; `docs/planning/zhoor-adoption/handoffs/REG-01.md` |
-| POL-01 | ASSIGNED | PRO-01 | Deterministic risk rules and recommendations | implementation-low-cost | security-reviewer | `schemas/risk-policy/**`; `crates/risk-policy/**`; `fixtures/risk-policy/**`; `docs/planning/zhoor-adoption/handoffs/POL-01.md` |
+| POL-01 | REVIEW | PRO-01 | Deterministic risk rules and recommendations | implementation-low-cost | security-reviewer | `schemas/risk-policy/**`; `crates/risk-policy/**`; `fixtures/risk-policy/**`; `docs/planning/zhoor-adoption/handoffs/POL-01.md` |
 | TRC-01 | DONE | PRO-01 | Sanitized trace writer and replay | implementation-low-cost | evaluation-reviewer | `schemas/trace/**`; `crates/trace/**`; `fixtures/trace/**`; `docs/planning/zhoor-adoption/handoffs/TRC-01.md` |
 | SEC-01 | BLOCKED | PRO-01 | `aiosd`/grant contracts and hostile fixtures | security-reviewer | independent-challenger | `schemas/aiosd/**`; `crates/aiosd-contracts/**`; `fixtures/aiosd/**`; `docs/contracts/aiosd/**`; `docs/planning/zhoor-adoption/handoffs/SEC-01.md` |
 | WRK-01 | BLOCKED | REG-01, TRC-01 | Deterministic `skill_router` | implementation-low-cost | evaluation-reviewer | `crates/skill-router/**`; `fixtures/skill-router/**`; `docs/planning/zhoor-adoption/handoffs/WRK-01.md` |
@@ -57,4 +57,4 @@ Before any downstream implementation card becomes `READY`, `ARC-03` must replace
 
 Done: ARC-01, ARC-02, ARC-03, and BASE-01 are complete. ADR-0003 is accepted, and the minimal Rust workspace scaffold passed deterministic validation and independent exact-SHA review.
 
-Done: PRO-02 is closed under D-021. Under D-022, REG-01 alone was resumed and is now `DONE`. Under D-023, POL-01 alone was authorized and is now `ASSIGNED`; SEC-01, WRK-01, and WRK-02 remain `BLOCKED`. No later card was authorized or started.
+Done: PRO-02 is closed under D-021. Under D-022, REG-01 alone was resumed and is now \`DONE\`. Under D-023, POL-01 alone was authorized; implementation and canonical validation are complete, and POL-01 is in \`REVIEW\`. SEC-01, WRK-01, and WRK-02 remain \`BLOCKED\`. No later card was authorized or started.

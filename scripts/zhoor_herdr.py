@@ -188,10 +188,11 @@ def _prepare_pi_containment(
         auth_link.symlink_to("/proc/self/fd/3")
 
     # Herdr starts the executable found in the lane PATH. This small launcher
-    # reads only the approved provider entry, seals it in an anonymous memfd,
-    # and execs Pi with fd 3 inherited. Pi's isolated auth.json symlink points
-    # at that descriptor; no credential value enters argv, environment, or a
-    # regular temporary file.
+    # reads only the approved provider entry, copies it to an anonymous memfd,
+    # and execs Pi with fd 3 inherited. Pi may update this isolated copy when
+    # refreshing OAuth; the controller's source credential remains untouched.
+    # Pi's auth.json symlink points at the descriptor, so credential values do
+    # not enter argv, environment, or a regular temporary file.
     launcher_config = {
         "auth_store": str(PI_AUTH_STORE.resolve()),
         "provider": provider,
@@ -238,8 +239,7 @@ try:
         os.close(fd)
     else:
         os.set_inheritable(3, True)
-    seals = fcntl.F_SEAL_SEAL | fcntl.F_SEAL_SHRINK | fcntl.F_SEAL_GROW | fcntl.F_SEAL_WRITE
-    fcntl.fcntl(3, fcntl.F_ADD_SEALS, seals)
+    fcntl.fcntl(3, fcntl.F_ADD_SEALS, fcntl.F_SEAL_SEAL)
     executable = CONFIG["pi_executable"]
     os.execve(executable, [executable, *sys.argv[1:]], CONFIG["environment"])
 except Exception:

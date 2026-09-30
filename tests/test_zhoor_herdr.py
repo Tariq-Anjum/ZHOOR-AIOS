@@ -152,7 +152,8 @@ class ZhoorHerdrTopologyTests(unittest.TestCase):
         self.assertTrue(wrapper.is_file())
         wrapper_text = wrapper.read_text()
         self.assertIn("os.memfd_create", wrapper_text)
-        self.assertIn("F_SEAL_WRITE", wrapper_text)
+        self.assertIn("F_SEAL_SEAL", wrapper_text)
+        self.assertNotIn("F_SEAL_WRITE", wrapper_text)
         self.assertIn("os.execve", wrapper_text)
         self.assertTrue((self.scratch / "pi-config" / "auth.json").is_symlink())
         self.assertEqual(os.readlink(self.scratch / "pi-config" / "auth.json"), "/proc/self/fd/3")
@@ -254,6 +255,45 @@ print(json.dumps({
         self.assertFalse(report["argv_has_synthetic_token"])
         self.assertFalse(report["environment_has_synthetic_token"])
         self.assertFalse(report["openai_api_key_env_present"])
+
+    def test_launcher_handoff_allows_pi_to_refresh_oauth_in_anonymous_memfd(self):
+        fake_pi = self.root / "fake-pi-refresh"
+        fake_pi.write_text('''#!/usr/bin/python3
+import json
+import os
+from pathlib import Path
+auth_path = Path(os.environ["PI_CODING_AGENT_DIR"]) / "auth.json"
+auth = json.loads(auth_path.read_text())
+credential = auth["openai"]
+credential["access"] = "synthetic-refreshed-access"
+credential["expires"] += 60_000
+auth_path.write_text(json.dumps(auth))
+reloaded = json.loads(auth_path.read_text())["openai"]
+print(json.dumps({
+    "refresh_write_succeeded": reloaded.get("access") == "synthetic-refreshed-access",
+    "refresh_expiry_advanced": reloaded.get("expires") == credential.get("expires"),
+    "auth_path_remains_symlink": auth_path.is_symlink(),
+    "fd_remains_memfd": "memfd:pi-provider-auth" in os.readlink("/proc/self/fd/3"),
+}))
+''')
+        fake_pi.chmod(0o700)
+        args = spawn_args(self.cwd, self.scratch)
+        with patch.object(zhoor_herdr.shutil, "which", return_value=str(fake_pi)):
+            zhoor_herdr._prepare_pi_containment(
+                args.agent_args[1:], route=zhoor_herdr.resolve_audit_route(args.audit_tier),
+                scratch=self.scratch,
+            )
+        result = subprocess.run(
+            [str(self.scratch / "bin" / "pi")], text=True,
+            capture_output=True, check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        report = json.loads(result.stdout)
+        self.assertTrue(report["refresh_write_succeeded"])
+        self.assertTrue(report["refresh_expiry_advanced"])
+        self.assertTrue(report["auth_path_remains_symlink"])
+        self.assertTrue(report["fd_remains_memfd"])
+        self.assertEqual(json.loads(self.auth_store.read_text())["openai"]["access"], "synthetic-test-access")
 
     def test_launcher_rechecks_oauth_structure_before_exec(self):
         fake_pi = self.root / "fake-pi"

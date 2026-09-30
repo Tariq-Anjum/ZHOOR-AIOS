@@ -57,4 +57,4 @@ Before any downstream implementation card becomes `READY`, `ARC-03` must replace
 
 Done: ARC-01, ARC-02, ARC-03, and BASE-01 are complete. ADR-0003 is accepted, and the minimal Rust workspace scaffold passed deterministic validation and independent exact-SHA review.
 
-Done: PRO-02 is closed under D-021. Under D-022, REG-01 alone was resumed and is now \`DONE\`. Under D-023, POL-01 alone was authorized; implementation and canonical validation are complete, and POL-01 is in \`REVIEW\`. SEC-01, WRK-01, and WRK-02 remain \`BLOCKED\`. No later card was authorized or started.
+Done: PRO-02 is closed under D-021. Under D-022, REG-01 alone was resumed and is now `DONE`. Under D-023, POL-01 alone was authorized; implementation and canonical validation are complete, and POL-01 is in `REVIEW`. SEC-01, WRK-01, and WRK-02 remain `BLOCKED`. No later card was authorized or started.

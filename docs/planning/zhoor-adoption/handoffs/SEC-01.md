@@ -44,9 +44,18 @@ Toolchain: installed Rust `1.98.1`; commands were offline.
 - Schema tests validate positive request/receipt/postcondition/frame inputs and hostile structural/semantic boundaries against the Rust parsers.
 - Task-scoped `git diff --cached --check` — PASS.
 
-## Review and canonical integration
+## Canonical integration and validation
 
-Canonical integration SHA, root lock reconciliation, locked targeted/full validation, exact review candidate, review route/verdict, D-018, closure SHA, and publication SHA are recorded here after those gates complete. SEC-01 remains `ASSIGNED` until canonical validation has passed and the separate `ASSIGNED → REVIEW` governance transition is committed.
+- Implementation commit: `5bcc7750763d7cdf7b5977a083fc9e4931480125`; task-owned SEC paths only.
+- Controller lock reconciliation: `43789c473b700e0f03b971ba8bdb9621c206d5b2`; Cargo.lock only. Before hash was `2ead4aae23cd06bfb70b681acd6635a1fae685991e1d974a9fa9b14eda6c7f50`; after hash is `817767a6295e13774cb4f23264ca1fe001e434841e2df79241c7aa03a21ceae1`. The diff adds only the `zhoor-aiosd-contracts` package record; dependency versions were already locked.
+- `./scripts/validate.sh --package zhoor-aiosd-contracts` — PASS; formatting, clippy, check, unit/contract/doc tests, debug/release builds, locked/offline.
+- `cargo +1.98.1 test --offline --locked -p zhoor-aiosd-contracts --test aiosd_contract` — PASS; 8 contract tests.
+- `./scripts/validate.sh` — PASS; full locked/offline workspace validation, including all tests and debug/release builds.
+- Cargo.lock SHA-256 after locked targeted validation and full validation: `817767a6295e13774cb4f23264ca1fe001e434841e2df79241c7aa03a21ceae1` (unchanged).
+- Task-scoped `git diff --check` — PASS. The whole-worktree diff check continues to report pre-existing trailing whitespace only in protected dirty job/control files; those files remain byte-identical and unstaged.
+- D-018: PASS, 28 expected/current, zero mismatches, zero extras after integration and validation.
+- Board after validation: SEC-01 `ASSIGNED`; WRK-01, WRK-02, EVAL-00, GRANT-01, AIOSD-01, AIOSD-02 remain `BLOCKED`.
+- Exact review candidate SHA, independent review report/verdict, closure SHA, and publication SHA are added after their gates. The separate `ASSIGNED → REVIEW` transition has not yet occurred.
 
 ## Ownership and residual limits
 

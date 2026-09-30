@@ -55,10 +55,11 @@ impl ResourceScope {
     }
 }
 
-/// Identity supplied by a later trusted Unix peer-credential layer.
+/// UID claim copied from the serialized grant.
 ///
-/// The UID binds the grant to the authenticated local account. This value
-/// does not authenticate its own caller and adds no multi-user policy.
+/// This parsed value is untrusted until compared with a UID supplied
+/// separately by the trusted Unix peer-credential layer. It does not
+/// authenticate its own caller or add multi-user policy.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct UnixPeerIdentity {
     uid: u32,
@@ -1241,12 +1242,16 @@ fn parse_bounded_json<T: for<'de> Deserialize<'de>>(bytes: &[u8]) -> Result<T, C
     if !arrays_within_limit(bytes) {
         return Err(ContractError::MalformedJson);
     }
+    // Deserialize typed structs directly before building the generic JSON
+    // value. Serde's typed struct visitors reject repeated members; parsing a
+    // Value first would silently collapse duplicate raw JSON keys.
+    let parsed: T = serde_json::from_slice(bytes).map_err(|_| ContractError::MalformedJson)?;
     let value: serde_json::Value =
         serde_json::from_slice(bytes).map_err(|_| ContractError::MalformedJson)?;
     if !wire_object_shapes_are_valid(&value, None) {
         return Err(ContractError::MalformedJson);
     }
-    serde_json::from_value(value).map_err(|_| ContractError::MalformedJson)
+    Ok(parsed)
 }
 
 /// Counts array elements in the bounded source bytes before serde allocates

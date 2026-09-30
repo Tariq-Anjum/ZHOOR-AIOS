@@ -53,10 +53,11 @@ A grant v1 contains these closed claims:
 `format` is 1–64 lowercase ASCII letters/digits/dot/underscore/hyphen and
 starts with a letter. `proof` is 1–4096 opaque bytes represented by exactly
 2–8192 lowercase hexadecimal characters. The JSON schema and parser reject
-unknown fields, empty/malformed values, unsupported contract versions, and
-inputs beyond the byte/item bounds. A structurally valid format is not
-necessarily supported. Only GRANT-01 can report that a proof is valid or its
-issuer trusted; unsupported formats and missing, malformed, invalid, or
+unknown fields, duplicate JSON object members, empty/malformed values,
+unsupported contract versions, and inputs beyond the byte/item bounds. A
+structurally valid format is not necessarily supported. Only GRANT-01 can
+report that a proof is valid or its issuer trusted; unsupported formats and
+missing, malformed, invalid, or
 untrusted proofs fail closed there.
 The shared `grantVerificationFailure` vocabulary distinguishes missing or
 malformed authenticators, unsupported formats, invalid proof, untrusted
@@ -64,10 +65,11 @@ issuer, unsupported version, caller/capability/argument/scope/policy mismatch,
 expiry, replay, and trace/decision/evidence mismatch. Every value is a
 failure; there is no structural `verified` result.
 
-The authenticated client UID is an identity claim, not caller authentication.
-The numeric claim must equal the UID supplied by the trusted peer-credential
-layer. SEC-01 does not obtain that value or create GID/PID authorization rules.
-The accepted threat model remains one trusted local account.
+The grant carries an untrusted client UID claim. A later verifier compares it
+with the UID supplied separately by the trusted peer-credential layer; the
+parsed claim itself is not authenticated caller identity. SEC-01 does not
+obtain peer credentials or create GID/PID authorization rules. The accepted
+threat model remains one trusted local account.
 
 ## Frozen claims transcript
 
@@ -108,6 +110,10 @@ serialization, map iteration, or host input in the transcript. Evidence
 reference digests are unique; duplicate references reject. The fixed domain
 prefix and version prevent cross-contract use. The transcript itself is not
 authenticated until GRANT-01 verifies a supported authenticator.
+
+Raw JSON objects with duplicate member names reject in the Rust parser before
+generic JSON-value inspection, so different JSON decoders cannot select
+different grant claims.
 
 ## Expiry and replay contract
 

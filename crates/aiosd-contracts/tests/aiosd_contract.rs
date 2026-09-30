@@ -44,6 +44,18 @@ fn valid_request() -> AiosdRequest {
     .expect("valid request")
 }
 
+fn transcript(value: &Value) -> Vec<u8> {
+    AiosdRequest::from_json_bytes(&serde_json::to_vec(value).expect("serialize request"))
+        .expect("valid request")
+        .grant()
+        .claims_transcript()
+        .expect("claims transcript")
+}
+
+fn hex(bytes: &[u8]) -> String {
+    bytes.iter().map(|byte| format!("{byte:02x}")).collect()
+}
+
 #[test]
 fn positive_request_receipt_and_postcondition_fixtures_match_schema_and_parser() {
     let request_value = valid_request_value();
@@ -277,6 +289,131 @@ fn claims_transcript_binds_claims_but_not_proof_bytes() {
             .claims_transcript()
             .expect("transcript")
     );
+}
+
+#[test]
+fn claims_transcript_matches_the_frozen_golden_vector() {
+    let expected = include_str!("../../../fixtures/aiosd/grant-claims-transcript-v1.hex").trim();
+    assert_eq!(
+        hex(&valid_request()
+            .grant()
+            .claims_transcript()
+            .expect("transcript")),
+        expected
+    );
+}
+
+#[test]
+fn every_variable_frozen_claim_changes_the_transcript() {
+    let base = valid_request_value();
+    let original = transcript(&base);
+    let mut variants = Vec::new();
+
+    let mut value = base.clone();
+    value["grant"]["grant_id"] = json!("55555555-5555-4555-8555-555555555555");
+    variants.push(("grant_id", value));
+
+    let mut value = base.clone();
+    value["grant"]["issuer_id"] = json!("other-issuer");
+    variants.push(("issuer_id", value));
+
+    let mut value = base.clone();
+    value["grant"]["client_identity"]["uid"] = json!(1001);
+    variants.push(("client UID", value));
+
+    let mut value = base.clone();
+    value["grant"]["policy_version"] = json!("v2");
+    variants.push(("policy_version", value));
+
+    let mut value = base.clone();
+    value["grant"]["expires_at_unix_ms"] = json!(2001);
+    variants.push(("expiry", value));
+
+    let mut value = base.clone();
+    value["trace_id"] = json!("55555555-5555-4555-8555-555555555555");
+    value["grant"]["trace_id"] = value["trace_id"].clone();
+    variants.push(("trace_id", value));
+
+    let mut value = base.clone();
+    value["decision_hash"] =
+        json!("sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc");
+    value["grant"]["decision_hash"] = value["decision_hash"].clone();
+    variants.push(("decision_hash", value));
+
+    let mut value = base.clone();
+    value["evidence"][0]["source"] = json!("different provenance");
+    value["grant"]["evidence"] = value["evidence"].clone();
+    variants.push(("evidence binding", value));
+
+    let mut value = base.clone();
+    value["grant"]["authenticator"]["format"] = json!("opaque-v2");
+    variants.push(("authenticator format", value));
+
+    for (claim, value) in variants {
+        assert_ne!(original, transcript(&value), "transcript omitted {claim}");
+    }
+
+    for (claim, path, replacement) in [
+        ("grant version", "grant_version", "2"),
+        (
+            "capability substitution",
+            "capability_id",
+            "filesystem.write",
+        ),
+        (
+            "argument substitution",
+            "argument_sha256",
+            "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        ),
+        (
+            "resource-scope substitution",
+            "resource_scope",
+            "filesystem.write",
+        ),
+    ] {
+        let mut value = base.clone();
+        value["grant"][path] = json!(replacement);
+        assert!(
+            AiosdRequest::from_json_bytes(&serde_json::to_vec(&value).expect("serialize")).is_err(),
+            "accepted substituted {claim}"
+        );
+    }
+}
+
+#[test]
+fn evidence_order_does_not_change_the_claims_transcript() {
+    let mut first = valid_request_value();
+    let mut second_evidence = first["evidence"][0].clone();
+    second_evidence["ref"] = json!(format!("evidence://sha256/{}", "d".repeat(64)));
+    second_evidence["source"] = json!("second evidence source");
+    first["evidence"]
+        .as_array_mut()
+        .unwrap()
+        .push(second_evidence);
+    first["grant"]["evidence"] = first["evidence"].clone();
+
+    let mut reversed = first.clone();
+    reversed["evidence"].as_array_mut().unwrap().reverse();
+    reversed["grant"]["evidence"] = reversed["evidence"].clone();
+    assert_eq!(transcript(&first), transcript(&reversed));
+}
+
+#[test]
+fn raw_duplicate_json_members_reject_before_generic_value_collapse() {
+    let bytes = serde_json::to_string(&valid_request_value()).expect("serialize request");
+    let duplicated = bytes.replace(
+        "\"issuer_id\":\"local-policy\"",
+        "\"issuer_id\":\"local-policy\",\"issuer_id\":\"other-issuer\"",
+    );
+    assert_ne!(bytes, duplicated, "fixture needle must match");
+    assert!(AiosdRequest::from_json_bytes(duplicated.as_bytes()).is_err());
+
+    let duplicated_expiry = bytes.replace(
+        "\"expires_at_unix_ms\":2000",
+        "\"expires_at_unix_ms\":2000,\"expires_at_unix_ms\":4000",
+    );
+    assert_ne!(bytes, duplicated_expiry, "expiry needle must match");
+    assert!(AiosdRequest::from_json_bytes(duplicated_expiry.as_bytes()).is_err());
 }
 
 #[test]

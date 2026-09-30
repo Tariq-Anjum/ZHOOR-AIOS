@@ -44,6 +44,14 @@ Toolchain: installed Rust `1.98.1`; commands were offline.
 - Schema tests validate positive request/receipt/postcondition/frame inputs and hostile structural/semantic boundaries against the Rust parsers.
 - Task-scoped `git diff --cached --check` — PASS.
 
+## Review correction r1
+
+- Initial exact-SHA candidate `cf4dd5228bb363f41abefa0ffc065078a4637dc7` received `CHANGES_REQUIRED` from fresh contained Pi / OpenAI-Codex / GPT-6 Luna / xhigh review; immutable findings are recorded in `docs/planning/zhoor-adoption/handoffs/reviews/SEC-01-luna-r1.md`.
+- Corrected duplicate raw JSON member handling by invoking typed serde parsing directly after byte/array preflight, before generic `Value` parsing; added duplicate issuer/expiry regressions. Updated the UID claim documentation to distinguish the serialized claim from separately supplied peer identity.
+- Added a 375-byte spec-derived frozen claims-transcript golden vector, evidence-order invariance coverage, and transcript change/rejection checks for each variable or closed v1 claim.
+- Correction worker validation on Rust 1.98.1, offline: fmt check, clippy, check, tests (2 unit + 12 contract), debug build, release build, and task-scoped diff check — PASS.
+- Correction worker Cargo.lock unchanged; canonical lock reconciliation remains controller-owned.
+
 ## Canonical integration and validation
 
 - Implementation commit: `5bcc7750763d7cdf7b5977a083fc9e4931480125`; task-owned SEC paths only.

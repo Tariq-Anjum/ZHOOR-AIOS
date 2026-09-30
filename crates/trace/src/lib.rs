@@ -205,8 +205,18 @@ impl DecisionTrace {
         response: &Response,
         context: TraceContext,
     ) -> Result<Self, TraceError> {
+        // Protocol structs expose public fields, so callers can construct or
+        // mutate values without going through their validating JSON parsers.
+        let request_value =
+            serde_json::to_value(request).map_err(|_| TraceError::InvalidProtocolEnvelope)?;
+        let request =
+            Request::from_value(&request_value).map_err(|_| TraceError::InvalidProtocolEnvelope)?;
+        let response_value =
+            serde_json::to_value(response).map_err(|_| TraceError::InvalidProtocolEnvelope)?;
+        let response = Response::from_value(&response_value)
+            .map_err(|_| TraceError::InvalidProtocolEnvelope)?;
         response
-            .validate_against(request)
+            .validate_against(&request)
             .map_err(|_| TraceError::InvalidProtocolEnvelope)?;
         validate_context(&context)?;
 
@@ -228,8 +238,8 @@ impl DecisionTrace {
                 request.policy_ref.as_bytes(),
             ),
             registry_version: context.registry_version,
-            input_hash: digest(INPUT_HASH_DOMAIN, request)?,
-            response_hash: digest(RESPONSE_HASH_DOMAIN, response)?,
+            input_hash: digest(INPUT_HASH_DOMAIN, &request)?,
+            response_hash: digest(RESPONSE_HASH_DOMAIN, &response)?,
             route: response.backend.into(),
             result_kind: response.result.as_ref().map(result_kind),
             confidence: TraceConfidence {
@@ -266,7 +276,8 @@ impl DecisionTrace {
         // outside [0, 1] before conversion to f64 can round them onto a bound.
         let value: serde_json::Value =
             serde_json::from_str(text).map_err(|_| TraceError::InvalidTrace)?;
-        if !json_confidence_in_unit_interval(&value, "raw")
+        if !required_nullable_fields_present(&value)
+            || !json_confidence_in_unit_interval(&value, "raw")
             || !json_confidence_in_unit_interval(&value, "calibrated")
         {
             return Err(TraceError::InvalidTrace);
@@ -322,6 +333,9 @@ impl DecisionTrace {
             || self.latency.inference_ms > 600_000
             || (self.disposition == TraceDisposition::Resolved) != self.result_kind.is_some()
             || (self.disposition == TraceDisposition::Denied) != self.error_code.is_some()
+            || self
+                .result_kind
+                .is_some_and(|kind| !operation_matches_result(self.operation, kind))
             || !optional_valid_receipt(self.receipt_ref.as_deref())
         {
             return Err(TraceError::InvalidTrace);
@@ -417,6 +431,16 @@ fn result_kind(result: &DecisionResult) -> TraceResultKind {
         DecisionResult::Extract { .. } => TraceResultKind::Extract,
         DecisionResult::Verdict { .. } => TraceResultKind::Verdict,
     }
+}
+
+fn operation_matches_result(operation: TraceOperation, result: TraceResultKind) -> bool {
+    matches!(
+        (operation, result),
+        (TraceOperation::Select, TraceResultKind::Choice)
+            | (TraceOperation::Score, TraceResultKind::Score)
+            | (TraceOperation::Extract, TraceResultKind::Extract)
+            | (TraceOperation::Verify, TraceResultKind::Verdict)
+    )
 }
 
 fn error_code(code: WireErrorCode) -> TraceErrorCode {
@@ -518,6 +542,19 @@ fn json_confidence_in_unit_interval(value: &serde_json::Value, field: &str) -> b
         .and_then(|confidence| confidence.get(field))
         .and_then(serde_json::Value::as_number)
         .is_some_and(|number| decimal_in_unit_interval(&number.to_string()))
+}
+
+fn required_nullable_fields_present(value: &serde_json::Value) -> bool {
+    value.as_object().is_some_and(|object| {
+        [
+            "model_version",
+            "registry_version",
+            "error_code",
+            "receipt_ref",
+        ]
+        .iter()
+        .all(|field| object.contains_key(*field))
+    })
 }
 
 // The input is already a syntactically valid JSON number. Compare its exact

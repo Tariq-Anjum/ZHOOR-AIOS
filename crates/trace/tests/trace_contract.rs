@@ -248,6 +248,69 @@ fn timestamp_schema_bound_matches_rust_u64() {
     );
 }
 
+#[test]
+fn nullable_fields_are_required_and_operation_matches_result_kind() {
+    let root = repo_root();
+    let fixture =
+        fs::read_to_string(root.join("fixtures/trace/valid/trace-v1.json")).expect("trace fixture");
+
+    for field in [
+        "model_version",
+        "registry_version",
+        "error_code",
+        "receipt_ref",
+    ] {
+        let mut instance = read_json_value(&fixture);
+        instance
+            .as_object_mut()
+            .expect("trace object")
+            .remove(field);
+        assert!(
+            !schema().is_valid(&instance),
+            "schema required field {field}"
+        );
+        let text = serde_json::to_string(&instance).expect("trace JSON");
+        assert_eq!(
+            DecisionTrace::from_json_str(&text),
+            Err(TraceError::InvalidTrace),
+            "Rust parser required field {field}"
+        );
+    }
+
+    let mismatched = fixture.replace("\"operation\": \"score\"", "\"operation\": \"select\"");
+    let instance = read_json_value(&mismatched);
+    assert!(!schema().is_valid(&instance));
+    assert_eq!(
+        DecisionTrace::from_json_str(&mismatched),
+        Err(TraceError::InvalidTrace)
+    );
+}
+
+#[test]
+fn trace_creation_revalidates_public_protocol_structs() {
+    let root = repo_root();
+    let request_json = fs::read_to_string(root.join("fixtures/trace/replay/request-score.json"))
+        .expect("replay request");
+    let response_json =
+        fs::read_to_string(root.join("fixtures/protocol/valid/response-score.json"))
+            .expect("response fixture");
+    let mut request = Request::from_json_str(&request_json).expect("valid request");
+    let response = Response::from_json_str(&response_json).expect("valid response");
+    request.goal.clear();
+    assert_eq!(
+        DecisionTrace::create(&request, &response, context()),
+        Err(TraceError::InvalidProtocolEnvelope)
+    );
+
+    let request = Request::from_json_str(&request_json).expect("valid request");
+    let mut response = Response::from_json_str(&response_json).expect("valid response");
+    response.confidence.raw = 1.5;
+    assert_eq!(
+        DecisionTrace::create(&request, &response, context()),
+        Err(TraceError::InvalidProtocolEnvelope)
+    );
+}
+
 fn read_json_value(text: &str) -> Value {
     serde_json::from_str(text).expect("valid JSON instance")
 }

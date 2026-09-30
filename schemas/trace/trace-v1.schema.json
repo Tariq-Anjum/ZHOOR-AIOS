@@ -98,6 +98,42 @@
   "allOf": [
     {
       "if": {
+        "properties": { "operation": { "const": "select" } },
+        "required": ["operation"]
+      },
+      "then": {
+        "properties": { "result_kind": { "enum": ["choice", null] } }
+      }
+    },
+    {
+      "if": {
+        "properties": { "operation": { "const": "score" } },
+        "required": ["operation"]
+      },
+      "then": {
+        "properties": { "result_kind": { "enum": ["score", null] } }
+      }
+    },
+    {
+      "if": {
+        "properties": { "operation": { "const": "extract" } },
+        "required": ["operation"]
+      },
+      "then": {
+        "properties": { "result_kind": { "enum": ["extract", null] } }
+      }
+    },
+    {
+      "if": {
+        "properties": { "operation": { "const": "verify" } },
+        "required": ["operation"]
+      },
+      "then": {
+        "properties": { "result_kind": { "enum": ["verdict", null] } }
+      }
+    },
+    {
+      "if": {
         "properties": { "disposition": { "const": "resolved" } },
         "required": ["disposition"]
       },

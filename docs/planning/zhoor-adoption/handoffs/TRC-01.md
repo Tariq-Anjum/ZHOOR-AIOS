@@ -29,20 +29,22 @@ All commands used the installed Rust 1.98.1 toolchain and --offline; pre-integra
 - cargo fmt --all -- --check — PASS
 - cargo clippy -p zhoor-trace --all-targets --offline -- -D warnings — PASS
 - cargo check -p zhoor-trace --all-targets --offline — PASS
-- cargo test -p zhoor-trace --offline — PASS (4 unit, 7 contract, 0 doctests)
-- cargo test --offline -p zhoor-trace --test trace_contract — PASS (7 contract tests)
+- cargo test -p zhoor-trace --offline — PASS (4 unit, 9 contract, 0 doctests)
+- cargo test --offline -p zhoor-trace --test trace_contract — PASS (9 contract tests)
 - cargo build -p zhoor-trace --offline — PASS
 - cargo build -p zhoor-trace --release --offline — PASS
 - git diff --check — PASS
-- Schema fixtures are checked against Draft 2020-12 and the Rust parser; replay checks normalized-input equality, response linkage, sanitization, and error-code-only denial traces. Contract tests also check exact confidence-decimal bounds and the timestamp u64 boundary.
+- Schema fixtures are checked against Draft 2020-12 and the Rust parser; replay checks normalized-input equality, response linkage, sanitization, and error-code-only denial traces. Contract tests also check exact confidence-decimal bounds, the timestamp u64 boundary, required nullable fields, operation/result compatibility, and revalidation of public protocol structs.
 
 ## Independent review and correction
 
 - First substantive exact-SHA review: Pi / OpenAI-Codex / GPT-6 Luna / xhigh, read-only, on candidate `aab713dc60d54239d38deea2338c547a38e80827`.
 - Result: CHANGES_REQUIRED. The reviewer found that out-of-range confidence decimals could round into range during f64 parsing, and that the timestamp schema lacked the Rust u64 maximum.
 - Corrections: `from_json_str` now checks the original arbitrary-precision confidence decimals against [0, 1] before f64 deserialization; the schema caps timestamps at 18446744073709551615. Added boundary contract coverage for confidence and timestamps.
+- Second exact-SHA review: fresh contained Pi / OpenAI-Codex / GPT-6 Luna / xhigh reviewer REV3 reviewed `e69911b8f764a6ec1440ad0b7d5cc18e9580c02a` and returned CHANGES_REQUIRED. Findings: absent nullable fields were accepted by Rust despite schema-required keys; operation/result-kind compatibility was not enforced by trace parsing/schema; public protocol structs could be mutated to invalid values before `create`.
+- Additional corrections: `from_json_str` now requires the nullable schema keys to be present; Rust and JSON Schema enforce the operation/result-kind mapping; `create` round-trips typed request/response values through the protocol `from_value` validators before cross-envelope validation and hashing. Added regression coverage for all three findings.
 - The initial reviewer session returned BLOCKED because its persistent system prompt prohibited source inspection; it was stopped before any source review. A fresh contained reviewer session performed the substantive review. No source changes were made from the blocked session.
-- Correction commit `77c1b1d` is integrated. Canonical locked validation passes; the fresh exact-SHA review of the corrected candidate is pending.
+- First correction commit `77c1b1d` is integrated and passed canonical locked validation. The second correction is being integrated from isolated source commit `20d2132`; canonical validation and a fresh exact-SHA review of that correction are pending.
 
 ## Root lockfile
 
@@ -62,7 +64,7 @@ The controller committed only card-owned implementation and handoff paths, fast-
 
 - Initial source integration: fast-forward from assignment SHA 3d1c52c52d3d1a6f94deb0e1b48c0813c6b6b049 to implementation SHA 286e42580d547add2bf62f64094c8ef5e80b0cb2.
 - Root lock reconciliation: controller commit 9dff79a692b6e1dc50cc2699073202fe9343f89f; mechanical offline update only. Cargo.lock SHA-256 is 4585fbd4546d6b79045c87a83f4796dafe5144ff628cb4cb5fd297bc4f1a2150.
-- Correction commit `77c1b1d` fixes exact confidence decimal validation and bounds the trace timestamp schema at `u64::MAX`.
+- Correction commit `77c1b1d` fixed exact confidence decimal validation and bounded the trace timestamp schema at `u64::MAX`. Additional review corrections are in isolated source commit `20d2132` and are pending canonical integration/validation.
 - Corrected `./scripts/validate.sh --package zhoor-trace` — PASS; 4 unit and 7 contract tests, locked clippy/check, debug and release package builds.
 - Corrected `cargo test --offline --locked -p zhoor-trace --test trace_contract` — PASS; 7 tests.
 - Corrected `./scripts/validate.sh` — PASS; full locked workspace validation exit 0, including 17 protocol unit + 11 protocol contract, 11 system-info unit, 4 trace unit + 7 trace contract tests, clippy/check, and debug/release builds.
@@ -75,5 +77,5 @@ The controller committed only card-owned implementation and handoff paths, fast-
 
 - The first substantive exact-SHA review was performed by a fresh, contained, read-only Pi / OpenAI-Codex / GPT-6 Luna / xhigh session against candidate `aab713dc60d54239d38deea2338c547a38e80827` and returned CHANGES_REQUIRED for confidence decimal rounding and the timestamp schema bound.
 - A preceding reviewer session returned BLOCKED because its persistent system prompt prohibited source inspection; it was stopped before inspecting source. A fresh session performed the substantive review.
-- The corrected source SHA is `77c1b1d`; after this validation handoff commit, the next HEAD will be frozen as the exact review candidate.
+- The first corrected source candidate was `77c1b1d`; the second review found additional issues and those fixes are being integrated from `20d2132`. After corrected canonical validation and a handoff update, freeze the resulting HEAD as the next exact review candidate.
 - Next: create a fresh contained reviewer lane for that exact candidate. The reviewer must not claim to execute Cargo checks; canonical validation evidence is controller-owned. Close TRC-01 only after exact-SHA review PASS and all other gates pass; do not start a later card.

@@ -39,11 +39,12 @@ All commands used the installed Rust 1.98.1 toolchain and --offline; pre-integra
 ## Canonical integration update
 
 - Correction commits `77c1b1d`, `1c54cb0`, and `bf75906` are integrated. The final correction adds required-field validation for nullable `result_kind`, with a contract regression case for a non-resolved trace.
+- Commit `b121971` aligns trace parsing with Draft 2020-12 integer semantics by normalizing exact whole-number decimal/exponent forms for timestamps and latency before typed deserialization. Contract coverage accepts integral forms and rejects fractional forms.
 - The current implementation and schema enforce the card acceptance criteria. Inspect the exact candidate independently; this handoff intentionally contains no prior reviewer findings or conclusions.
 
 ## Root lockfile
 
-Cargo mechanically updated only the isolated worktree Cargo.lock while resolving the new workspace member and SHA-256 dependency. The observed delta adds zhoor-trace, sha2 0.10.9, and its six transitive packages. The worktree lock SHA-256 is 4585fbd4546d6b79045c87a83f4796dafe5144ff628cb4cb5fd297bc4f1a2150; the assignment baseline was 517b2bdab93379075eceb07fb1170360e2d7af7cb2c0ce2469fedc9179af2c40. Cargo.lock remains unstaged and uncommitted for controller reconciliation after source integration.
+Cargo mechanically updated the isolated worker Cargo.lock while resolving the new workspace member and SHA-256 dependency. The observed delta adds zhoor-trace, sha2 0.10.9, and its six transitive packages. Controller commit `9dff79a692b6e1dc50cc2699073202fe9343f89f` separately reconciled the canonical lockfile. Its SHA-256 is `4585fbd4546d6b79045c87a83f4796dafe5144ff628cb4cb5fd297bc4f1a2150`, unchanged by subsequent locked validation.
 
 ## Risks and stop conditions
 
@@ -59,10 +60,10 @@ The controller committed only card-owned implementation and handoff paths, fast-
 
 - Initial source integration: fast-forward from assignment SHA 3d1c52c52d3d1a6f94deb0e1b48c0813c6b6b049 to implementation SHA 286e42580d547add2bf62f64094c8ef5e80b0cb2.
 - Root lock reconciliation: controller commit 9dff79a692b6e1dc50cc2699073202fe9343f89f; mechanical offline update only. Cargo.lock SHA-256 is 4585fbd4546d6b79045c87a83f4796dafe5144ff628cb4cb5fd297bc4f1a2150.
-- Correction commits `77c1b1d`, `1c54cb0`, and `bf75906` are integrated; all are included in the validated implementation candidate.
-- Final `./scripts/validate.sh --package zhoor-trace` — PASS; 4 unit and 9 contract tests, locked clippy/check, debug and release package builds.
-- Final `cargo +1.98.1 test --offline --locked -p zhoor-trace --test trace_contract` — PASS; 9 tests.
-- Final `./scripts/validate.sh` — PASS; full locked workspace validation exit 0, including 17 protocol unit + 11 protocol contract, 11 system-info unit, 4 trace unit + 9 trace contract tests, clippy/check, and debug/release builds.
+- Correction commits `77c1b1d`, `1c54cb0`, `bf75906`, and `b121971` are integrated; all are included in the validated implementation candidate.
+- Final `./scripts/validate.sh --package zhoor-trace` — PASS; 4 unit and 10 contract tests, locked clippy/check, debug and release package builds.
+- Final `cargo +1.98.1 test --offline --locked -p zhoor-trace --test trace_contract` — PASS; 10 contract tests.
+- Final `./scripts/validate.sh` — PASS; full locked workspace validation exit 0, including 17 protocol unit + 11 protocol contract, 11 system-info unit, 4 trace unit + 10 trace contract tests, clippy/check, and debug/release builds.
 - Cargo.lock SHA-256 before and after corrected locked validation: 4585fbd4546d6b79045c87a83f4796dafe5144ff628cb4cb5fd297bc4f1a2150 (unchanged).
 - Protected baseline reconciliation: PASS; all 28 status/path/SHA-256 records still match.
 - Repository-wide git diff --check reports trailing whitespace in pre-existing protected dirty job-card files, including jobs/TRC-01.md. Those files were preserved. git show --check on the TRC-01 implementation and lock reconciliation commits passes.

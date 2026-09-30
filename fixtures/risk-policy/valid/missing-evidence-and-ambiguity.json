@@ -1,0 +1,19 @@
+{
+  "input": {
+    "policy_version": "1",
+    "capability": "system.info.read",
+    "signals": ["privilege"],
+    "semantic_ambiguity": true,
+    "prompt_injection_indicators": ["safeguard_bypass_instruction"],
+    "evidence_trust_tiers": ["untrusted"]
+  },
+  "expected": {
+    "policy_version": "1",
+    "risk_level": "high",
+    "scrutiny": "human_review",
+    "state": "abstained",
+    "advisory_escalation": true,
+    "reasons": ["privilege_requested", "semantic_ambiguity", "safeguard_bypass_instruction", "missing_required_evidence"],
+    "evidence_requirements": ["verified_evidence", "human_review"]
+  }
+}

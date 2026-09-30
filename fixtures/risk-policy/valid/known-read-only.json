@@ -1,0 +1,19 @@
+{
+  "input": {
+    "policy_version": "1",
+    "capability": "system.info.read",
+    "signals": [],
+    "semantic_ambiguity": false,
+    "prompt_injection_indicators": [],
+    "evidence_trust_tiers": ["observed"]
+  },
+  "expected": {
+    "policy_version": "1",
+    "risk_level": "low",
+    "scrutiny": "routine",
+    "state": "evaluated",
+    "advisory_escalation": false,
+    "reasons": [],
+    "evidence_requirements": ["observed_evidence"]
+  }
+}

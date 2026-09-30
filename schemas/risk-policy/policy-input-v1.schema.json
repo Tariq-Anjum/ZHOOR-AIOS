@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:zhoor:risk-policy:input:v1",
+  "title": "ZHOOR deterministic risk policy input, version 1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "policy_version",
+    "capability",
+    "signals",
+    "semantic_ambiguity",
+    "prompt_injection_indicators",
+    "evidence_trust_tiers"
+  ],
+  "properties": {
+    "policy_version": { "const": "1" },
+    "capability": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256,
+      "pattern": "^[^\\s\\u0000-\\u001f\\u007f](?:[^\\u0000-\\u001f\\u007f]{0,254}[^\\s\\u0000-\\u001f\\u007f])?$"
+    },
+    "signals": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "shell",
+          "package_installation",
+          "service_control",
+          "network_egress",
+          "resource_scope_exceeded",
+          "privilege",
+          "mutation"
+        ]
+      }
+    },
+    "semantic_ambiguity": { "type": "boolean" },
+    "prompt_injection_indicators": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "enum": ["safeguard_bypass_instruction"] }
+    },
+    "evidence_trust_tiers": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "enum": ["untrusted", "observed", "verified", "policy"]
+      }
+    }
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "input": {
+    "policy_version": "1",
+    "capability": "system.info.read",
+    "signals": ["mutation", "shell", "network_egress"],
+    "semantic_ambiguity": false,
+    "prompt_injection_indicators": [],
+    "evidence_trust_tiers": ["verified"]
+  },
+  "expected": {
+    "policy_version": "1",
+    "risk_level": "high",
+    "scrutiny": "human_review",
+    "state": "evaluated",
+    "advisory_escalation": true,
+    "reasons": ["shell_requested", "network_egress_requested", "mutation_requested"],
+    "evidence_requirements": ["verified_evidence", "human_review"]
+  }
+}

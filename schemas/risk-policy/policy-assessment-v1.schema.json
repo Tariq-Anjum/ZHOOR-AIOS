@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:zhoor:risk-policy:assessment:v1",
+  "title": "ZHOOR deterministic risk policy assessment, version 1",
+  "description": "Non-authoritative risk and scrutiny recommendation. This contract never grants, denies, or executes a capability.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "policy_version",
+    "risk_level",
+    "scrutiny",
+    "state",
+    "advisory_escalation",
+    "reasons",
+    "evidence_requirements"
+  ],
+  "properties": {
+    "policy_version": { "const": "1" },
+    "risk_level": { "enum": ["low", "medium", "high", "unknown"] },
+    "scrutiny": { "enum": ["routine", "increased", "human_review"] },
+    "state": { "enum": ["evaluated", "abstained"] },
+    "advisory_escalation": { "type": "boolean" },
+    "reasons": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "unknown_capability",
+          "shell_requested",
+          "package_installation_requested",
+          "service_control_requested",
+          "network_egress_requested",
+          "resource_scope_exceeded",
+          "privilege_requested",
+          "mutation_requested",
+          "semantic_ambiguity",
+          "safeguard_bypass_instruction",
+          "missing_required_evidence"
+        ]
+      }
+    },
+    "evidence_requirements": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "enum": ["observed_evidence", "verified_evidence", "human_review"]
+      }
+    }
+  }
+}

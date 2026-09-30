@@ -1,0 +1,43 @@
+# POL-01 — deterministic risk policy handoff
+
+## Pinned v1 contract
+
+- Policy version: 1.
+- This package returns a PolicyAssessment containing risk level, scrutiny recommendation, evaluated/abstained state, advisory escalation, stable reason codes, and stable evidence requirements. It has no allow, deny, grant, or executable-request result.
+- The sole known low-risk capability in v1 is the exact ID system.info.read. Unknown IDs abstain, recommend human review, and require verified evidence plus human review.
+- The closed hard-risk facts are shell, package installation, service control, network egress, resource scope exceeded, privilege, and mutation. Any such fact yields high risk, human review, advisory escalation, and verified evidence requirements. No fact or evidence combination authorizes an operation.
+- A known low-risk request requires observed evidence; verified evidence also satisfies that minimum. untrusted and policy tiers do not satisfy it.
+- Missing eligible evidence adds missing_required_evidence, abstains, recommends advisory escalation, and adds a human-review requirement without lowering the risk classification.
+- Semantic ambiguity raises low risk to medium and routine scrutiny to increased scrutiny. It leaves high and unknown classifications unchanged.
+- The only v1 prompt-injection indicator is the typed upstream fact safeguard_bypass_instruction. It raises scrutiny to at least increased and recommends advisory escalation. POL-01 does not inspect raw text or claim to detect prompt injection.
+- Hard-risk facts dominate ambiguity. An unrecognized capability abstains; it is unknown-risk when no hard fact applies. A simultaneous hard fact remains high-risk, with the unknown-capability reason and human-review scrutiny retained.
+- Reason codes and evidence requirements are unique and ordered by their closed Rust enum order, independent of input order.
+- Inputs are explicit normalized facts only. The crate does not parse commands, canonicalize paths, probe the host, fetch evidence, resolve secrets, consult models, or execute capabilities.
+- JSON Schemas close both input and output structures. Rust validates the same bounded fields, rejects duplicates, and uses the protocol-owned TrustTier::parse for evidence tier vocabulary.
+- The policy consumes existing protocol trust-tier terms without changing protocol contracts. It does not produce a protocol denied disposition.
+
+## Architecture mapping
+
+| Input fact | Classification and scrutiny | Reason | Evidence requirement |
+|---|---|---|---|
+| system.info.read, no other signal | low / routine | none | observed |
+| Any other capability ID | unknown / human review; abstain and advise escalation | unknown_capability | verified and human review |
+| Any hard-risk signal | high / human review; advise escalation | signal-specific code | verified and human review |
+| Semantic ambiguity | at least medium / increased | semantic_ambiguity | base requirement remains |
+| safeguard_bypass_instruction | at least medium / increased; advise escalation | safeguard_bypass_instruction | base requirement remains |
+| Required trust tier absent | classification unchanged; abstain and advise escalation | missing_required_evidence | current tier plus human review |
+
+## Implementation and validation status
+
+- Assignment base: 9f88a8c248a0fc7e03b8f8f0efa916d6cca28b27.
+- Implementation commit and integrated candidate: pending.
+- Exact-SHA review: pending.
+- Worker-stage validation: PASS on Rust 1.98.1, offline: format, Clippy (-D warnings), check, package tests (10 unit + 3 contract), debug build, and release build.
+- Canonical targeted/full validation, root Cargo.lock reconciliation, D-018 closure check, and publication: pending.
+
+## Limitations
+
+- This v1 policy knows only system.info.read as a low-risk capability; other capability IDs abstain unless a later accepted policy version adds them.
+- Risk signals and prompt-injection indicators are caller-supplied normalized facts. The crate does not infer them from request arguments or text.
+- Evidence requirements classify trust-tier metadata only; they do not authenticate evidence, prove source independence, or establish authorization.
+- Risk classifications and scrutiny recommendations are advisory. Policy authorization, grant handling, and enforcement belong to later components.

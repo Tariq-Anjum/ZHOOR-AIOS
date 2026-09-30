@@ -1,0 +1,9 @@
+{
+  "policy_version": "1",
+  "capability": "system.info.read",
+  "signals": [],
+  "semantic_ambiguity": false,
+  "prompt_injection_indicators": [],
+  "evidence_trust_tiers": ["observed"],
+  "allow_mutation": true
+}

@@ -1,0 +1,9 @@
+{
+  "policy_version": "1",
+  "risk_level": "low",
+  "scrutiny": "routine",
+  "state": "evaluated",
+  "advisory_escalation": false,
+  "reasons": ["safe_by_default"],
+  "evidence_requirements": ["observed_evidence"]
+}

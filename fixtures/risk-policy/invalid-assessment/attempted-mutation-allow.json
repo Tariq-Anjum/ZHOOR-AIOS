@@ -1,0 +1,10 @@
+{
+  "policy_version": "1",
+  "risk_level": "high",
+  "scrutiny": "human_review",
+  "state": "evaluated",
+  "advisory_escalation": true,
+  "reasons": ["mutation_requested"],
+  "evidence_requirements": ["verified_evidence", "human_review"],
+  "allow_mutation": true
+}

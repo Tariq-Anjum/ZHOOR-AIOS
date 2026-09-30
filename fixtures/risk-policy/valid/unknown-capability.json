@@ -1,0 +1,19 @@
+{
+  "input": {
+    "policy_version": "1",
+    "capability": "vendor.unknown",
+    "signals": [],
+    "semantic_ambiguity": false,
+    "prompt_injection_indicators": [],
+    "evidence_trust_tiers": ["verified"]
+  },
+  "expected": {
+    "policy_version": "1",
+    "risk_level": "unknown",
+    "scrutiny": "human_review",
+    "state": "abstained",
+    "advisory_escalation": true,
+    "reasons": ["unknown_capability"],
+    "evidence_requirements": ["verified_evidence", "human_review"]
+  }
+}

@@ -67,10 +67,11 @@ The controller committed only card-owned implementation and handoff paths, fast-
 - Cargo.lock SHA-256 before and after corrected locked validation: 4585fbd4546d6b79045c87a83f4796dafe5144ff628cb4cb5fd297bc4f1a2150 (unchanged).
 - Protected baseline reconciliation: PASS; all 28 status/path/SHA-256 records still match.
 - Repository-wide git diff --check reports trailing whitespace in pre-existing protected dirty job-card files, including jobs/TRC-01.md. Those files were preserved. git show --check on the TRC-01 implementation and lock reconciliation commits passes.
-- Board state remains TRC-01 = REVIEW; PRO-01 = DONE; REG-01/POL-01/SEC-01 = BLOCKED. No later card has started.
+- Closure transition: TRC-01 REVIEW → DONE; PRO-01 remains DONE; REG-01/POL-01/SEC-01 and WRK-01/WRK-02 remain BLOCKED. No later card has started.
 
 ## Review handoff
 
 - Current implementation, schema, and contract tests include exact numeric bounds, required nullable fields including result_kind for non-resolved traces, operation/result compatibility, and revalidation of public protocol structs.
-- After a handoff-only update with canonical results, freeze the resulting HEAD and conduct a fresh contained exact-SHA review. The reviewer must not claim to run Cargo commands; validation evidence is controller-owned.
-- Close TRC-01 only after exact-SHA review PASS and all other gates pass. Do not start a later card.
+- Final reviewed candidate SHA: `f37a607a8acaa5df6d9fb8324e6c5d3b07edd3c8`.
+- Independent exact-SHA review: PASS; fresh contained Pi / OpenAI-Codex / GPT-6 Luna / xhigh read-only reviewer REV6; no blocking findings or material coverage limitations. The reviewer did not claim to run Cargo; validation evidence above is controller-owned.
+- Closure is recorded only after this exact-SHA review, canonical validation, lockfile stability, and protected-baseline reconciliation passed. Do not start a later card.

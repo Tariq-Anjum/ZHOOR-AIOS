@@ -151,7 +151,7 @@ class ZhoorHerdrTopologyTests(unittest.TestCase):
         self.assertIn(f"PATH={self.scratch}/bin:/usr/bin:/bin", create)
         version = subprocess.run([str(wrapper), "--version"], text=True, capture_output=True, check=False)
         self.assertEqual(version.returncode, 0)
-        self.assertIn("0.87.1", version.stdout)
+        self.assertIn("0.99.1", version.stdout)
         self.assertFalse(any(call[:2] == ["herdr", "pane"] and "split" in call for call in fake.calls))
 
     def test_missing_approved_provider_auth_fails_before_tab_creation(self):
@@ -292,6 +292,99 @@ class ZhoorHerdrTopologyTests(unittest.TestCase):
         zhoor_herdr.set_containment("ARCH", "PASS", evidence=str(evidence), registry_path=self.registry)
         zhoor_herdr.send_prompt("ARCH", "adjudication packet", runner=fake, registry_path=self.registry)
         self.assertEqual(fake.calls[-1][:3], ["herdr", "agent", "prompt"])
+
+
+class ZhoorReadonlyGuardTests(unittest.TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.root = Path(self.temp.name)
+        self.worktree = self.root / "worktree"
+        self.worktree.mkdir()
+        (self.worktree / "inside.txt").write_text("inside\n")
+        self.outside = self.root / "outside.txt"
+        self.outside.write_text("outside\n")
+        (self.worktree / "escape.txt").symlink_to(self.outside)
+
+    def tearDown(self):
+        self.temp.cleanup()
+
+    def run_guard(self, event_name: str, event: dict[str, object]) -> dict[str, object]:
+        guard_url = (Path(__file__).parents[1] / "scripts/zhoor_pi_readonly_guard.ts").as_uri()
+        script = f'''import guard from {json.dumps(guard_url)};
+import {{ readFileSync }} from "node:fs";
+const handlers = new Map();
+guard({{ on: (name, handler) => handlers.set(name, handler) }});
+const eventName = process.argv[1];
+const event = JSON.parse(readFileSync(0, "utf8"));
+const handler = handlers.get(eventName);
+const result = handler ? await handler(event) : undefined;
+console.log(JSON.stringify({{ registered: [...handlers.keys()], result: result ?? null }}));
+'''
+        result = subprocess.run(
+            ["node", "--experimental-strip-types", "--input-type=module", "-e", script, event_name],
+            cwd=self.worktree,
+            input=json.dumps(event),
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        return json.loads(result.stdout)
+
+    def test_user_bash_and_double_bang_return_exit_126_without_execution(self):
+        for exclude_from_context in (False, True):
+            with self.subTest(exclude_from_context=exclude_from_context):
+                report = self.run_guard("user_bash", {
+                    "type": "user_bash",
+                    "command": "printf ZHOOR_UNIT_USER_BASH_SENTINEL",
+                    "excludeFromContext": exclude_from_context,
+                    "cwd": str(self.worktree),
+                })
+                self.assertIn("user_bash", report["registered"])
+                self.assertEqual(report["result"], {
+                    "result": {
+                        "output": "ZHOOR read-only containment denied user shell execution",
+                        "exitCode": 126,
+                        "cancelled": False,
+                        "truncated": False,
+                    },
+                })
+
+    def test_read_grep_find_and_ls_inside_worktree_are_allowed(self):
+        for tool_name in ("read", "grep", "find", "ls"):
+            with self.subTest(tool_name=tool_name):
+                report = self.run_guard("tool_call", {
+                    "type": "tool_call",
+                    "toolName": tool_name,
+                    "input": {"path": "inside.txt"},
+                })
+                self.assertIsNone(report["result"])
+
+    def test_write_edit_and_model_bash_tools_are_blocked(self):
+        for tool_name in ("write", "edit", "bash"):
+            with self.subTest(tool_name=tool_name):
+                report = self.run_guard("tool_call", {
+                    "type": "tool_call",
+                    "toolName": tool_name,
+                    "input": {"path": "inside.txt"},
+                })
+                self.assertTrue(report["result"]["block"])
+
+    def test_read_outside_worktree_is_blocked(self):
+        report = self.run_guard("tool_call", {
+            "type": "tool_call",
+            "toolName": "read",
+            "input": {"path": str(self.outside)},
+        })
+        self.assertTrue(report["result"]["block"])
+
+    def test_symlink_escape_read_is_blocked(self):
+        report = self.run_guard("tool_call", {
+            "type": "tool_call",
+            "toolName": "read",
+            "input": {"path": "escape.txt"},
+        })
+        self.assertTrue(report["result"]["block"])
 
 
 if __name__ == "__main__":

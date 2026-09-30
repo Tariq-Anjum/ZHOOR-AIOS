@@ -24,4 +24,13 @@ export default function (pi: ExtensionAPI) {
     }
     return undefined;
   });
+
+  pi.on("user_bash", () => ({
+    result: {
+      output: "ZHOOR read-only containment denied user shell execution",
+      exitCode: 126,
+      cancelled: false,
+      truncated: false,
+    },
+  }));
 }

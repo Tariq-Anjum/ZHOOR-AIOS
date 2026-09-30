@@ -1,0 +1,221 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:zhoor:aiosd:v1",
+  "title": "ZHOOR aiosd contract version 1",
+  "description": "Closed structural contract only. A structurally valid grant and opaque authenticator remain untrusted until GRANT-01 verifies them against an accepted trust root. SHA-256 fields bind exact bytes or identify evidence; they do not authenticate. The only capability is non-mutating capabilities.describe with exactly empty arguments and one fixed non-path resource scope.",
+  "$defs": {
+    "uuid": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "evidenceReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ref", "kind", "trust_tier", "source"],
+      "properties": {
+        "ref": { "type": "string", "pattern": "^evidence://sha256/[0-9a-f]{64}$" },
+        "kind": { "enum": ["user_input", "registry", "tool_result", "memory", "external_document"] },
+        "trust_tier": { "enum": ["untrusted", "observed", "verified", "policy"] },
+        "source": { "type": "string", "minLength": 1, "maxLength": 256 }
+      }
+    },
+    "evidenceList": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 64,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/evidenceReference" }
+    },
+    "clientIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "uid"],
+      "properties": {
+        "kind": { "const": "unix_uid" },
+        "uid": { "type": "integer", "minimum": 0, "maximum": 4294967295 }
+      }
+    },
+    "resourceScope": {
+      "const": "registered_capability_descriptor_metadata"
+    },
+    "authenticator": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["format", "proof"],
+      "properties": {
+        "format": { "type": "string", "pattern": "^[a-z][a-z0-9._-]{0,63}$" },
+        "proof": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 8192,
+          "pattern": "^(?:[0-9a-f]{2}){1,4096}$",
+          "description": "Opaque non-empty proof bytes as lowercase hexadecimal. SEC-01 checks representation only; GRANT-01 defines supported formats and verifies trust."
+        }
+      }
+    },
+    "grantVerificationFailure": {
+      "enum": [
+        "missing_authenticator",
+        "malformed_authenticator",
+        "unsupported_authenticator_format",
+        "invalid_authenticator",
+        "untrusted_issuer",
+        "unsupported_version",
+        "caller_mismatch",
+        "capability_mismatch",
+        "argument_binding_mismatch",
+        "resource_scope_mismatch",
+        "policy_version_mismatch",
+        "expired",
+        "replayed_or_consumed",
+        "trace_mismatch",
+        "decision_hash_mismatch",
+        "evidence_binding_mismatch"
+      ],
+      "description": "Closed failure vocabulary for a conforming GRANT-01 verifier. These values are failures, never authorization success."
+    },
+    "grant": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["grant_version", "grant_id", "issuer_id", "client_identity", "capability_id", "argument_sha256", "resource_scope", "policy_version", "expires_at_unix_ms", "trace_id", "decision_hash", "evidence", "authenticator"],
+      "properties": {
+        "grant_version": { "const": "1" },
+        "grant_id": { "$ref": "#/$defs/uuid" },
+        "issuer_id": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._+-]{0,63}$" },
+        "client_identity": { "$ref": "#/$defs/clientIdentity" },
+        "capability_id": { "const": "capabilities.describe" },
+        "argument_sha256": { "const": "sha256:44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a" },
+        "resource_scope": { "$ref": "#/$defs/resourceScope" },
+        "policy_version": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._+-]{0,127}$" },
+        "expires_at_unix_ms": { "type": "integer", "minimum": 0, "maximum": 18446744073709551615 },
+        "trace_id": { "$ref": "#/$defs/uuid" },
+        "decision_hash": { "$ref": "#/$defs/sha256" },
+        "evidence": { "$ref": "#/$defs/evidenceList" },
+        "authenticator": { "$ref": "#/$defs/authenticator" }
+      }
+    },
+    "request": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["request_version", "request_id", "trace_id", "capability_id", "arguments", "resource_scope", "decision_hash", "evidence", "grant"],
+      "properties": {
+        "request_version": { "const": "1" },
+        "request_id": { "$ref": "#/$defs/uuid" },
+        "trace_id": { "$ref": "#/$defs/uuid" },
+        "capability_id": { "const": "capabilities.describe" },
+        "arguments": { "type": "object", "maxProperties": 0, "additionalProperties": false },
+        "resource_scope": { "$ref": "#/$defs/resourceScope" },
+        "decision_hash": { "$ref": "#/$defs/sha256" },
+        "evidence": { "$ref": "#/$defs/evidenceList" },
+        "grant": { "$ref": "#/$defs/grant" }
+      }
+    },
+    "descriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["descriptor_version", "capability_id", "description", "mutating", "argument_contract", "resource_scope"],
+      "properties": {
+        "descriptor_version": { "const": "1" },
+        "capability_id": { "const": "capabilities.describe" },
+        "description": { "type": "string", "minLength": 1, "maxLength": 512, "pattern": "^[^\\u0000-\\u001F\\u007F]+$" },
+        "mutating": { "const": false },
+        "argument_contract": { "const": "empty_object_v1" },
+        "resource_scope": { "$ref": "#/$defs/resourceScope" }
+      }
+    },
+    "receipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["receipt_version", "receipt_id", "request_id", "grant_id", "caller_identity", "capability_id", "argument_sha256", "outcome", "safe_result_ref", "started_at_unix_ms", "completed_at_unix_ms", "trace_id", "decision_hash", "evidence"],
+      "properties": {
+        "receipt_version": { "const": "1" },
+        "receipt_id": { "$ref": "#/$defs/uuid" },
+        "request_id": { "$ref": "#/$defs/uuid" },
+        "grant_id": { "$ref": "#/$defs/uuid" },
+        "caller_identity": { "$ref": "#/$defs/clientIdentity" },
+        "capability_id": { "const": "capabilities.describe" },
+        "argument_sha256": { "$ref": "#/$defs/sha256" },
+        "outcome": { "enum": ["succeeded", "failed"] },
+        "safe_result_ref": { "type": "string", "pattern": "^result://sha256/[0-9a-f]{64}$" },
+        "started_at_unix_ms": { "type": "integer", "minimum": 0, "maximum": 18446744073709551615 },
+        "completed_at_unix_ms": { "type": "integer", "minimum": 0, "maximum": 18446744073709551615 },
+        "trace_id": { "$ref": "#/$defs/uuid" },
+        "decision_hash": { "$ref": "#/$defs/sha256" },
+        "evidence": { "$ref": "#/$defs/evidenceList" }
+      }
+    },
+    "postconditionRequirement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["requirement_version", "condition_id", "verification_owner"],
+      "properties": {
+        "requirement_version": { "const": "1" },
+        "condition_id": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._+-]{0,63}$" },
+        "verification_owner": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._+-]{0,63}$" }
+      }
+    },
+    "postconditionVerification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["verification_version", "condition_id", "verification_owner", "verdict", "request_id", "trace_id", "grant_id", "receipt_id", "evidence"],
+      "properties": {
+        "verification_version": { "const": "1" },
+        "condition_id": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._+-]{0,63}$" },
+        "verification_owner": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._+-]{0,63}$" },
+        "verdict": { "enum": ["satisfied", "failed", "unknown"] },
+        "request_id": { "$ref": "#/$defs/uuid" },
+        "trace_id": { "$ref": "#/$defs/uuid" },
+        "grant_id": { "$ref": "#/$defs/uuid" },
+        "receipt_id": { "$ref": "#/$defs/uuid" },
+        "evidence": { "$ref": "#/$defs/evidenceList" }
+      }
+    },
+    "response": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["outcome", "descriptors", "receipt"],
+      "properties": {
+        "outcome": { "enum": ["succeeded", "failed"] },
+        "descriptors": { "type": "array", "maxItems": 1, "items": { "$ref": "#/$defs/descriptor" } },
+        "receipt": { "$ref": "#/$defs/receipt" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "outcome": { "const": "succeeded" } }, "required": ["outcome"] },
+          "then": { "properties": { "descriptors": { "minItems": 1, "maxItems": 1 } } }
+        },
+        {
+          "if": { "properties": { "outcome": { "const": "failed" } }, "required": ["outcome"] },
+          "then": { "properties": { "descriptors": { "maxItems": 0 } } }
+        }
+      ]
+    },
+    "frame": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["frame_version", "message_kind", "correlation_id"],
+      "properties": {
+        "frame_version": { "const": "1" },
+        "message_kind": { "enum": ["request", "response"] },
+        "correlation_id": { "$ref": "#/$defs/uuid" },
+        "request": { "$ref": "#/$defs/request" },
+        "response": { "$ref": "#/$defs/response" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "message_kind": { "const": "request" } }, "required": ["message_kind"] },
+          "then": { "required": ["request"], "not": { "required": ["response"] } }
+        },
+        {
+          "if": { "properties": { "message_kind": { "const": "response" } }, "required": ["message_kind"] },
+          "then": { "required": ["response"], "not": { "required": ["request"] } }
+        }
+      ]
+    }
+  },
+  "$ref": "#/$defs/request"
+}

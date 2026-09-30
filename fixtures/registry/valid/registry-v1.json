@@ -1,0 +1,24 @@
+{
+  "descriptor_format_version": "1",
+  "registry_version": "skills-2026.09",
+  "skills": [
+    {
+      "id": "zeta-tool",
+      "description": "Second deterministic helper",
+      "capabilities": ["inspect_service", "read_journal"],
+      "requires": ["linux"],
+      "activation": "contextual",
+      "risk_level": "medium",
+      "artifact_sha256": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    {
+      "id": "alpha-tool",
+      "description": "First deterministic helper",
+      "capabilities": ["inspect_service"],
+      "requires": [],
+      "activation": "explicit",
+      "risk_level": "low",
+      "artifact_sha256": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    }
+  ]
+}

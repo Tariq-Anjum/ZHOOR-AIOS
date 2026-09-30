@@ -13,7 +13,7 @@
 - Hard-risk facts dominate ambiguity. An unrecognized capability abstains; it is unknown-risk when no hard fact applies. A simultaneous hard fact remains high-risk, with the unknown-capability reason and human-review scrutiny retained.
 - Reason codes and evidence requirements are unique and ordered by their closed Rust enum order, independent of input order.
 - Inputs are explicit normalized facts only. The crate does not parse commands, canonicalize paths, probe the host, fetch evidence, resolve secrets, consult models, or execute capabilities.
-- JSON Schemas close both input and output structures. Rust validates the same bounded fields, rejects duplicates, and uses the protocol-owned TrustTier::parse for evidence tier vocabulary.
+- JSON Schemas close both input and output structures. Capability IDs are 1–256 Unicode scalar values, have no leading/trailing whitespace or control characters, and JSON Schema explicitly excludes C0, DEL, and C1 controls to match Rust. Rust rejects duplicates and uses the protocol-owned TrustTier::parse for evidence tier vocabulary.
 - The policy consumes existing protocol trust-tier terms without changing protocol contracts. It does not produce a protocol denied disposition.
 
 ## Architecture mapping
@@ -33,15 +33,16 @@
 - Starting local/remote SHA: 9e12c30cd6ec0a677d062d1bc529e5cd90db42fa; both matched before authorization.
 - Owner authorization: D-023, commit cb8581948d0769295b937281b5cff299a5e4e506.
 - READY to ASSIGNED: commit 9f88a8c248a0fc7e03b8f8f0efa916d6cca28b27.
-- Implementation commit, integrated unchanged: 5fa9c2ebcb6ad3357cdb883084b8c9736b425b14.
+- Implementation commits: 5fa9c2ebcb6ad3357cdb883084b8c9736b425b14 (initial policy) and f86c7431cae6ba4bbc4cd870d957dee89c75d10d (schema/Rust control-character parity correction).
 - Root Cargo.lock reconciliation: commit b5ede62a51bf9c2ef62d660a14ffb58dd020927a; the reviewed diff adds only the zhoor-risk-policy package entry and references dependencies already locked.
 - Worker-stage validation: PASS on Rust 1.98.1, offline: format, Clippy (-D warnings), check, package tests (10 unit + 3 contract), debug build, and release build.
-- Canonical targeted validation: PASS; ./scripts/validate.sh --package zhoor-risk-policy and cargo +1.98.1 test --offline --locked -p zhoor-risk-policy --test risk_policy_contract (3 contract tests).
-- Full validation: PASS; ./scripts/validate.sh.
+- Canonical targeted validation: PASS after the control-character correction; ./scripts/validate.sh --package zhoor-risk-policy and cargo +1.98.1 test --offline --locked -p zhoor-risk-policy --test risk_policy_contract (3 contract tests). The C1-control invalid fixture is rejected by both schema and Rust.
+- Full validation: PASS after the control-character correction; ./scripts/validate.sh.
 - Task-owned diff check: PASS from assignment SHA through integrated implementation and lock reconciliation.
 - Cargo.lock SHA-256 before reconciliation: 8f7a3f52711204eb3bc5ad0ddb81f5cead9184fee82cb6bc0b9f0669c153275a. Reconciled SHA-256: 2ead4aae23cd06bfb70b681acd6635a1fae685991e1d974a9fa9b14eda6c7f50; locked targeted/full validation left it unchanged.
 - D-018: PASS, all 28 status/path/SHA-256 records matched after canonical validation.
-- Exact-SHA review, REVIEW transition, closure, and publication: pending.
+- First reviewer attempt: candidate 551978760f12498248f63602bd2895dec93ef4a5; containment PASS, but the controller stopped the lane before verdict after identifying the C1 schema/Rust mismatch. It is not a review PASS and is not reused.
+- Corrected exact-SHA review, closure, and publication: pending.
 
 ## Limitations
 

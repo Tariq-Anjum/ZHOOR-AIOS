@@ -980,6 +980,17 @@ name = "zhoor"
 version = "0.1.0"
 
 [[package]]
+name = "zhoor-aiosd-contracts"
+version = "0.1.0"
+dependencies = [
+ "jsonschema",
+ "serde",
+ "serde_json",
+ "sha2",
+ "zhoor-protocol",
+]
+
+[[package]]
 name = "zhoor-protocol"
 version = "0.1.0"
 dependencies = [

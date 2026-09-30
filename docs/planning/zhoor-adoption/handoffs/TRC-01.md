@@ -46,6 +46,22 @@ Cargo mechanically updated only the isolated worktree Cargo.lock while resolving
 - Replay requires the original request JSON to be available to the caller; a trace alone intentionally cannot recover free-form input.
 - No STOP condition was encountered. No network access, download, install, credential access, external MCP, or background process was used.
 
-## Next action
+## Pre-integration action (completed)
 
-Commit only card-owned implementation and handoff paths, fast-forward integrate the source, reconcile the canonical root lockfile mechanically offline, then run the exact locked targeted and full validation commands before moving the board to REVIEW.
+The controller committed only card-owned implementation and handoff paths, fast-forward integrated the source, reconciled the canonical root lockfile mechanically offline, and passed the exact locked targeted and full validation commands.
+
+## Canonical integration checkpoint
+
+- Source integration: fast-forward from assignment SHA 3d1c52c52d3d1a6f94deb0e1b48c0813c6b6b049 to implementation SHA 286e42580d547add2bf62f64094c8ef5e80b0cb2.
+- Root lock reconciliation: controller commit 9dff79a692b6e1dc50cc2699073202fe9343f89f; mechanical offline update only. Cargo.lock SHA-256 is 4585fbd4546d6b79045c87a83f4796dafe5144ff628cb4cb5fd297bc4f1a2150.
+- ./scripts/validate.sh --package zhoor-trace — PASS; 4 unit and 5 contract tests, clippy/check, debug and release package builds.
+- cargo test --offline --locked -p zhoor-trace --test trace_contract — PASS; 5 tests.
+- ./scripts/validate.sh — PASS; full workspace validation exit 0, including protocol/system-info/trace tests, locked clippy/check, debug and release builds.
+- Cargo.lock hash before and after locked validation: 4585fbd4546d6b79045c87a83f4796dafe5144ff628cb4cb5fd297bc4f1a2150 (unchanged).
+- Protected baseline reconciliation: PASS; all 28 status/path/SHA-256 records still match.
+- Repository-wide git diff --check reports trailing whitespace in pre-existing protected dirty job-card files, including jobs/TRC-01.md. Those files were preserved. git show --check on the TRC-01 implementation and lock reconciliation commits passes.
+- At this checkpoint the board remains TRC-01 = ASSIGNED. No review lane has been created and no later card has started.
+
+## Review handoff
+
+Next action: controller moves only TRC-01 from ASSIGNED to REVIEW after final protected-baseline verification, captures the resulting exact candidate SHA, then conducts one fresh contained read-only Pi/GPT-6 Luna/xhigh review in a detached worktree. The reviewer must not claim to have executed Cargo checks; canonical validation evidence above is controller-owned.

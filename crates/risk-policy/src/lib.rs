@@ -29,8 +29,7 @@ pub enum PolicyVersion {
 
 /// Explicitly supplied, normalized risk facts. This type contains no raw
 /// request text, paths, commands, or host state.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct PolicyInput {
     /// Pinned policy version.
     pub policy_version: PolicyVersion,
@@ -152,7 +151,6 @@ pub enum EvidenceRequirement {
 
 /// Complete deterministic output for one policy evaluation.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-#[serde(deny_unknown_fields)]
 pub struct PolicyAssessment {
     /// Policy version used.
     pub policy_version: PolicyVersion,
@@ -170,50 +168,6 @@ pub struct PolicyAssessment {
     pub evidence_requirements: Vec<EvidenceRequirement>,
 }
 
-impl<'de> Deserialize<'de> for PolicyAssessment {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        #[derive(Deserialize)]
-        #[serde(deny_unknown_fields)]
-        struct WireAssessment {
-            policy_version: PolicyVersion,
-            risk_level: RiskLevel,
-            scrutiny: ScrutinyRecommendation,
-            state: EvaluationState,
-            advisory_escalation: bool,
-            reasons: Vec<ReasonCode>,
-            evidence_requirements: Vec<EvidenceRequirement>,
-        }
-
-        let wire = WireAssessment::deserialize(deserializer)?;
-        if wire.reasons.iter().copied().collect::<BTreeSet<_>>().len() != wire.reasons.len() {
-            return Err(serde::de::Error::custom("duplicate reason code"));
-        }
-        if wire
-            .evidence_requirements
-            .iter()
-            .copied()
-            .collect::<BTreeSet<_>>()
-            .len()
-            != wire.evidence_requirements.len()
-        {
-            return Err(serde::de::Error::custom("duplicate evidence requirement"));
-        }
-
-        Ok(Self {
-            policy_version: wire.policy_version,
-            risk_level: wire.risk_level,
-            scrutiny: wire.scrutiny,
-            state: wire.state,
-            advisory_escalation: wire.advisory_escalation,
-            reasons: wire.reasons,
-            evidence_requirements: wire.evidence_requirements,
-        })
-    }
-}
-
 /// Deterministic policy input or evaluation error.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PolicyError {
@@ -228,16 +182,102 @@ pub enum PolicyError {
 }
 
 impl PolicyInput {
-    /// Parse closed JSON input. Unknown fields, versions, and enum values fail.
+    /// Parse bounded closed JSON input. Unknown fields, versions, and enum values fail.
     pub fn from_json_str(text: &str) -> Result<Self, serde_json::Error> {
         if text.len() > MAX_INPUT_JSON_BYTES {
             return Err(<serde_json::Error as serde::de::Error>::custom(
                 "policy input exceeds the 65536-byte v1 limit",
             ));
         }
-        serde_json::from_str(text)
-    }
+        #[derive(Deserialize)]
+        #[serde(deny_unknown_fields)]
+        struct WireInput {
+            policy_version: PolicyVersion,
+            capability: String,
+            signals: Vec<RiskSignal>,
+            semantic_ambiguity: bool,
+            prompt_injection_indicators: Vec<PromptInjectionIndicator>,
+            evidence_trust_tiers: Vec<String>,
+        }
 
+        let wire: WireInput = serde_json::from_str(text)?;
+        if wire.signals.len() > MAX_SIGNALS
+            || wire.prompt_injection_indicators.len() > MAX_PROMPT_INJECTION_INDICATORS
+            || wire.evidence_trust_tiers.len() > MAX_EVIDENCE_TRUST_TIERS
+        {
+            return Err(<serde_json::Error as serde::de::Error>::custom(
+                "policy input exceeds a v1 array limit",
+            ));
+        }
+        Ok(Self {
+            policy_version: wire.policy_version,
+            capability: wire.capability,
+            signals: wire.signals,
+            semantic_ambiguity: wire.semantic_ambiguity,
+            prompt_injection_indicators: wire.prompt_injection_indicators,
+            evidence_trust_tiers: wire.evidence_trust_tiers,
+        })
+    }
+}
+
+impl PolicyAssessment {
+    /// Parse a bounded closed assessment; duplicate codes and unknown fields fail.
+    pub fn from_json_str(text: &str) -> Result<Self, serde_json::Error> {
+        if text.len() > MAX_INPUT_JSON_BYTES {
+            return Err(<serde_json::Error as serde::de::Error>::custom(
+                "policy assessment exceeds the 65536-byte v1 limit",
+            ));
+        }
+
+        #[derive(Deserialize)]
+        #[serde(deny_unknown_fields)]
+        struct WireAssessment {
+            policy_version: PolicyVersion,
+            risk_level: RiskLevel,
+            scrutiny: ScrutinyRecommendation,
+            state: EvaluationState,
+            advisory_escalation: bool,
+            reasons: Vec<ReasonCode>,
+            evidence_requirements: Vec<EvidenceRequirement>,
+        }
+
+        let wire: WireAssessment = serde_json::from_str(text)?;
+        if wire.reasons.len() > 11 || wire.evidence_requirements.len() > 3 {
+            return Err(<serde_json::Error as serde::de::Error>::custom(
+                "policy assessment exceeds a v1 array limit",
+            ));
+        }
+        if wire.reasons.iter().copied().collect::<BTreeSet<_>>().len() != wire.reasons.len() {
+            return Err(<serde_json::Error as serde::de::Error>::custom(
+                "duplicate reason code",
+            ));
+        }
+        if wire
+            .evidence_requirements
+            .iter()
+            .copied()
+            .collect::<BTreeSet<_>>()
+            .len()
+            != wire.evidence_requirements.len()
+        {
+            return Err(<serde_json::Error as serde::de::Error>::custom(
+                "duplicate evidence requirement",
+            ));
+        }
+
+        Ok(Self {
+            policy_version: wire.policy_version,
+            risk_level: wire.risk_level,
+            scrutiny: wire.scrutiny,
+            state: wire.state,
+            advisory_escalation: wire.advisory_escalation,
+            reasons: wire.reasons,
+            evidence_requirements: wire.evidence_requirements,
+        })
+    }
+}
+
+impl PolicyInput {
     /// Evaluate the normalized facts using the pinned v1 policy.
     pub fn evaluate(&self) -> Result<PolicyAssessment, PolicyError> {
         if self.signals.len() > MAX_SIGNALS
@@ -248,7 +288,9 @@ impl PolicyInput {
         }
         let capability_len = self.capability.chars().count();
         if !(1..=256).contains(&capability_len)
-            || self.capability.trim() != self.capability
+            || self.capability.trim_matches(|character: char| {
+                character.is_whitespace() || character == '\u{FEFF}'
+            }) != self.capability
             || self.capability.chars().any(char::is_control)
         {
             return Err(PolicyError::InvalidCapability);
@@ -519,6 +561,7 @@ mod tests {
     fn oversized_json_and_direct_inputs_fail_closed() {
         let oversized_json = format!("{}{}", " ".repeat(MAX_INPUT_JSON_BYTES), "{}");
         assert!(PolicyInput::from_json_str(&oversized_json).is_err());
+        assert!(PolicyAssessment::from_json_str(&oversized_json).is_err());
 
         let mut oversized = input();
         oversized.evidence_trust_tiers = vec![
@@ -529,5 +572,12 @@ mod tests {
             "untrusted".to_owned(),
         ];
         assert_eq!(oversized.evaluate(), Err(PolicyError::InputLimitExceeded));
+    }
+
+    #[test]
+    fn unicode_bom_boundary_whitespace_is_rejected() {
+        let mut value = input();
+        value.capability = "\u{FEFF}system.info.read".to_owned();
+        assert_eq!(value.evaluate(), Err(PolicyError::InvalidCapability));
     }
 }

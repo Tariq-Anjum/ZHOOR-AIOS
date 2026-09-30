@@ -22,6 +22,7 @@
     "advisory_escalation": { "type": "boolean" },
     "reasons": {
       "type": "array",
+      "maxItems": 11,
       "uniqueItems": true,
       "items": {
         "enum": [
@@ -41,6 +42,7 @@
     },
     "evidence_requirements": {
       "type": "array",
+      "maxItems": 3,
       "uniqueItems": true,
       "items": {
         "enum": ["observed_evidence", "verified_evidence", "human_review"]

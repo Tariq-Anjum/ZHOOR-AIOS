@@ -1,0 +1,22 @@
+{
+  "policy_version": "1",
+  "risk_level": "high",
+  "scrutiny": "human_review",
+  "state": "evaluated",
+  "advisory_escalation": true,
+  "reasons": [
+    "unknown_capability",
+    "shell_requested",
+    "package_installation_requested",
+    "service_control_requested",
+    "network_egress_requested",
+    "resource_scope_exceeded",
+    "privilege_requested",
+    "mutation_requested",
+    "semantic_ambiguity",
+    "safeguard_bypass_instruction",
+    "missing_required_evidence",
+    "unknown_capability"
+  ],
+  "evidence_requirements": ["verified_evidence", "human_review"]
+}

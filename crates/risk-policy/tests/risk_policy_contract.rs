@@ -58,7 +58,8 @@ fn valid_fixtures_match_schema_rust_and_expected_assessments() {
             "input schema rejects {}",
             path.display()
         );
-        let input: PolicyInput = serde_json::from_value(input_value.clone())
+        let input_json = serde_json::to_string(input_value).expect("input fixture serializes");
+        let input: PolicyInput = PolicyInput::from_json_str(&input_json)
             .unwrap_or_else(|error| panic!("Rust rejects {}: {error}", path.display()));
         let actual = serde_json::to_value(input.evaluate().expect("evaluation succeeds"))
             .expect("assessment serializes");
@@ -87,13 +88,14 @@ fn invalid_fixtures_fail_schema_and_rust_closed() {
     );
 
     for path in fixtures {
-        let value = read_json(&path);
+        let raw = fs::read_to_string(&path).expect("fixture must be readable");
+        let value: Value = serde_json::from_str(&raw).expect("fixture must be valid JSON");
         assert!(
             !schema.is_valid(&value),
             "schema unexpectedly accepts {}",
             path.display()
         );
-        let rust_rejects = match serde_json::from_value::<PolicyInput>(value) {
+        let rust_rejects = match PolicyInput::from_json_str(&raw) {
             Err(_) => true,
             Ok(input) => input.evaluate().is_err(),
         };
@@ -112,14 +114,15 @@ fn invalid_assessments_fail_schema_and_rust_closed() {
     );
 
     for path in fixtures {
-        let value = read_json(&path);
+        let raw = fs::read_to_string(&path).expect("fixture must be readable");
+        let value: Value = serde_json::from_str(&raw).expect("fixture must be valid JSON");
         assert!(
             !schema.is_valid(&value),
             "schema unexpectedly accepts {}",
             path.display()
         );
         assert!(
-            serde_json::from_value::<PolicyAssessment>(value).is_err(),
+            PolicyAssessment::from_json_str(&raw).is_err(),
             "Rust unexpectedly accepts {}",
             path.display()
         );

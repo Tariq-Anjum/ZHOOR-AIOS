@@ -990,6 +990,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "zhoor-registry"
+version = "0.1.0"
+dependencies = [
+ "jsonschema",
+ "serde",
+ "serde_json",
+ "zhoor-protocol",
+]
+
+[[package]]
 name = "zhoor-system-info"
 version = "0.1.0"
 dependencies = [

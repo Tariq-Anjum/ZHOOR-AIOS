@@ -52,7 +52,7 @@ Toolchain: installed Rust `1.98.1`; commands were offline.
 - Correction worker validation on Rust 1.98.1, offline: fmt check, clippy, check, tests (2 unit + 12 contract), debug build, release build, and task-scoped diff check — PASS.
 - Correction worker Cargo.lock unchanged; canonical lock reconciliation remains controller-owned.
 - Corrected canonical integration commit: `ebfcc243b66bf720f1ee75c82160aa88b940fe7e`.
-- The first independent review lane was stopped after its report; no reviewer process remains active. The follow-up review must use a fresh session and exact candidate SHA.
+- The first independent review lane was stopped after its report. Its three findings were corrected in `ebfcc243b66bf720f1ee75c82160aa88b940fe7e`; final exact-SHA review evidence is recorded below.
 
 ## Review correction r2
 
@@ -62,7 +62,7 @@ Toolchain: installed Rust `1.98.1`; commands were offline.
 - Updated positive fixtures and contract documentation for evidence maps. Added 65-entry and duplicate raw-key cases. No dependency or protocol-owned changes.
 - Correction worktree `/tmp/zhoor-sec-01/ZHOOR-20260930T140229Z-SEC-01/correction-r2`, based on report commit `2f4e68c36a24a2bfa77e21cffcb23000d27ed07c`; task-owned files only. Root Cargo.lock remained unchanged at SHA-256 `817767a6295e13774cb4f23264ca1fe001e434841e2df79241c7aa03a21ceae1`.
 - Worker validation with Rust 1.98.1, offline: fmt check, clippy, check, tests (2 unit + 12 contract), debug build, release build — PASS. Task-scoped `git diff --check` — PASS.
-- A new exact-SHA review by a fresh contained reviewer is required for this correction. No prior PASS carries forward.
+- This correction invalidated all prior PASS results; the fresh exact-SHA r5 review and its verdict are recorded below.
 
 ## Containment recovery and final review
 
@@ -90,8 +90,16 @@ Toolchain: installed Rust `1.98.1`; commands were offline.
 - Board after validation and review assignment: SEC-01 `REVIEW`; WRK-01, WRK-02, EVAL-00, GRANT-01, AIOSD-01, AIOSD-02 remain `BLOCKED`.
 - First exact review candidate: `cf4dd5228bb363f41abefa0ffc065078a4637dc7`, verdict `CHANGES_REQUIRED`; immutable report `docs/planning/zhoor-adoption/handoffs/reviews/SEC-01-luna-r1.md`. Findings were duplicate raw JSON object members being collapsed before typed parsing, insufficient golden-transcript/mutation coverage, and ambiguous UID-claim wording. All three were corrected in `ebfcc243b66bf720f1ee75c82160aa88b940fe7e` and covered by the added regression tests and documentation.
 - Corrected canonical validation was rerun after `ebfcc243b66bf720f1ee75c82160aa88b940fe7e`: targeted package validation PASS; locked contract test PASS (12 tests); full workspace validation PASS. Cargo.lock remained at SHA-256 `817767a6295e13774cb4f23264ca1fe001e434841e2df79241c7aa03a21ceae1`.
-- D-018 recheck after correction: PASS, 28 expected/current, zero mismatches, zero extras. A fresh exact-SHA review and its report remain required before closure.
+- D-018 recheck after correction: PASS, 28 expected/current, zero mismatches, zero extras. The final exact-SHA review is recorded in `SEC-01-luna-r5.md` below.
 
 ## Ownership and residual limits
 
 No authenticator algorithm, key store, trust root, issuer/verifier implementation, daemon, executor, socket transport, peer-credential lookup, replay store, privilege model, multi-user policy, or filesystem enforcement was implemented. No capability was executed. GRANT-01 and all later cards remain blocked unless separately authorized.
+
+## Closure
+
+- SEC-01 transitioned `REVIEW → DONE` after the exact candidate `7783d20b350290a22f197d13923e127767c13ab5` passed fresh independent review, targeted package validation, the locked 12-test contract integration, full offline/locked workspace validation, scoped diff checking, D-018 reconciliation, and the Cargo.lock gate.
+- Implementation/source commits: `5bcc7750763d7cdf7b5977a083fc9e4931480125`, `43789c473b700e0f03b971ba8bdb9621c206d5b2` (Cargo.lock reconciliation), `ebfcc243b66bf720f1ee75c82160aa88b940fe7e`, and `7783d20b350290a22f197d13923e127767c13ab5`. Review evidence commits: `2f4e68c36a24a2bfa77e21cffcb23000d27ed07c` and `6b61976e45bd886c4cb314cc31a88d73f1aba874`.
+- Final reviewed candidate: `7783d20b350290a22f197d13923e127767c13ab5`; final report: `docs/planning/zhoor-adoption/handoffs/reviews/SEC-01-luna-r5.md`; verdict `PASS`, no findings. Reviewer route was fresh Pi / OpenAI-Codex / GPT-6 Luna / xhigh, read-only with `AGENT_CONTAINMENT=PASS`.
+- Canonical validations after the final correction: targeted package validation PASS; `cargo +1.98.1 test --offline --locked -p zhoor-aiosd-contracts --test aiosd_contract` PASS (12); full workspace validation PASS with exit 0. D-018 PASS (28/28, zero mismatches/extras). Cargo.lock remained SHA-256 `817767a6295e13774cb4f23264ca1fe001e434841e2df79241c7aa03a21ceae1`.
+- Post-publication SHA will be recorded in the controller's durable checkpoint. No downstream card was started; WRK-01, WRK-02, EVAL-00, GRANT-01, AIOSD-01, AIOSD-02, and all later cards remain BLOCKED.

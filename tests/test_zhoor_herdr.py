@@ -86,10 +86,10 @@ def spawn_args(cwd: Path, scratch: Path) -> SimpleNamespace:
         scratch=str(scratch),
         starting_sha=SHA,
         label="ARCH · Pi · Luna-XH",
-        provider="openai-codex",
+        provider="openai",
         model="GPT-6 Luna",
         reasoning="xhigh",
-        agent_args=["--", "--provider", "openai-codex", "--model", "gpt-6-luna", "--thinking", "xhigh", "--no-extensions", "--no-skills", "--no-prompt-templates", "--no-themes", "--no-context-files", "--no-approve", "--tools", "read,grep,find,ls", "--name", "pro01-arch-review", "--system-prompt", "Role-only handshake; inspect no source."],
+        agent_args=["--", "--provider", "openai", "--model", "gpt-6-luna", "--thinking", "xhigh", "--no-extensions", "--no-skills", "--no-prompt-templates", "--no-themes", "--no-context-files", "--no-approve", "--tools", "read,grep,find,ls", "--name", "pro01-arch-review", "--system-prompt", "Role-only handshake; inspect no source."],
     )
 
 
@@ -103,16 +103,27 @@ class ZhoorHerdrTopologyTests(unittest.TestCase):
         self.scratch.mkdir(mode=0o700)
         self.registry = self.root / "state" / "lane-registry.json"
         self.auth_store = self.root / "controller-auth.json"
-        self.auth_store.write_text(json.dumps({"openai-codex": {
+        self.oauth_credential = {
             "access": "synthetic-test-access", "refresh": "synthetic-test-refresh",
-            "expires": 2_000_000_000, "type": "oauth",
-        }}))
+            "expires": 2_000_000_000_000, "type": "oauth",
+            "clientId": "synthetic-test-client",
+            "scopes": ["openid", "chatgpt.tokens.use.direct"],
+            "accountMetadata": {"tenant": "synthetic-test-tenant"},
+        }
+        self.auth_store.write_text(json.dumps({"openai": self.oauth_credential}))
         self.auth_patch = patch.object(zhoor_herdr, "PI_AUTH_STORE", self.auth_store)
         self.auth_patch.start()
 
     def tearDown(self):
         self.auth_patch.stop()
         self.temp.cleanup()
+
+    def assert_invalid_openai_credential_is_rejected(self, credential):
+        self.auth_store.write_text(json.dumps({"openai": credential}))
+        fake = FakeHerdr(self.cwd)
+        with self.assertRaisesRegex(zhoor_herdr.LaneError, "OpenAI ChatGPT OAuth credential is missing or invalid"):
+            zhoor_herdr.spawn_agent(spawn_args(self.cwd, self.scratch), runner=fake, registry_path=self.registry)
+        self.assertFalse(any(call[:3] == ["herdr", "tab", "create"] for call in fake.calls))
 
     def test_spawn_uses_no_focus_tab_and_accepts_sidebar_as_managed_ui(self):
         fake = FakeHerdr(self.cwd)
@@ -157,8 +168,124 @@ class ZhoorHerdrTopologyTests(unittest.TestCase):
     def test_missing_approved_provider_auth_fails_before_tab_creation(self):
         self.auth_store.unlink()
         fake = FakeHerdr(self.cwd)
-        with self.assertRaisesRegex(zhoor_herdr.LaneError, "provider credential is unavailable"):
+        with self.assertRaisesRegex(zhoor_herdr.LaneError, "OpenAI ChatGPT OAuth credential is missing or invalid"):
             zhoor_herdr.spawn_agent(spawn_args(self.cwd, self.scratch), runner=fake, registry_path=self.registry)
+        self.assertFalse(any(call[:3] == ["herdr", "tab", "create"] for call in fake.calls))
+
+    def test_legacy_openai_codex_provider_is_rejected(self):
+        auth = json.loads(self.auth_store.read_text())
+        auth["openai-codex"] = {
+            "type": "oauth", "access": "synthetic-legacy-access",
+            "refresh": "synthetic-legacy-refresh", "expires": 2_000_000_000_000,
+        }
+        self.auth_store.write_text(json.dumps(auth))
+        args = spawn_args(self.cwd, self.scratch)
+        args.provider = "openai-codex"
+        args.agent_args[args.agent_args.index("--provider") + 1] = "openai-codex"
+        fake = FakeHerdr(self.cwd)
+        with self.assertRaisesRegex(zhoor_herdr.LaneError, "only provider=openai"):
+            zhoor_herdr.spawn_agent(args, runner=fake, registry_path=self.registry)
+        self.assertFalse(any(call[:3] == ["herdr", "tab", "create"] for call in fake.calls))
+
+    def test_openai_api_key_auth_is_rejected(self):
+        credential = dict(self.oauth_credential, type="api_key", key="synthetic-test-api-key")
+        self.assert_invalid_openai_credential_is_rejected(credential)
+
+    def test_openai_oauth_without_client_id_is_rejected(self):
+        credential = dict(self.oauth_credential)
+        credential.pop("clientId")
+        self.assert_invalid_openai_credential_is_rejected(credential)
+
+    def test_openai_oauth_without_chatgpt_direct_scope_is_rejected(self):
+        credential = dict(self.oauth_credential, scopes=["openid"])
+        self.assert_invalid_openai_credential_is_rejected(credential)
+
+    def test_openai_oauth_with_boolean_expiry_is_rejected(self):
+        credential = dict(self.oauth_credential, expires=True)
+        self.assert_invalid_openai_credential_is_rejected(credential)
+
+    def test_openai_oauth_with_malformed_access_token_is_rejected(self):
+        credential = dict(self.oauth_credential, access=17)
+        self.assert_invalid_openai_credential_is_rejected(credential)
+
+    def test_launcher_handoff_preserves_full_oauth_object_in_memfd(self):
+        fake_pi = self.root / "fake-pi"
+        fake_pi.write_text('''#!/usr/bin/python3
+import json
+import os
+import sys
+from pathlib import Path
+auth_path = Path(os.environ["PI_CODING_AGENT_DIR"]) / "auth.json"
+credential = json.loads(auth_path.read_text())["openai"]
+print(json.dumps({
+    "type": credential.get("type"),
+    "access_present": isinstance(credential.get("access"), str),
+    "refresh_present": isinstance(credential.get("refresh"), str),
+    "expires_integer": type(credential.get("expires")) is int,
+    "client_id_present": bool(credential.get("clientId")),
+    "direct_scope_present": "chatgpt.tokens.use.direct" in credential.get("scopes", []),
+    "extra_metadata_preserved": credential.get("accountMetadata") == {"tenant": "synthetic-test-tenant"},
+    "auth_path_is_symlink": auth_path.is_symlink(),
+    "fd_is_memfd": "memfd:pi-provider-auth" in os.readlink("/proc/self/fd/3"),
+    "argv_has_synthetic_token": any("synthetic-test-" in value for value in sys.argv),
+    "environment_has_synthetic_token": any("synthetic-test-" in value for value in os.environ.values()),
+    "openai_api_key_env_present": "OPENAI_API_KEY" in os.environ,
+}))
+''')
+        fake_pi.chmod(0o700)
+        args = spawn_args(self.cwd, self.scratch)
+        with patch.object(zhoor_herdr.shutil, "which", return_value=str(fake_pi)):
+            zhoor_herdr._prepare_pi_containment(
+                args.agent_args[1:], provider=args.provider, model=args.model,
+                reasoning=args.reasoning, scratch=self.scratch,
+            )
+        wrapper = self.scratch / "bin" / "pi"
+        result = subprocess.run([str(wrapper)], text=True, capture_output=True, check=False)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        report = json.loads(result.stdout)
+        self.assertEqual(report["type"], "oauth")
+        self.assertTrue(report["access_present"])
+        self.assertTrue(report["refresh_present"])
+        self.assertTrue(report["expires_integer"])
+        self.assertTrue(report["client_id_present"])
+        self.assertTrue(report["direct_scope_present"])
+        self.assertTrue(report["extra_metadata_preserved"])
+        self.assertTrue(report["auth_path_is_symlink"])
+        self.assertTrue(report["fd_is_memfd"])
+        self.assertFalse(report["argv_has_synthetic_token"])
+        self.assertFalse(report["environment_has_synthetic_token"])
+        self.assertFalse(report["openai_api_key_env_present"])
+
+    def test_launcher_rechecks_oauth_structure_before_exec(self):
+        fake_pi = self.root / "fake-pi"
+        executed = self.root / "fake-pi-executed"
+        fake_pi.write_text(f"#!/usr/bin/python3\nfrom pathlib import Path\nPath({str(executed)!r}).write_text('executed')\n")
+        fake_pi.chmod(0o700)
+        args = spawn_args(self.cwd, self.scratch)
+        with patch.object(zhoor_herdr.shutil, "which", return_value=str(fake_pi)):
+            zhoor_herdr._prepare_pi_containment(
+                args.agent_args[1:], provider=args.provider, model=args.model,
+                reasoning=args.reasoning, scratch=self.scratch,
+            )
+        credential = dict(self.oauth_credential, type="api_key")
+        self.auth_store.write_text(json.dumps({"openai": credential}))
+        result = subprocess.run(
+            [str(self.scratch / "bin" / "pi")], text=True,
+            capture_output=True, check=False,
+        )
+        self.assertEqual(result.returncode, 125)
+        self.assertEqual(result.stderr.strip(), "ZHOOR isolated provider credential handoff failed")
+        self.assertFalse(executed.exists())
+
+    def test_non_openai_provider_is_rejected(self):
+        auth = {"wrong-provider": self.oauth_credential}
+        self.auth_store.write_text(json.dumps(auth))
+        args = spawn_args(self.cwd, self.scratch)
+        args.provider = "wrong-provider"
+        args.agent_args[args.agent_args.index("--provider") + 1] = "wrong-provider"
+        fake = FakeHerdr(self.cwd)
+        with self.assertRaisesRegex(zhoor_herdr.LaneError, "only provider=openai"):
+            zhoor_herdr.spawn_agent(args, runner=fake, registry_path=self.registry)
         self.assertFalse(any(call[:3] == ["herdr", "tab", "create"] for call in fake.calls))
 
     def test_one_interactive_root_without_sidebar_passes(self):

@@ -26,6 +26,7 @@ TERMINAL_LANE_STATES = {
     "COMPLETED", "STOPPED", "CANCELLED", "TOPOLOGY_FAILED",
     "AGENT_START_FAILED", "ROLE_HANDSHAKE_FAILED", "QUARANTINED",
 }
+OPENAI_CHATGPT_DIRECT_SCOPE = "chatgpt.tokens.use.direct"
 Runner = Callable[..., subprocess.CompletedProcess[str]]
 
 
@@ -33,29 +34,43 @@ class LaneError(RuntimeError):
     pass
 
 
+def _is_valid_openai_chatgpt_oauth(provider: str, credential: Any) -> bool:
+    if provider != "openai" or not isinstance(credential, dict):
+        return False
+    access = credential.get("access")
+    refresh = credential.get("refresh")
+    expires = credential.get("expires")
+    client_id = credential.get("clientId")
+    scopes = credential.get("scopes")
+    return (
+        credential.get("type") == "oauth"
+        and isinstance(access, str) and bool(access.strip())
+        and isinstance(refresh, str) and bool(refresh.strip())
+        and type(expires) is int and 0 < expires <= 9_007_199_254_740_991
+        and isinstance(client_id, str) and bool(client_id.strip())
+        and isinstance(scopes, list)
+        and all(isinstance(scope, str) and bool(scope) for scope in scopes)
+        and OPENAI_CHATGPT_DIRECT_SCOPE in scopes
+    )
+
+
 def _prepare_pi_containment(
     agent_args: list[str], *, provider: str, model: str, reasoning: str,
     scratch: Path,
 ) -> tuple[list[str], dict[str, str]]:
     """Install a clean-environment Pi launcher and a read-only path guard."""
-    if provider != "openai-codex" or reasoning != "xhigh":
-        raise LaneError("this Pi containment profile only permits the verified OpenAI/Codex xhigh route")
+    if provider != "openai" or reasoning != "xhigh":
+        raise LaneError("this reviewer profile permits only provider=openai with xhigh reasoning")
 
-    # Confirm that the approved provider-scoped credential exists before a tab
-    # is created. Values stay in controller memory and are never rendered.
+    # Confirm that the approved provider-scoped ChatGPT OAuth credential exists
+    # before a tab is created. Values stay in controller memory and are never rendered.
     try:
         auth = json.loads(PI_AUTH_STORE.read_text())
         credential = auth.get(provider) if isinstance(auth, dict) else None
-        if (
-            not isinstance(credential, dict)
-            or not isinstance(credential.get("access"), str)
-            or not credential["access"]
-            or not isinstance(credential.get("refresh"), str)
-            or not isinstance(credential.get("expires"), int)
-        ):
+        if not _is_valid_openai_chatgpt_oauth(provider, credential):
             raise ValueError
     except (OSError, json.JSONDecodeError, ValueError, TypeError):
-        raise LaneError("approved provider credential is unavailable in the controller auth store") from None
+        raise LaneError("OpenAI ChatGPT OAuth credential is missing or invalid") from None
 
     def option_value(flag: str) -> str | None:
         indexes = [i for i, value in enumerate(agent_args) if value == flag]
@@ -131,6 +146,7 @@ def _prepare_pi_containment(
     launcher_config = {
         "auth_store": str(PI_AUTH_STORE.resolve()),
         "provider": provider,
+        "required_scope": OPENAI_CHATGPT_DIRECT_SCOPE,
         "pi_executable": str(pi_executable_path),
         "environment": {key: str(value) for key, value in isolated.items()},
     }
@@ -141,10 +157,28 @@ import sys
 from pathlib import Path
 
 CONFIG = __CONFIG__
+def valid_chatgpt_oauth(credential):
+    if not isinstance(credential, dict):
+        return False
+    access = credential.get("access")
+    refresh = credential.get("refresh")
+    expires = credential.get("expires")
+    client_id = credential.get("clientId")
+    scopes = credential.get("scopes")
+    return (
+        credential.get("type") == "oauth"
+        and isinstance(access, str) and bool(access.strip())
+        and isinstance(refresh, str) and bool(refresh.strip())
+        and type(expires) is int and 0 < expires <= 9007199254740991
+        and isinstance(client_id, str) and bool(client_id.strip())
+        and isinstance(scopes, list)
+        and all(isinstance(scope, str) and bool(scope) for scope in scopes)
+        and CONFIG["required_scope"] in scopes
+    )
 try:
     auth = json.loads(Path(CONFIG["auth_store"]).read_text())
-    credential = auth[CONFIG["provider"]]
-    if not isinstance(credential, dict) or not isinstance(credential.get("access"), str):
+    credential = auth.get(CONFIG["provider"]) if isinstance(auth, dict) else None
+    if CONFIG["provider"] != "openai" or not valid_chatgpt_oauth(credential):
         raise ValueError
     payload = json.dumps({CONFIG["provider"]: credential}, separators=(",", ":")).encode()
     fd = os.memfd_create("pi-provider-auth", os.MFD_ALLOW_SEALING)

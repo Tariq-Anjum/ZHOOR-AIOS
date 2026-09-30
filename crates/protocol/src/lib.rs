@@ -44,12 +44,17 @@
 
 pub mod error;
 pub mod evidence;
+pub mod registry_identity;
 pub mod request;
 pub mod response;
 mod util;
 
 pub use error::{ErrorKind, ProtocolError};
 pub use evidence::{EvidenceKind, EvidenceRef, TrustTier};
+pub use registry_identity::{
+    ArtifactSha256, DescriptorFormatVersion, RegistryContractError, RegistrySnapshotMetadata,
+    RegistryVersion,
+};
 pub use request::{
     Constraints, Deadline, Operation, ProtocolVersion, Provenance, Request, WorkerKind,
 };

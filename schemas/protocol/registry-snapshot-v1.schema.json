@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:zhoor:protocol:registry-snapshot-metadata:v1",
+  "title": "ZHOOR registry snapshot metadata, protocol v1",
+  "description": "Composable protocol-owned root metadata. The registry package composes this with its closed full registry schema and must validate it before processing entries. Registry identity is the configured canonical registry source; labels are not globally unique.",
+  "type": "object",
+  "required": ["descriptor_format_version", "registry_version"],
+  "properties": {
+    "descriptor_format_version": { "$ref": "#/$defs/descriptorFormatVersion" },
+    "registry_version": { "$ref": "#/$defs/registryVersion" }
+  },
+  "$defs": {
+    "descriptorFormatVersion": { "const": "1" },
+    "registryVersion": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._+-]*$"
+    },
+    "artifactSha256": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "description": "SHA-256 of exact raw SKILL.md bytes only; not metadata, authentication, trust, authorization, anonymization, or a signature."
+    }
+  }
+}

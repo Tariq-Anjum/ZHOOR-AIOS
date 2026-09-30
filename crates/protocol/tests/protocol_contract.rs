@@ -17,7 +17,10 @@ use std::path::{Path, PathBuf};
 use jsonschema::Validator;
 use serde_json::Value;
 
-use zhoor_protocol::{ErrorKind, ProtocolError, Request, Response};
+use zhoor_protocol::{
+    ArtifactSha256, ErrorKind, ProtocolError, RegistryContractError, RegistrySnapshotMetadata,
+    RegistryVersion, Request, Response,
+};
 
 /// Returns the repository root relative to this package.
 fn repo_root() -> PathBuf {
@@ -1160,6 +1163,7 @@ fn canonical_schemas_pin_draft_2020_12() {
         names,
         BTreeSet::from([
             "request-v1.schema.json".to_owned(),
+            "registry-snapshot-v1.schema.json".to_owned(),
             "response-v1.schema.json".to_owned()
         ]),
         "canonical protocol schema file set changed; update this pin deliberately"
@@ -1186,6 +1190,111 @@ fn canonical_schemas_pin_draft_2020_12() {
         request["$defs"]["evidenceReference"], response["$defs"]["evidenceReference"],
         "duplicated self-contained evidence-reference definitions must stay identical"
     );
+}
+
+#[test]
+fn registry_snapshot_metadata_fixtures_match_schema_and_rust() {
+    let schema = compiled_schema("registry-snapshot-v1.schema.json");
+    let valid_dir = repo_root().join("fixtures/protocol/registry-identity/valid");
+    let invalid_dir = repo_root().join("fixtures/protocol/registry-identity/invalid");
+
+    for path in json_files(&valid_dir) {
+        if fixture_name(&path).starts_with("artifact-sha256") {
+            continue;
+        }
+        let value = read_json(&path);
+        assert!(
+            schema.is_valid(&value),
+            "schema rejected {}",
+            path.display()
+        );
+        let metadata = RegistrySnapshotMetadata::from_root_value(&value)
+            .unwrap_or_else(|error| panic!("Rust rejected {}: {error}", path.display()));
+        let encoded = serde_json::to_value(&metadata).expect("metadata serializes");
+        assert_eq!(encoded["descriptor_format_version"], "1");
+        assert_eq!(encoded["registry_version"], "skills-2026.09");
+    }
+
+    for path in json_files(&invalid_dir) {
+        if fixture_name(&path).starts_with("artifact-sha256-") {
+            continue;
+        }
+        let value = read_json(&path);
+        assert!(
+            !schema.is_valid(&value),
+            "schema accepted {}",
+            path.display()
+        );
+        assert!(
+            RegistrySnapshotMetadata::from_root_value(&value).is_err(),
+            "Rust accepted {}",
+            path.display()
+        );
+    }
+
+    let unsupported = read_json(&invalid_dir.join("registry-format-unsupported.json"));
+    assert!(matches!(
+        RegistrySnapshotMetadata::from_root_value(&unsupported),
+        Err(RegistryContractError::UnsupportedDescriptorFormatVersion(_))
+    ));
+    let missing = read_json(&invalid_dir.join("registry-version-missing.json"));
+    assert!(matches!(
+        RegistrySnapshotMetadata::from_root_value(&missing),
+        Err(RegistryContractError::MissingField {
+            field: "registry_version"
+        })
+    ));
+}
+
+#[test]
+fn registry_version_expectation_is_explicit_and_source_scoped() {
+    let root = read_json(
+        &repo_root().join("fixtures/protocol/registry-identity/valid/registry-root.json"),
+    );
+    let metadata = RegistrySnapshotMetadata::from_root_value(&root).expect("valid metadata");
+    let matching = RegistryVersion::parse("skills-2026.09").expect("valid expected label");
+    let mismatching = RegistryVersion::parse("skills-2026.08").expect("valid expected label");
+    assert!(metadata.check_expected(Some(&matching)).is_ok());
+    assert!(metadata.check_expected(None).is_ok());
+    assert!(matches!(
+        metadata.check_expected(Some(&mismatching)),
+        Err(RegistryContractError::RegistryVersionMismatch { .. })
+    ));
+}
+
+#[test]
+fn artifact_sha256_fixtures_validate_and_hash_exact_skill_bytes() {
+    let schema_document = read_json(&schema_dir().join("registry-snapshot-v1.schema.json"));
+    let hash_schema = serde_json::json!({
+        "$schema": schema_document["$schema"],
+        "$defs": schema_document["$defs"],
+        "$ref": "#/$defs/artifactSha256"
+    });
+    let hash_schema =
+        jsonschema::draft202012::new(&hash_schema).expect("artifact hash schema compiles");
+    let valid_dir = repo_root().join("fixtures/protocol/registry-identity/valid");
+    let invalid_dir = repo_root().join("fixtures/protocol/registry-identity/invalid");
+
+    let valid = read_json(&valid_dir.join("artifact-sha256.json"));
+    assert!(hash_schema.is_valid(&valid));
+    let parsed: ArtifactSha256 = serde_json::from_value(valid).expect("valid hash fixture");
+    assert!(parsed.matches_skill_md_bytes(b"hello"));
+    assert!(!parsed.matches_skill_md_bytes(b"hello\n"));
+    assert_eq!(
+        parsed,
+        ArtifactSha256::for_skill_md_bytes(b"hello"),
+        "known SHA-256 vector hashes exact raw bytes"
+    );
+
+    for name in [
+        "artifact-sha256-wrong-algorithm.json",
+        "artifact-sha256-wrong-length.json",
+        "artifact-sha256-uppercase.json",
+    ] {
+        let value = read_json(&invalid_dir.join(name));
+        assert!(!hash_schema.is_valid(&value), "schema accepted {name}");
+        assert!(serde_json::from_value::<ArtifactSha256>(value).is_err());
+    }
 }
 
 #[test]

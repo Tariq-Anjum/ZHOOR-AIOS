@@ -1,32 +1,46 @@
-# PRO-02 handoff — owner contract selected
+# PRO-02 handoff — registry identity/version contract
 
 ## Run state
 
-- Starting local SHA: `d15138727c43877049f51326d05aba2987d88e0f`
+- Starting local SHA: `f006fbea9df6efe8eaa252debd53d55d8a4dc115`
 - Starting remote SHA: `2e73ef44181bc74b55fad25e7e2fd5f1dac9eaa1`
-- Prior PRO-02 authorization SHA: `431024a356f9d3c80f39a961c73f10ac4d2abc0d`
-- Prior assignment SHA: `2cb8d54560079d1a012ee5014e1b96dd9f15f1a0`
-- Prior blocker SHA / current starting HEAD: `f006fbea9df6efe8eaa252debd53d55d8a4dc115`
-- Status: `READY — owner decision D-021 recorded; separate assignment commit pending`
-- Implementation source/schema/fixture changes: none
-- Validation: not run; source mutation has not started
-- Exact-SHA architecture challenge: `OWNER_CONTRACT_DECISION_REQUIRED` at prior assignment SHA `2cb8d54560079d1a012ee5014e1b96dd9f15f1a0`
-- Reviewer route: contained Pi / OpenAI-Codex / GPT-6 Luna xhigh / read-only; `AGENT_CONTAINMENT=PASS`; prior lane stopped
-- Challenge evidence: `/tmp/zhoor-pro-02/ZHOOR-20260930T081737Z-PRO-02/architecture-challenge-result.md`
+- Owner contract authorization SHA: `366577a238cfb2f8500c981ab98e8f7824b5797b`
+- Assignment SHA: `a2bc3ea1fc17bb5b9bed26052d4dfe64ea303f94`
+- Implementation worktree: `/tmp/zhoor-pro-02/ZHOOR-20260930T101500Z-PRO-02/worker`, branch `work/pro-02-20260930-resumed`
+- Current status: `ASSIGNED`; implementation changes are in progress and remain uncommitted
+- Prior exact-SHA architecture challenge: `OWNER_CONTRACT_DECISION_REQUIRED` at prior assignment `2cb8d54560079d1a012ee5014e1b96dd9f15f1a0`; the owner resolved format placement in D-021
+- Prior challenge lane: contained Pi / OpenAI-Codex / GPT-6 Luna xhigh / read-only; `AGENT_CONTAINMENT=PASS`; stopped after result capture
+- Prior challenge evidence: `/tmp/zhoor-pro-02/ZHOOR-20260930T081737Z-PRO-02/architecture-challenge-result.md`
 
-## Evidence and owner decision D-021
+## Accepted meanings
 
-Protocol v1 candidates are `Vec<String>` and no existing request/response contract defines registry descriptor identity. The prior independent architecture challenge found two reasonable descriptor-format placements and required the owner to choose. The owner selected registry-root placement.
+- **Descriptor format version:** the descriptor field contract version. Every entry in a v1 snapshot uses format `"1"`; the value is carried once at the registry root. The artifact's release/version is separate and not defined in v1.
+- **Artifact hash:** `artifact_sha256` identifies exact raw bytes of the `SKILL.md` file only. It does not cover descriptor metadata or companion files.
+- **Hash algorithm and grammar:** SHA-256, represented exactly as `sha256:<64 lowercase hexadecimal characters>`. Hashing performs no newline, Unicode, or serialization normalization. A hash is a content integrity identifier; it is not authentication, trust, authorization, anonymization, or a digital signature.
+- **Registry version:** an opaque snapshot label at the registry root, distinct from descriptor format and artifact version. It must not be reused for different snapshot contents within the same configured canonical registry source. The label is not globally unique.
+- **Registry identity/scope evidence:** the local canonical registry documentation states that the version-controlled `my-ai-skills` repository is the source of truth and local installed catalogs are runtime copies. Its origin is `https://github.com/Tariq-Anjum/my-ai-skills.git`. Therefore the minimum scope is the selected canonical registry source; local/runtime copies of that source share the same identity. This adds no global namespace or registry identity wire field.
+- **Mismatch behavior:** when a caller supplies an expected `registry_version`, a different loaded root value is an explicit `RegistryVersionMismatch`; no snapshot substitution or count/timestamp/hash inference occurs.
+- **Fail-closed format handling:** missing, non-string/malformed, unknown, or unsupported root `descriptor_format_version` is rejected by protocol metadata extraction before registry entry handling. Mixed versions are not represented.
+- **Compatibility and ownership:** protocol-v1 request and response schemas, Rust envelope types, and fixtures remain unchanged; request candidates remain strings. The complete registry schema, descriptor fields, unknown-root closure, ordering, and lookup remain REG-01-owned.
 
-- A v1 registry snapshot carries `descriptor_format_version: "1"` and `registry_version` once at its root. Entries do not repeat the descriptor format version. Mixed formats are unsupported.
-- Reject the entire snapshot before processing entries if the root format version is absent, malformed, unknown, or unsupported. There is no per-entry fallback.
-- Descriptor format version identifies the descriptor field contract, not the skill artifact version. No separate artifact release-version field is defined in v1 absent evidence from an accepted contract.
-- `artifact_sha256` identifies exact raw `SKILL.md` bytes using lowercase `sha256:<64 lowercase hexadecimal characters>`. It does not cover descriptor metadata, canonicalized data, or companion files. It conveys no authentication, trust, authorization, anonymization, or signature.
-- `registry_version` is a registry snapshot identity label, not a descriptor-format or artifact version. A value cannot be reused for differing snapshot contents within the already established registry identity/scope. If a caller supplies an expected value and it differs from the loaded snapshot, return an explicit mismatch failure; do not silently substitute a snapshot.
-- Preserve request-v1 and response-v1, including string request candidates.
+## Implementation
 
-## Remaining pre-source gate
+The additive protocol API provides `DescriptorFormatVersion`, `RegistryVersion`, `ArtifactSha256`, `RegistrySnapshotMetadata`, and `RegistryContractError`. `RegistrySnapshotMetadata::from_root_value` extracts and validates the two protocol-owned root fields before entries are processed; the registry package remains responsible for closing and validating the complete root object. `ArtifactSha256` parses, computes, and verifies exact `SKILL.md` bytes. The schema fragment is composable so REG-01 can add registry-owned properties and close the complete root schema.
 
-Before source mutation, inspect accepted architecture and canonical registry ownership to identify the existing registry identity/scope for the non-reuse rule. Do not invent a global namespace. If two materially reasonable scopes remain, stop with `OWNER_CONTRACT_DECISION_REQUIRED` and no more than two concrete alternatives. The old implementation worktree remains clean and pinned to its former assignment SHA; remove it through normal Git worktree management and create a fresh worktree from the new assignment SHA.
+The protocol crate uses the already locked/cached `sha2 = 0.10.9`, already used by `zhoor-trace`; it is a new direct package dependency but not a new resolved package or network fetch. Unlocked offline resolution changed only the `zhoor-protocol` dependency list in the worktree's generated `Cargo.lock`. The implementation commit must not include that root lockfile change; the controller reconciles it during integration.
 
-PRO-02 is the sole READY implementation card under D-021. REG-01, POL-01, SEC-01, WRK-01, and WRK-02 remain BLOCKED. PRO-02 closure will not automatically resume REG-01.
+## Fixtures and tests
+
+The new identity fixtures cover valid root metadata, absent/malformed/unsupported root format, malformed/missing registry version, valid artifact hash, wrong algorithm, wrong length, uppercase text, a known SHA-256 vector (`hello`), changed bytes, expected-version match, and explicit mismatch. Schema/Rust parity is checked for these fixtures. The metadata schema intentionally leaves registry-owned root keys open for composition; the final closed root and unknown-field behavior belong to REG-01. Existing request-v1/response-v1 fixtures are unchanged.
+
+## Validation evidence
+
+- Pre-integration unlocked/offline package sequence: PASS — `cargo +1.98.1 fmt --all -- --check`; `cargo +1.98.1 clippy --offline -p zhoor-protocol --all-targets -- -D warnings`; `cargo +1.98.1 check --offline -p zhoor-protocol --all-targets`; `cargo +1.98.1 test --offline -p zhoor-protocol` (21 unit tests, 14 contract tests, doctests).
+- Canonical post-integration targeted validation: pending.
+- Canonical full validation and `git diff --check`: pending.
+- Root `Cargo.lock` baseline hash before package resolution: `4585fbd4546d6b79045c87a83f4796dafe5144ff628cb4cb5fd297bc4f1a2150`; generated worktree hash after adding the direct dependency: `4447c1d03b40adb9e0217b7cf20c6845e30986555ae475a9b0fb074b19cc0e32`. Locked post-integration validation must leave the reconciled root hash unchanged.
+- Exact-SHA independent review: pending; require `AGENT_CONTAINMENT=PASS` first.
+
+## Closure and stop
+
+PRO-02 may move to DONE only after canonical targeted/full validation, exact-SHA independent review PASS, all findings resolved, D-018 reconciliation, and Cargo.lock policy pass. On closure, REG-01 remains BLOCKED until a separate owner authorization. POL-01, SEC-01, WRK-01, and WRK-02 remain BLOCKED and are not authorized by this run.

@@ -36,15 +36,10 @@ All commands used the installed Rust 1.98.1 toolchain and --offline; pre-integra
 - git diff --check — PASS
 - Schema fixtures are checked against Draft 2020-12 and the Rust parser; replay checks normalized-input equality, response linkage, sanitization, and error-code-only denial traces. Contract tests also check exact confidence-decimal bounds, the timestamp u64 boundary, required nullable fields, operation/result compatibility, and revalidation of public protocol structs.
 
-## Contract corrections
+## Canonical integration update
 
-- First substantive exact-SHA review: Pi / OpenAI-Codex / GPT-6 Luna / xhigh, read-only, on candidate `aab713dc60d54239d38deea2338c547a38e80827`.
-- Result: CHANGES_REQUIRED. The reviewer found that out-of-range confidence decimals could round into range during f64 parsing, and that the timestamp schema lacked the Rust u64 maximum.
-- Corrections: `from_json_str` now checks the original arbitrary-precision confidence decimals against [0, 1] before f64 deserialization; the schema caps timestamps at 18446744073709551615. Added boundary contract coverage for confidence and timestamps.
-- Second exact-SHA review: fresh contained Pi / OpenAI-Codex / GPT-6 Luna / xhigh reviewer REV3 reviewed `e69911b8f764a6ec1440ad0b7d5cc18e9580c02a` and returned CHANGES_REQUIRED. Findings: absent nullable fields were accepted by Rust despite schema-required keys; operation/result-kind compatibility was not enforced by trace parsing/schema; public protocol structs could be mutated to invalid values before `create`.
-- Additional corrections: `from_json_str` now requires the nullable schema keys to be present; Rust and JSON Schema enforce the operation/result-kind mapping; `create` round-trips typed request/response values through the protocol `from_value` validators before cross-envelope validation and hashing. Added regression coverage for all three findings.
-- The initial reviewer session returned BLOCKED because its persistent system prompt prohibited source inspection; it was stopped before any source review. A fresh contained reviewer session performed the substantive review. No source changes were made from the blocked session.
-- First correction commit `77c1b1d` passed canonical locked validation. Second correction commit `1c54cb0` is integrated and also passed canonical locked validation; a fresh exact-SHA review of the second correction is pending.
+- Correction commits `77c1b1d`, `1c54cb0`, and `bf75906` are integrated. The final correction adds required-field validation for nullable `result_kind`, with a contract regression case for a non-resolved trace.
+- The current implementation and schema enforce the card acceptance criteria. Inspect the exact candidate independently; this handoff intentionally contains no prior reviewer findings or conclusions.
 
 ## Root lockfile
 
@@ -64,9 +59,9 @@ The controller committed only card-owned implementation and handoff paths, fast-
 
 - Initial source integration: fast-forward from assignment SHA 3d1c52c52d3d1a6f94deb0e1b48c0813c6b6b049 to implementation SHA 286e42580d547add2bf62f64094c8ef5e80b0cb2.
 - Root lock reconciliation: controller commit 9dff79a692b6e1dc50cc2699073202fe9343f89f; mechanical offline update only. Cargo.lock SHA-256 is 4585fbd4546d6b79045c87a83f4796dafe5144ff628cb4cb5fd297bc4f1a2150.
-- Correction commit `77c1b1d` fixed exact confidence decimal validation and bounded the trace timestamp schema at `u64::MAX`. Correction commit `1c54cb0` requires nullable keys, validates operation/result-kind mappings in Rust and schema, and revalidates public protocol structs before trace creation.
+- Correction commits `77c1b1d`, `1c54cb0`, and `bf75906` are integrated; all are included in the validated implementation candidate.
 - Final `./scripts/validate.sh --package zhoor-trace` — PASS; 4 unit and 9 contract tests, locked clippy/check, debug and release package builds.
-- Final `cargo test --offline --locked -p zhoor-trace --test trace_contract` — PASS; 9 tests.
+- Final `cargo +1.98.1 test --offline --locked -p zhoor-trace --test trace_contract` — PASS; 9 tests.
 - Final `./scripts/validate.sh` — PASS; full locked workspace validation exit 0, including 17 protocol unit + 11 protocol contract, 11 system-info unit, 4 trace unit + 9 trace contract tests, clippy/check, and debug/release builds.
 - Cargo.lock SHA-256 before and after corrected locked validation: 4585fbd4546d6b79045c87a83f4796dafe5144ff628cb4cb5fd297bc4f1a2150 (unchanged).
 - Protected baseline reconciliation: PASS; all 28 status/path/SHA-256 records still match.
@@ -76,6 +71,5 @@ The controller committed only card-owned implementation and handoff paths, fast-
 ## Review handoff
 
 - Current implementation, schema, and contract tests include exact numeric bounds, required nullable fields including result_kind for non-resolved traces, operation/result compatibility, and revalidation of public protocol structs.
-- Isolated source commit 624bac1 adds the final result_kind-presence correction and awaits canonical integration and locked validation.
 - After a handoff-only update with canonical results, freeze the resulting HEAD and conduct a fresh contained exact-SHA review. The reviewer must not claim to run Cargo commands; validation evidence is controller-owned.
 - Close TRC-01 only after exact-SHA review PASS and all other gates pass. Do not start a later card.

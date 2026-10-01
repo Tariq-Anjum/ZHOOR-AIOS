@@ -21,7 +21,29 @@ from typing import Any, Callable, Literal
 
 STATE_ROOT = Path(os.environ.get("XDG_STATE_HOME", Path.home() / ".local/state"))
 REGISTRY = STATE_ROOT / "zhoor-orchestrator" / "lane-registry.json"
-PI_AUTH_STORE = Path.home() / ".pi/agent/auth.json"
+
+
+def _reviewer_profile_state_root() -> Path:
+    configured = Path(os.environ.get("XDG_STATE_HOME", Path.home() / ".local/state"))
+    if not configured.is_absolute():
+        return Path.home() / ".local/state"
+    try:
+        resolved = configured.resolve()
+        temporary_roots = {
+            Path(tempfile.gettempdir()).resolve(),
+            Path("/tmp").resolve(),
+            Path("/var/tmp").resolve(),
+            Path("/dev/shm").resolve(),
+        }
+        if any(resolved == root or root in resolved.parents for root in temporary_roots):
+            return Path.home() / ".local/state"
+    except OSError:
+        return Path.home() / ".local/state"
+    return configured
+
+
+REVIEWER_PROFILE_DIR = _reviewer_profile_state_root() / "zhoor-orchestrator" / "reviewer-profile"
+REVIEWER_AUTH_STORE = REVIEWER_PROFILE_DIR / "auth.json"
 AGENT_NAME = re.compile(r"^[a-z][a-z0-9_-]{0,31}$")
 TERMINAL_LANE_STATES = {
     "COMPLETED", "STOPPED", "CANCELLED", "TOPOLOGY_FAILED",
@@ -96,6 +118,44 @@ def _is_valid_openai_chatgpt_oauth(provider: str, credential: Any) -> bool:
         and all(isinstance(scope, str) and bool(scope) for scope in scopes)
         and OPENAI_CHATGPT_DIRECT_SCOPE in scopes
     )
+
+
+def _validate_reviewer_auth_profile() -> Path:
+    """Require one private, dedicated OpenAI OAuth credential store."""
+    try:
+        profile = REVIEWER_PROFILE_DIR
+        auth_path = REVIEWER_AUTH_STORE
+        profile_stat = profile.lstat()
+        auth_stat = auth_path.lstat()
+        resolved_profile = profile.resolve(strict=True)
+        resolved_auth = auth_path.resolve(strict=True)
+        repo_root = Path(__file__).resolve().parent.parent
+        if (
+            not stat.S_ISDIR(profile_stat.st_mode)
+            or profile_stat.st_uid != os.getuid()
+            or stat.S_IMODE(profile_stat.st_mode) != 0o700
+            or resolved_profile != profile.absolute()
+            or auth_path.parent != profile
+            or resolved_auth != resolved_profile / "auth.json"
+            or repo_root == resolved_profile
+            or repo_root in resolved_profile.parents
+            or not stat.S_ISREG(auth_stat.st_mode)
+            or auth_stat.st_uid != os.getuid()
+            or stat.S_IMODE(auth_stat.st_mode) != 0o600
+            or auth_stat.st_nlink != 1
+        ):
+            raise ValueError
+        auth = json.loads(auth_path.read_text())
+        credential = auth.get("openai") if isinstance(auth, dict) else None
+        if not isinstance(auth, dict) or set(auth) != {"openai"}:
+            raise ValueError
+        if not _is_valid_openai_chatgpt_oauth("openai", credential):
+            raise ValueError
+        return auth_path
+    except (OSError, json.JSONDecodeError, ValueError, TypeError):
+        raise LaneError(
+            "dedicated reviewer OAuth profile is missing, insecure, or invalid"
+        ) from None
 
 
 def _validate_pi_launch_args(agent_args: list[str], route: AuditRoute) -> None:
@@ -210,15 +270,9 @@ def _prepare_pi_containment(
     _validate_pi_launch_args(agent_args, route)
     provider = route.provider
 
-    # Confirm that the approved provider-scoped ChatGPT OAuth credential exists
-    # before a tab is created. Values stay in controller memory and are never rendered.
-    try:
-        auth = json.loads(PI_AUTH_STORE.read_text())
-        credential = auth.get(provider) if isinstance(auth, dict) else None
-        if not _is_valid_openai_chatgpt_oauth(provider, credential):
-            raise ValueError
-    except (OSError, json.JSONDecodeError, ValueError, TypeError):
-        raise LaneError("OpenAI ChatGPT OAuth credential is missing or invalid") from None
+    # The dedicated reviewer profile contains the sole authoritative OAuth file.
+    # Pi's per-lane config root remains private; only its auth.json path is linked.
+    auth_store = _validate_reviewer_auth_profile()
 
     pi_executable = shutil.which("pi")
     if not pi_executable:
@@ -276,70 +330,102 @@ def _prepare_pi_containment(
         "PI_TELEMETRY": "0",
     }
     auth_link = pi_config / "auth.json"
-    auth_link.symlink_to("/proc/self/fd/3")
+    auth_link.symlink_to(str(auth_store))
 
-    # Herdr starts the executable found in the lane PATH. This small launcher
-    # reads only the approved provider entry, copies it to an anonymous memfd,
-    # and execs Pi with fd 3 inherited. Pi may update this isolated copy when
-    # refreshing OAuth; the controller's source credential remains untouched.
-    # Pi's auth.json symlink points at the descriptor, so credential values do
-    # not enter argv, environment, or a regular temporary file.
+    # Herdr starts the executable found in the lane PATH. The launcher holds an
+    # exclusive lock on the authoritative auth.json inode through Pi's lifetime
+    # so separate per-lane Pi lock paths cannot race refresh-token rotation.
+    # Pi 0.99.1 updates this file in place under its own CredentialStore lock.
+    # Credential values never enter the launcher, argv, or environment.
     launcher_config = {
-        "auth_store": str(PI_AUTH_STORE.resolve()),
-        "provider": provider,
-        "required_scope": OPENAI_CHATGPT_DIRECT_SCOPE,
+        "profile_dir": str(REVIEWER_PROFILE_DIR),
+        "auth_store": str(auth_store),
         "pi_executable": str(pi_executable_path),
         "environment": {key: str(value) for key, value in isolated.items()},
     }
     wrapper_text = "#!/usr/bin/python3\n" + """import fcntl
 import json
 import os
+import stat
 import sys
 from pathlib import Path
 
 CONFIG = __CONFIG__
-def valid_chatgpt_oauth(credential):
-    if not isinstance(credential, dict):
-        return False
-    access = credential.get("access")
-    refresh = credential.get("refresh")
-    expires = credential.get("expires")
-    client_id = credential.get("clientId")
-    scopes = credential.get("scopes")
-    return (
-        credential.get("type") == "oauth"
-        and isinstance(access, str) and bool(access.strip())
-        and isinstance(refresh, str) and bool(refresh.strip())
-        and type(expires) is int and 0 < expires <= 9007199254740991
-        and isinstance(client_id, str) and bool(client_id.strip())
-        and isinstance(scopes, list)
-        and all(isinstance(scope, str) and bool(scope) for scope in scopes)
-        and CONFIG["required_scope"] in scopes
-    )
 try:
-    auth = json.loads(Path(CONFIG["auth_store"]).read_text())
-    credential = auth.get(CONFIG["provider"]) if isinstance(auth, dict) else None
-    if CONFIG["provider"] != "openai" or not valid_chatgpt_oauth(credential):
+    profile_path = Path(CONFIG["profile_dir"])
+    auth_path = Path(CONFIG["auth_store"])
+    profile_info = profile_path.lstat()
+    auth_info = auth_path.lstat()
+    if (
+        not stat.S_ISDIR(profile_info.st_mode)
+        or profile_info.st_uid != os.getuid()
+        or stat.S_IMODE(profile_info.st_mode) != 0o700
+        or profile_path.resolve(strict=True) != profile_path.absolute()
+        or auth_path.parent != profile_path
+        or auth_path.resolve(strict=True) != profile_path.resolve(strict=True) / "auth.json"
+        or not stat.S_ISREG(auth_info.st_mode)
+        or auth_info.st_uid != os.getuid()
+        or stat.S_IMODE(auth_info.st_mode) != 0o600
+        or auth_info.st_nlink != 1
+    ):
         raise ValueError
-    payload = json.dumps({CONFIG["provider"]: credential}, separators=(",", ":")).encode()
-    fd = os.memfd_create("pi-provider-auth", os.MFD_ALLOW_SEALING)
-    os.write(fd, payload)
-    os.lseek(fd, 0, os.SEEK_SET)
-    if fd != 3:
-        os.dup2(fd, 3, inheritable=True)
-        os.close(fd)
-    else:
-        os.set_inheritable(3, True)
-    fcntl.fcntl(3, fcntl.F_ADD_SEALS, fcntl.F_SEAL_SEAL)
+    lock_fd = os.open(
+        CONFIG["auth_store"],
+        os.O_RDONLY | os.O_NOFOLLOW | os.O_CLOEXEC,
+    )
+    lock_info = os.fstat(lock_fd)
+    if (
+        not stat.S_ISREG(lock_info.st_mode)
+        or lock_info.st_uid != os.getuid()
+        or stat.S_IMODE(lock_info.st_mode) != 0o600
+        or lock_info.st_nlink != 1
+        or lock_info.st_dev != auth_info.st_dev
+        or lock_info.st_ino != auth_info.st_ino
+    ):
+        raise ValueError
+    try:
+        fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        print("ZHOOR reviewer OAuth profile is already active", file=sys.stderr)
+        raise SystemExit(125)
+    os.lseek(lock_fd, 0, os.SEEK_SET)
+    with os.fdopen(os.dup(lock_fd), "r", encoding="utf-8") as auth_file:
+        auth = json.load(auth_file)
+    credential = auth.get("openai") if isinstance(auth, dict) else None
+    scopes = credential.get("scopes") if isinstance(credential, dict) else None
+    if (
+        not isinstance(auth, dict)
+        or set(auth) != {"openai"}
+        or not isinstance(credential, dict)
+        or credential.get("type") != "oauth"
+        or not isinstance(credential.get("access"), str)
+        or not credential["access"].strip()
+        or not isinstance(credential.get("refresh"), str)
+        or not credential["refresh"].strip()
+        or type(credential.get("expires")) is not int
+        or credential["expires"] <= 0
+        or not isinstance(credential.get("clientId"), str)
+        or not credential["clientId"].strip()
+        or credential["expires"] > 9_007_199_254_740_991
+        or not isinstance(scopes, list)
+        or not all(isinstance(scope, str) and bool(scope) for scope in scopes)
+        or "chatgpt.tokens.use.direct" not in scopes
+    ):
+        raise ValueError
+    os.set_inheritable(lock_fd, True)
     executable = CONFIG["pi_executable"]
     os.execve(executable, [executable, *sys.argv[1:]], CONFIG["environment"])
 except Exception:
-    print("ZHOOR isolated provider credential handoff failed", file=sys.stderr)
+    print("ZHOOR reviewer OAuth profile is invalid or its lock failed", file=sys.stderr)
     raise SystemExit(125)
 """.replace("__CONFIG__", repr(launcher_config))
     wrapper.write_text(wrapper_text)
     os.chmod(wrapper, 0o700)
-    sandbox_args = ["--system-prompt", REVIEW_SYSTEM_PROMPT, "--extension", str(guard_path)]
+    sandbox_args = [
+        "--system-prompt", REVIEW_SYSTEM_PROMPT,
+        "--extension", str(guard_path),
+        "--session-dir", str(scratch / "pi-sessions"),
+    ]
     launch_env = {
         "PATH": f"{bin_dir}:/usr/bin:/bin",
         "HOME": str(scratch / "home"),

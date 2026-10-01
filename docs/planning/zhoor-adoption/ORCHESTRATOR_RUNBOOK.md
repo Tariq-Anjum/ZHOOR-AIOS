@@ -207,18 +207,34 @@ For permanent reviewer lanes, select only an explicit helper tier:
 model at `xhigh`. The helper rejects provider/model/reasoning overrides and
 unapproved Pi options. `openai-codex` is legacy and is not an accepted ZHOOR
 review route. The helper requires the provider credential to be OAuth with the
-installed ChatGPT direct-use scope; API-key credentials are rejected. It
-passes the complete credential through an anonymous memfd-backed handoff. Pi
-may refresh that lane-local copy; the controller's private source credential
-is not modified by the reviewer. No regular auth file is created. Never print
-or copy credential values.
+installed ChatGPT direct-use scope; API-key credentials are rejected. The
+helper requires a dedicated reviewer Pi profile at
+`${XDG_STATE_HOME:-$HOME/.local/state}/zhoor-orchestrator/reviewer-profile`
+with exactly one provider credential: OpenAI Sign in with ChatGPT OAuth. A
+relative or temporary-directory `XDG_STATE_HOME` falls back to
+`$HOME/.local/state`. The profile directory is owner-only (0700), and its
+normal Pi `auth.json` is owner-only (0600). The owner's ordinary
+`~/.pi/agent/auth.json` is not the reviewer authority.
 
-Before either route starts, verify `pi auth check --provider openai --json
---no-refresh` reports `ready`, `openai`, and `oauth`; when ready, repeat the
-normal readiness check without `--credentials` so Pi can refresh its own
-credential. Verify the installed Pi catalog exposes `openai/gpt-6.1-sol` and
-supports the tier's reasoning effort. If auth or model availability fails,
-stop; do not fall back to an API key, `openai-codex`, or weaker containment.
+Each reviewer gets a fresh Pi config root and explicit fresh `--session-dir`.
+Only that lane's `auth.json` path is a symlink to the dedicated reviewer
+profile. The helper holds an exclusive `flock` on the authoritative `auth.json`
+inode for the full Pi process lifetime, while Pi retains its normal
+credential-store lock around refresh and persistence. Reviewers run
+sequentially so a rotated refresh token is persisted to the sole authoritative
+profile before the next process starts. No per-lane credential snapshot is
+created. Never print or copy credential values.
+
+Before either route starts, resolve the helper's exact profile path with
+`reviewer_profile="$(python3.14 -c 'from scripts import zhoor_herdr; print(zhoor_herdr.REVIEWER_PROFILE_DIR)')"`.
+Then verify it with
+`PI_CODING_AGENT_DIR="$reviewer_profile" pi auth check --provider openai --json --no-refresh`;
+it must report `ready`, `openai`, and `oauth`. When ready, repeat the normal
+readiness check without `--no-refresh` or `--credentials` so Pi can refresh its
+credential in the authoritative profile. Verify the installed Pi catalog
+exposes `openai/gpt-6.1-sol` and supports the tier's reasoning effort. If auth
+or model availability fails, stop; do not fall back to an API key,
+`openai-codex`, or weaker containment.
 
 Reviewer launches use exactly `--tools read,grep,find,ls` and preserve
 `--no-extensions`, `--no-skills`, `--no-prompt-templates`, `--no-themes`,

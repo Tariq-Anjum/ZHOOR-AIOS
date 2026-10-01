@@ -8,6 +8,7 @@ import re
 import select
 import shutil
 import signal
+import stat
 import struct
 import subprocess
 import tempfile
@@ -109,7 +110,9 @@ class ZhoorHerdrTopologyTests(unittest.TestCase):
         self.scratch = self.root / "scratch"
         self.scratch.mkdir(mode=0o700)
         self.registry = self.root / "state" / "lane-registry.json"
-        self.auth_store = self.root / "controller-auth.json"
+        self.profile_dir = self.root / "reviewer-profile"
+        self.profile_dir.mkdir(mode=0o700, parents=True)
+        self.auth_store = self.profile_dir / "auth.json"
         self.oauth_credential = {
             "access": "synthetic-test-access", "refresh": "synthetic-test-refresh",
             "expires": 2_000_000_000_000, "type": "oauth",
@@ -118,17 +121,23 @@ class ZhoorHerdrTopologyTests(unittest.TestCase):
             "accountMetadata": {"tenant": "synthetic-test-tenant"},
         }
         self.auth_store.write_text(json.dumps({"openai": self.oauth_credential}))
-        self.auth_patch = patch.object(zhoor_herdr, "PI_AUTH_STORE", self.auth_store)
-        self.auth_patch.start()
+        os.chmod(self.profile_dir, 0o700)
+        os.chmod(self.auth_store, 0o600)
+        self.profile_patch = patch.multiple(
+            zhoor_herdr,
+            REVIEWER_PROFILE_DIR=self.profile_dir,
+            REVIEWER_AUTH_STORE=self.auth_store,
+        )
+        self.profile_patch.start()
 
     def tearDown(self):
-        self.auth_patch.stop()
+        self.profile_patch.stop()
         self.temp.cleanup()
 
     def assert_invalid_openai_credential_is_rejected(self, credential):
         self.auth_store.write_text(json.dumps({"openai": credential}))
         fake = FakeHerdr(self.cwd)
-        with self.assertRaisesRegex(zhoor_herdr.LaneError, "OpenAI ChatGPT OAuth credential is missing or invalid"):
+        with self.assertRaisesRegex(zhoor_herdr.LaneError, "dedicated reviewer OAuth profile.*invalid"):
             zhoor_herdr.spawn_agent(spawn_args(self.cwd, self.scratch), runner=fake, registry_path=self.registry)
         self.assertFalse(any(call[:3] == ["herdr", "tab", "create"] for call in fake.calls))
 
@@ -164,16 +173,26 @@ class ZhoorHerdrTopologyTests(unittest.TestCase):
         self.assertTrue(guard_path.is_file())
         self.assertTrue(wrapper.is_file())
         wrapper_text = wrapper.read_text()
-        self.assertIn("os.memfd_create", wrapper_text)
-        self.assertIn("F_SEAL_SEAL", wrapper_text)
-        self.assertNotIn("F_SEAL_WRITE", wrapper_text)
+        self.assertIn("fcntl.flock", wrapper_text)
+        self.assertNotIn("os.memfd_create", wrapper_text)
+        self.assertNotIn("/proc/self/fd/3", wrapper_text)
         self.assertIn("os.execve", wrapper_text)
         self.assertTrue((self.scratch / "pi-config" / "auth.json").is_symlink())
-        self.assertEqual(os.readlink(self.scratch / "pi-config" / "auth.json"), "/proc/self/fd/3")
+        self.assertEqual(
+            os.readlink(self.scratch / "pi-config" / "auth.json"),
+            str(self.auth_store.resolve()),
+        )
+        self.assertEqual(stat.S_IMODE(self.auth_store.stat().st_mode), 0o600)
+        self.assertFalse((self.profile_dir / "reviewer-session.lock").exists())
         self.assertNotIn("synthetic-test-access", wrapper_text)
         self.assertNotIn("synthetic-test-refresh", wrapper_text)
         self.assertNotIn("AGENT_BROWSER_ENCRYPTION_KEY", wrapper_text)
         self.assertIn(f"PATH={self.scratch}/bin:/usr/bin:/bin", create)
+        self.assertIn("--session-dir", start_args)
+        self.assertEqual(
+            start_args[start_args.index("--session-dir") + 1],
+            f"{self.scratch}/pi-sessions",
+        )
         version = subprocess.run([str(wrapper), "--version"], text=True, capture_output=True, check=False)
         self.assertEqual(version.returncode, 0)
         self.assertIn("0.99.1", version.stdout)
@@ -194,7 +213,7 @@ class ZhoorHerdrTopologyTests(unittest.TestCase):
     def test_missing_approved_provider_auth_fails_before_tab_creation(self):
         self.auth_store.unlink()
         fake = FakeHerdr(self.cwd)
-        with self.assertRaisesRegex(zhoor_herdr.LaneError, "OpenAI ChatGPT OAuth credential is missing or invalid"):
+        with self.assertRaisesRegex(zhoor_herdr.LaneError, "dedicated reviewer OAuth profile.*invalid"):
             zhoor_herdr.spawn_agent(spawn_args(self.cwd, self.scratch), runner=fake, registry_path=self.registry)
         self.assertFalse(any(call[:3] == ["herdr", "tab", "create"] for call in fake.calls))
 
@@ -272,10 +291,37 @@ class ZhoorHerdrTopologyTests(unittest.TestCase):
         credential = dict(self.oauth_credential, access=17)
         self.assert_invalid_openai_credential_is_rejected(credential)
 
-    def test_launcher_handoff_preserves_full_oauth_object_in_memfd(self):
+    def test_reviewer_profile_rejects_unrelated_provider_credentials(self):
+        self.auth_store.write_text(json.dumps({
+            "openai": self.oauth_credential,
+            "openai-codex": self.oauth_credential,
+        }))
+        fake = FakeHerdr(self.cwd)
+        with self.assertRaisesRegex(zhoor_herdr.LaneError, "dedicated reviewer OAuth profile.*invalid"):
+            zhoor_herdr.spawn_agent(spawn_args(self.cwd, self.scratch), runner=fake, registry_path=self.registry)
+        self.assertFalse(any(call[:3] == ["herdr", "tab", "create"] for call in fake.calls))
+
+    def test_reviewer_profile_requires_private_directory_and_file_modes(self):
+        os.chmod(self.profile_dir, 0o755)
+        with self.assertRaisesRegex(zhoor_herdr.LaneError, "dedicated reviewer OAuth profile.*invalid"):
+            zhoor_herdr._validate_reviewer_auth_profile()
+        os.chmod(self.profile_dir, 0o700)
+        os.chmod(self.auth_store, 0o644)
+        with self.assertRaisesRegex(zhoor_herdr.LaneError, "dedicated reviewer OAuth profile.*invalid"):
+            zhoor_herdr._validate_reviewer_auth_profile()
+
+    def test_reviewer_profile_falls_back_from_temporary_xdg_state(self):
+        with patch.dict(os.environ, {"XDG_STATE_HOME": str(self.root)}):
+            self.assertEqual(
+                zhoor_herdr._reviewer_profile_state_root(),
+                Path.home() / ".local/state",
+            )
+
+    def test_launcher_handoff_uses_only_the_dedicated_shared_oauth_store(self):
         fake_pi = self.root / "fake-pi"
         fake_pi.write_text('''#!/usr/bin/python3
 import json
+import fcntl
 import os
 import sys
 from pathlib import Path
@@ -284,6 +330,12 @@ if sys.argv[1:] == ["--version"]:
     raise SystemExit(0)
 auth_path = Path(os.environ["PI_CODING_AGENT_DIR"]) / "auth.json"
 credential = json.loads(auth_path.read_text())["openai"]
+lock_probe = auth_path.open("rb")
+try:
+    fcntl.flock(lock_probe.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+    profile_lock_held = False
+except BlockingIOError:
+    profile_lock_held = True
 print(json.dumps({
     "type": credential.get("type"),
     "access_present": isinstance(credential.get("access"), str),
@@ -293,7 +345,8 @@ print(json.dumps({
     "direct_scope_present": "chatgpt.tokens.use.direct" in credential.get("scopes", []),
     "extra_metadata_preserved": credential.get("accountMetadata") == {"tenant": "synthetic-test-tenant"},
     "auth_path_is_symlink": auth_path.is_symlink(),
-    "fd_is_memfd": "memfd:pi-provider-auth" in os.readlink("/proc/self/fd/3"),
+    "auth_target": os.readlink(auth_path),
+    "profile_lock_held": profile_lock_held,
     "argv_has_synthetic_token": any("synthetic-test-" in value for value in sys.argv),
     "environment_has_synthetic_token": any("synthetic-test-" in value for value in os.environ.values()),
     "openai_api_key_env_present": "OPENAI_API_KEY" in os.environ,
@@ -318,12 +371,13 @@ print(json.dumps({
         self.assertTrue(report["direct_scope_present"])
         self.assertTrue(report["extra_metadata_preserved"])
         self.assertTrue(report["auth_path_is_symlink"])
-        self.assertTrue(report["fd_is_memfd"])
+        self.assertEqual(report["auth_target"], str(self.auth_store))
+        self.assertTrue(report["profile_lock_held"])
         self.assertFalse(report["argv_has_synthetic_token"])
         self.assertFalse(report["environment_has_synthetic_token"])
         self.assertFalse(report["openai_api_key_env_present"])
 
-    def test_launcher_handoff_allows_pi_to_refresh_oauth_in_anonymous_memfd(self):
+    def test_launcher_refresh_persists_to_authoritative_reviewer_store(self):
         fake_pi = self.root / "fake-pi-refresh"
         fake_pi.write_text('''#!/usr/bin/python3
 import json
@@ -344,7 +398,6 @@ print(json.dumps({
     "refresh_write_succeeded": reloaded.get("access") == "synthetic-refreshed-access",
     "refresh_expiry_advanced": reloaded.get("expires") == credential.get("expires"),
     "auth_path_remains_symlink": auth_path.is_symlink(),
-    "fd_remains_memfd": "memfd:pi-provider-auth" in os.readlink("/proc/self/fd/3"),
 }))
 ''')
         fake_pi.chmod(0o700)
@@ -363,8 +416,7 @@ print(json.dumps({
         self.assertTrue(report["refresh_write_succeeded"])
         self.assertTrue(report["refresh_expiry_advanced"])
         self.assertTrue(report["auth_path_remains_symlink"])
-        self.assertTrue(report["fd_remains_memfd"])
-        self.assertEqual(json.loads(self.auth_store.read_text())["openai"]["access"], "synthetic-test-access")
+        self.assertEqual(json.loads(self.auth_store.read_text())["openai"]["access"], "synthetic-refreshed-access")
 
     def test_launcher_rechecks_oauth_structure_before_exec(self):
         fake_pi = self.root / "fake-pi"
@@ -391,7 +443,7 @@ print(json.dumps({
             capture_output=True, check=False,
         )
         self.assertEqual(result.returncode, 125)
-        self.assertEqual(result.stderr.strip(), "ZHOOR isolated provider credential handoff failed")
+        self.assertEqual(result.stderr.strip(), "ZHOOR reviewer OAuth profile is invalid or its lock failed")
         self.assertFalse(executed.exists())
 
     def test_non_openai_provider_is_rejected(self):
@@ -546,9 +598,17 @@ class ZhoorInstalledPiAuthTests(unittest.TestCase):
         self.worktree.mkdir()
         self.scratch = self.root / "scratch"
         self.scratch.mkdir(mode=0o700)
-        self.auth_store = self.root / "controller-auth.json"
+        self.profile_dir = self.root / "reviewer-profile"
+        self.profile_dir.mkdir(mode=0o700, parents=True)
+        os.chmod(self.profile_dir, 0o700)
+        self.auth_store = self.profile_dir / "auth.json"
         self.auth_store.write_text("{}")
-        self.auth_patch = patch.object(zhoor_herdr, "PI_AUTH_STORE", self.auth_store)
+        os.chmod(self.auth_store, 0o600)
+        self.auth_patch = patch.multiple(
+            zhoor_herdr,
+            REVIEWER_PROFILE_DIR=self.profile_dir,
+            REVIEWER_AUTH_STORE=self.auth_store,
+        )
         self.auth_patch.start()
 
     def tearDown(self):
@@ -571,7 +631,7 @@ class ZhoorInstalledPiAuthTests(unittest.TestCase):
             raise AssertionError("installed Pi auth resolver module was not found")
         return auth_storage.as_uri(), pi_ai_resolver.as_uri()
 
-    def run_installed_auth_resolution(self, *, fail_persistence=False):
+    def run_installed_auth_resolution(self):
         auth_storage_uri, resolver_uri = self.installed_pi_auth_modules()
         node_script = self.root / "exercise-installed-auth.mjs"
         node_source = r'''import { existsSync, readlinkSync } from "node:fs";
@@ -603,7 +663,6 @@ const passed = outcomes.length === 2 && outcomes.every((item) =>
   item.status === "fulfilled" && item.value?.source === "OAuth" &&
   item.value?.auth?.token === "synthetic-refreshed-access");
 const persisted = await storage.read("openai");
-const descriptorTarget = readlinkSync("/proc/self/fd/3");
 console.log(JSON.stringify({
   refresh_calls: refreshCalls,
   oauth_results: passed,
@@ -612,24 +671,21 @@ console.log(JSON.stringify({
   complete_oauth_structure_preserved: persisted?.clientId === "synthetic-test-client" &&
     persisted?.scopes?.includes("chatgpt.tokens.use.direct") === true &&
     persisted?.accountMetadata?.tenant === "synthetic-test-tenant",
-  persisted_original_after_failure: persisted?.access === "synthetic-test-access",
-  auth_path_is_fd_symlink: readlinkSync(authPath) === "/proc/self/fd/3",
-  descriptor_is_anonymous_memfd: descriptorTarget.includes("memfd:pi-provider-auth"),
+  persisted_refreshed_at_authority: persisted?.access === "synthetic-refreshed-access",
+  auth_path_targets_authority: readlinkSync(authPath) === __EXPECTED_AUTH_PATH__,
   lock_removed: !existsSync(authPath + ".lock"),
 }));
 '''.replace("__AUTH_STORAGE_URI__", json.dumps(auth_storage_uri)).replace(
             "__RESOLVER_URI__", json.dumps(resolver_uri)
-        )
+        ).replace("__EXPECTED_AUTH_PATH__", json.dumps(str(self.auth_store)))
         node_script.write_text(node_source)
-        fake_pi = self.root / ("fake-pi-readonly" if fail_persistence else "fake-pi")
-        chmod_fd = "os.fchmod(3, 0o400)" if fail_persistence else "pass"
+        fake_pi = self.root / "fake-pi"
         fake_pi.write_text(
             "#!/usr/bin/python3\n"
             "import os, subprocess, sys\n"
             "if sys.argv[1:] == ['--version']:\n"
             "    print('0.99.1')\n"
             "    raise SystemExit(0)\n"
-            f"{chmod_fd}\n"
             f"result = subprocess.run(['node', {str(node_script)!r}], "
             "text=True, capture_output=True, pass_fds=(3,), check=False)\n"
             "sys.stdout.write(result.stdout)\n"
@@ -648,7 +704,6 @@ console.log(JSON.stringify({
             "accountMetadata": {"tenant": "synthetic-test-tenant"},
         }
         self.auth_store.write_text(json.dumps({"openai": credential}))
-        source_bytes_before = self.auth_store.read_bytes()
         args = spawn_args(self.worktree, self.scratch)
         with patch.object(zhoor_herdr.shutil, "which", return_value=str(fake_pi)):
             zhoor_herdr._prepare_pi_containment(
@@ -664,34 +719,156 @@ console.log(JSON.stringify({
             check=False,
         )
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual(self.auth_store.read_bytes(), source_bytes_before)
         report = json.loads(result.stdout)
         self.assertNotIn("synthetic-test-access", result.stdout)
         self.assertNotIn("synthetic-test-refresh", result.stdout)
         auth_path = self.scratch / "pi-config" / "auth.json"
         self.assertTrue(auth_path.is_symlink())
+        self.assertEqual(os.readlink(auth_path), str(self.auth_store))
         self.assertFalse(auth_path.with_name("auth.json.lock").exists())
         return report
 
-    def test_installed_pi_auth_storage_refreshes_concurrently_inside_memfd(self):
+    def test_rotating_oauth_refresh_is_shared_across_fresh_reviewer_lanes(self):
+        auth_storage_uri, resolver_uri = self.installed_pi_auth_modules()
+        profile_dir = self.profile_dir
+        server_state = self.root / "fake-oauth-server.json"
+        server_state.write_text(json.dumps({
+            "accepted_generation": "R1",
+            "refresh_attempts": [],
+        }))
+        self.auth_store.write_text(json.dumps({"openai": {
+            "type": "oauth",
+            "access": "synthetic-access-R1",
+            "refresh": "synthetic-refresh-R1",
+            "expires": 1,
+            "clientId": "synthetic-client",
+            "scopes": ["openid", "chatgpt.tokens.use.direct"],
+            "test_generation": "R1",
+        }}))
+        os.chmod(self.auth_store, 0o600)
+
+        node_script = self.root / "exercise-rotating-oauth.mjs"
+        node_source = r'''import { readFileSync, readlinkSync, writeFileSync } from "node:fs";
+import { AuthStorage } from __AUTH_STORAGE_URI__;
+import { resolveProviderAuth } from __RESOLVER_URI__;
+const authPath = process.env.PI_CODING_AGENT_DIR + "/auth.json";
+const storage = AuthStorage.create();
+const serverPath = process.env.ZHOOR_TEST_SERVER;
+let refreshAttempted = false;
+let providerRejection;
+const provider = {
+  id: "openai",
+  auth: { oauth: {
+    refresh: async (credential) => {
+      refreshAttempted = true;
+      const server = JSON.parse(readFileSync(serverPath, "utf8"));
+      server.refresh_attempts.push(credential.test_generation);
+      if (credential.test_generation !== server.accepted_generation) {
+        providerRejection = "invalid_grant";
+        writeFileSync(serverPath, JSON.stringify(server));
+        const error = new Error("invalid_grant");
+        error.code = "invalid_grant";
+        throw error;
+      }
+      const nextGeneration = "R2";
+      server.accepted_generation = nextGeneration;
+      writeFileSync(serverPath, JSON.stringify(server));
+      return { ...credential, access: "synthetic-access-R2", refresh: "synthetic-refresh-R2",
+        expires: Date.now() + 3600000, test_generation: nextGeneration };
+    },
+    toAuth: async (credential) => ({ token: credential.access }),
+  } },
+};
+const context = { env: async () => undefined, fileExists: () => false };
+let status = "ready";
+let errorCode;
+try {
+  await resolveProviderAuth(provider, storage, context);
+} catch (error) {
+  status = "error";
+  errorCode = providerRejection ?? error?.code ?? "other";
+}
+const persisted = await storage.read("openai");
+console.log(JSON.stringify({
+  status,
+  error_code: errorCode,
+  refresh_attempted: refreshAttempted,
+  persisted_generation: persisted?.test_generation,
+  session_dir: process.env.PI_CODING_AGENT_SESSION_DIR,
+  auth_target: (() => { try { return readlinkSync(authPath); } catch { return null; } })(),
+}));
+'''.replace("__AUTH_STORAGE_URI__", json.dumps(auth_storage_uri)).replace(
+            "__RESOLVER_URI__", json.dumps(resolver_uri)
+        ).replace("__EXPECTED_AUTH_PATH__", json.dumps(str(self.auth_store)))
+        node_script.write_text(node_source)
+
+        def run_lane(scratch: Path, role: str) -> dict:
+            fake_pi = self.root / f"fake-pi-{role}"
+            fake_pi.write_text(
+                "#!/usr/bin/python3\n"
+                "import os, subprocess, sys\n"
+                "if sys.argv[1:] == ['--version']:\n"
+                "    print('0.99.1')\n"
+                "    raise SystemExit(0)\n"
+                "env = dict(os.environ, ZHOOR_TEST_SERVER=" + repr(str(server_state)) + ")\n"
+                "result = subprocess.run(['node', " + repr(str(node_script)) + "], "
+                "text=True, capture_output=True, pass_fds=(3,), env=env, check=False)\n"
+                "sys.stdout.write(result.stdout)\n"
+                "if result.returncode:\n"
+                "    print('fake OAuth lane failed safely', file=sys.stderr)\n"
+                "raise SystemExit(result.returncode)\n"
+            )
+            fake_pi.chmod(0o700)
+            args = spawn_args(self.worktree, scratch)
+            with patch.object(zhoor_herdr.shutil, "which", return_value=str(fake_pi)):
+                zhoor_herdr._prepare_pi_containment(
+                    args.agent_args[1:],
+                    route=zhoor_herdr.resolve_audit_route(args.audit_tier),
+                    scratch=scratch,
+                )
+            result = subprocess.run(
+                [str(scratch / "bin" / "pi")],
+                text=True,
+                capture_output=True,
+                env={"PATH": "/usr/bin:/bin", "LANG": "C.UTF-8"},
+                check=False,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            return json.loads(result.stdout)
+
+        scratch_b = self.root / "scratch-b"
+        scratch_b.mkdir(mode=0o700)
+        lane_a = run_lane(self.scratch, "a")
+        lane_b = run_lane(scratch_b, "b")
+
+        server = json.loads(server_state.read_text())
+        source = json.loads(self.auth_store.read_text())["openai"]
+        self.assertEqual(lane_a["status"], "ready")
+        self.assertEqual(lane_a["persisted_generation"], "R2")
+        self.assertEqual(lane_b["status"], "ready", "lane B attempted stale R1 and got invalid_grant")
+        self.assertEqual(lane_b["persisted_generation"], "R2")
+        self.assertFalse(lane_b["refresh_attempted"], "fresh lane B must reuse R2 without refreshing R1")
+        self.assertNotEqual(lane_a["session_dir"], lane_b["session_dir"])
+        self.assertEqual(lane_a["auth_target"], str(self.auth_store))
+        self.assertEqual(lane_b["auth_target"], str(self.auth_store))
+        self.assertEqual(server["accepted_generation"], "R2")
+        self.assertEqual(server["refresh_attempts"], ["R1"])
+        self.assertEqual(source["test_generation"], "R2")
+
+    def test_installed_pi_auth_storage_refreshes_concurrently_at_authority(self):
         report = self.run_installed_auth_resolution()
         self.assertEqual(report["refresh_calls"], 1)
         self.assertTrue(report["oauth_results"])
         self.assertTrue(report["persisted_refreshed_credential"])
         self.assertTrue(report["complete_oauth_structure_preserved"])
-        self.assertTrue(report["auth_path_is_fd_symlink"])
-        self.assertTrue(report["descriptor_is_anonymous_memfd"])
+        self.assertTrue(report["auth_path_targets_authority"])
+        self.assertTrue(report["persisted_refreshed_at_authority"])
         self.assertTrue(report["lock_removed"])
 
-    def test_installed_pi_auth_storage_fails_closed_when_memfd_cannot_be_updated(self):
-        report = self.run_installed_auth_resolution(fail_persistence=True)
-        self.assertGreaterEqual(report["refresh_calls"], 1)
-        self.assertFalse(report["oauth_results"])
-        self.assertTrue(report["persistence_failed_safely"])
-        self.assertTrue(report["persisted_original_after_failure"])
-        self.assertTrue(report["auth_path_is_fd_symlink"])
-        self.assertTrue(report["descriptor_is_anonymous_memfd"])
-        self.assertTrue(report["lock_removed"])
+    def test_authoritative_profile_file_is_private(self):
+        self.run_installed_auth_resolution()
+        self.assertTrue(self.auth_store.is_file())
+        self.assertEqual(stat.S_IMODE(self.auth_store.stat().st_mode), 0o600)
 
 
 class ZhoorReadonlyGuardTests(unittest.TestCase):
@@ -796,9 +973,14 @@ class ZhoorInstalledFileToolIntegrationTests(unittest.TestCase):
         self.worktree = self.root / "worktree"
         self.home = self.root / "home"
         self.config = self.root / "pi-config"
+        self.reviewer_profile = self.root / "reviewer-profile"
         self.worktree.mkdir()
         self.home.mkdir()
         self.config.mkdir()
+        self.reviewer_profile.mkdir(mode=0o700)
+        self.reviewer_auth = self.reviewer_profile / "auth.json"
+        self.reviewer_auth.write_text("reviewer-profile-secret-sentinel\n")
+        os.chmod(self.reviewer_auth, 0o600)
         node = shutil.which("node")
         pi = shutil.which("pi")
         if not node or not pi:
@@ -931,6 +1113,7 @@ console.log(JSON.stringify(reports));
             {"tool": "find", "input": {"path": ".", "pattern": "inside.txt"}, "expectedText": "inside.txt"},
             {"tool": "ls", "input": {"path": "."}, "expectedText": "inside.txt"},
             {"tool": "read", "input": {"path": str(outside_file)}, "forbiddenText": "ZHOOR_DIRECT_OUTSIDE_SENTINEL"},
+            {"tool": "read", "input": {"path": str(self.reviewer_auth)}, "forbiddenText": "reviewer-profile-secret-sentinel"},
             {"tool": "read", "input": {"path": "escape.txt"}, "forbiddenText": "ZHOOR_DIRECT_OUTSIDE_SENTINEL"},
             {"tool": "grep", "input": {"path": ".", "pattern": "ZHOOR_RECURSIVE_SYMLINK_SENTINEL"}, "forbiddenText": "ZHOOR_RECURSIVE_SYMLINK_SENTINEL"},
             {"tool": "find", "input": {"path": ".", "pattern": "nested-marker.txt"}, "forbiddenText": "nested-marker.txt"},
@@ -938,8 +1121,8 @@ console.log(JSON.stringify(reports));
         reports = self.run_installed_tools(cases)
         self.assertEqual([item["blocked"] for item in reports[:4]], [False] * 4)
         self.assertTrue(all(item.get("expectedFound") for item in reports[:4]))
-        self.assertEqual([item["blocked"] for item in reports[4:6]], [True, True])
-        self.assertEqual([item["blocked"] for item in reports[6:]], [False, False])
+        self.assertEqual([item["blocked"] for item in reports[4:7]], [True, True, True])
+        self.assertEqual([item["blocked"] for item in reports[7:]], [False, False])
         self.assertFalse(any(item.get("forbiddenFound", False) for item in reports[4:]))
 
 
@@ -950,7 +1133,10 @@ class ZhoorInstalledPiCliTests(unittest.TestCase):
         self.worktree = self.root / "worktree"
         self.worktree.mkdir()
         self.scratch_runs = 0
-        self.auth_store = self.root / "controller-auth.json"
+        self.profile_dir = self.root / "reviewer-profile"
+        self.profile_dir.mkdir(mode=0o700, parents=True)
+        os.chmod(self.profile_dir, 0o700)
+        self.auth_store = self.profile_dir / "auth.json"
         credential = {
             "type": "oauth",
             "access": "synthetic-cli-access",
@@ -960,7 +1146,12 @@ class ZhoorInstalledPiCliTests(unittest.TestCase):
             "scopes": ["openid", "chatgpt.tokens.use.direct"],
         }
         self.auth_store.write_text(json.dumps({"openai": credential}))
-        self.auth_patch = patch.object(zhoor_herdr, "PI_AUTH_STORE", self.auth_store)
+        os.chmod(self.auth_store, 0o600)
+        self.auth_patch = patch.multiple(
+            zhoor_herdr,
+            REVIEWER_PROFILE_DIR=self.profile_dir,
+            REVIEWER_AUTH_STORE=self.auth_store,
+        )
         self.auth_patch.start()
 
     def tearDown(self):
@@ -1135,14 +1326,22 @@ class ZhoorAuditRoutingTests(unittest.TestCase):
         self.scratch.mkdir(mode=0o700)
         self.worktree = self.root / "worktree"
         self.worktree.mkdir()
-        self.auth_store = self.root / "auth.json"
+        self.profile_dir = self.root / "reviewer-profile"
+        self.profile_dir.mkdir(mode=0o700, parents=True)
+        os.chmod(self.profile_dir, 0o700)
+        self.auth_store = self.profile_dir / "auth.json"
         self.auth_store.write_text(json.dumps({"openai": {
             "type": "oauth", "access": "synthetic-routing-access",
             "refresh": "synthetic-routing-refresh", "expires": 2_000_000_000_000,
             "clientId": "synthetic-routing-client",
             "scopes": ["chatgpt.tokens.use.direct"],
         }}))
-        self.auth_patch = patch.object(zhoor_herdr, "PI_AUTH_STORE", self.auth_store)
+        os.chmod(self.auth_store, 0o600)
+        self.auth_patch = patch.multiple(
+            zhoor_herdr,
+            REVIEWER_PROFILE_DIR=self.profile_dir,
+            REVIEWER_AUTH_STORE=self.auth_store,
+        )
         self.auth_patch.start()
 
     def tearDown(self):

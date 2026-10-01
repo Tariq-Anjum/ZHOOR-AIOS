@@ -54,8 +54,9 @@
 - At verified card or maintenance closeout, persist and synchronize durable
   changed state, or record `MEMORY_CLOSEOUT=NO_CHANGE`.
 - If canonical memory write, validation, or synchronization fails, preserve the
-  verified ZHOOR state and do not start another owner-assigned product card
-  until reconciled. If only OB1 mirroring fails, preserve canonical memory,
-  report `MEMORY_SYNC_DEGRADED`, and do not silently start another card.
+  verified ZHOOR state, report `MEMORY_SYNC_FAILED`, and do not start another
+  owner-assigned product card until reconciled. If only OB1 mirroring fails,
+  preserve canonical memory, report `MEMORY_SYNC_DEGRADED`, and do not silently
+  start another card.
 - A current explicit owner instruction `NO_MEMORY_SYNC` overrides this
   lifecycle for that task.

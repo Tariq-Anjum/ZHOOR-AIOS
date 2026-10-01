@@ -182,7 +182,9 @@ focusing its tab. The current verified subordinate profile is Pi with an
 allowlisted environment, isolated HOME/XDG/Pi/temp directories, read-only
 file tools, and a controller-managed guard that blocks paths outside the
 assigned worktree. The helper fails closed for harnesses without a verified
-containment profile.
+containment profile. Reviewer CWD must equal the assigned worktree root,
+because the guard takes its boundary from Pi's process CWD; descendant CWDs are
+rejected to avoid narrowing the readable worktree.
 
 For permanent reviewer lanes, select only an explicit helper tier:
 `--audit-tier primary` launches Pi with `openai` / ChatGPT subscription OAuth,

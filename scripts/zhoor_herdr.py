@@ -401,12 +401,14 @@ def _validate_checkout(cwd: Path, worktree: Path, starting_sha: str, runner: Run
     if not cwd.is_dir() or not worktree.is_dir():
         raise LaneError("assigned CWD/worktree does not exist")
     real_cwd, real_worktree = cwd.resolve(), worktree.resolve()
+    if real_cwd != real_worktree:
+        raise LaneError("Pi review CWD must equal assigned worktree root")
     try:
         top = Path(run(["git", "-C", str(real_cwd), "rev-parse", "--show-toplevel"], runner=runner).strip()).resolve()
         head = run(["git", "-C", str(real_worktree), "rev-parse", "HEAD"], runner=runner).strip()
     except LaneError as exc:
         raise LaneError("assigned path is not a readable Git worktree") from exc
-    if top != real_worktree or (real_cwd != real_worktree and real_worktree not in real_cwd.parents):
+    if top != real_worktree:
         raise LaneError("CWD is outside the assigned worktree")
     if head != starting_sha:
         raise LaneError("worktree HEAD does not match starting SHA")

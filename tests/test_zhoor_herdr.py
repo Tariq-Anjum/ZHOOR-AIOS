@@ -215,6 +215,16 @@ class ZhoorHerdrTopologyTests(unittest.TestCase):
         self.assertEqual(list(outside.iterdir()), [])
         self.assertEqual(fake.calls, [])
 
+    def test_reviewer_rejects_descendant_cwd_before_creating_tab(self):
+        nested_cwd = self.cwd / "nested"
+        nested_cwd.mkdir()
+        args = spawn_args(self.cwd, self.scratch)
+        args.cwd = str(nested_cwd)
+        fake = FakeHerdr(self.cwd)
+        with self.assertRaisesRegex(zhoor_herdr.LaneError, "Pi review CWD must equal assigned worktree root"):
+            zhoor_herdr.spawn_agent(args, runner=fake, registry_path=self.registry)
+        self.assertFalse(any(call[:3] == ["herdr", "tab", "create"] for call in fake.calls))
+
     def test_legacy_openai_codex_provider_is_rejected(self):
         auth = json.loads(self.auth_store.read_text())
         auth["openai-codex"] = {

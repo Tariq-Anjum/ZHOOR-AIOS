@@ -13,6 +13,7 @@ import stat
 import subprocess
 import sys
 import tempfile
+import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -51,6 +52,8 @@ TERMINAL_LANE_STATES = {
 }
 OPENAI_CHATGPT_DIRECT_SCOPE = "chatgpt.tokens.use.direct"
 PINNED_PI_VERSION = "0.99.1"
+SIDEBAR_METADATA_WAIT_ATTEMPTS = 20
+SIDEBAR_METADATA_WAIT_INTERVAL_SECONDS = 0.1
 REVIEW_SYSTEM_PROMPT = (
     "You are an independent ZHOOR reviewer working in a read-only lane. "
     "Use only the provided read-only file tools, and base claims about repository "
@@ -652,6 +655,36 @@ def _interactive_pane_check(tab_id: str, root_pane_id: str, tabs: list[dict[str,
     return interactive, managed_ui
 
 
+def _sidebar_metadata_pending(tab_id: str, root_pane_id: str, tabs: list[dict[str, Any]], panes: list[dict[str, Any]]) -> bool:
+    try:
+        tab_panes = _tab_panes(tab_id, tabs, panes)
+    except LaneError:
+        return False
+    if len(tab_panes) != 2:
+        return False
+    roots = [pane for pane in tab_panes if pane.get("pane_id") == root_pane_id]
+    extras = [pane for pane in tab_panes if pane.get("pane_id") != root_pane_id]
+    if len(roots) != 1 or len(extras) != 1:
+        return False
+    sidebar = extras[0]
+    return sidebar.get("label") == "Sidebar" and sidebar.get("tokens") in (None, {})
+
+
+def _wait_for_tab_layout(workspace: str, tab_id: str, root_pane_id: str, *, runner: Runner) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    for attempt in range(SIDEBAR_METADATA_WAIT_ATTEMPTS):
+        tabs, panes = _tab_inventory(workspace, runner)
+        try:
+            return _interactive_pane_check(tab_id, root_pane_id, tabs, panes)
+        except LaneError:
+            if (
+                attempt + 1 >= SIDEBAR_METADATA_WAIT_ATTEMPTS
+                or not _sidebar_metadata_pending(tab_id, root_pane_id, tabs, panes)
+            ):
+                raise
+            time.sleep(SIDEBAR_METADATA_WAIT_INTERVAL_SECONDS)
+    raise LaneError("created tab layout did not become ready")
+
+
 def _restore_focus(controller_tab_id: str | None, *, runner: Runner) -> tuple[bool, bool]:
     """Return (focus_changed, focus_restored), restoring only the recorded controller tab."""
     current = _snapshot(runner).get("focused_tab_id")
@@ -766,8 +799,7 @@ def spawn_agent(args: argparse.Namespace, *, runner: Runner = subprocess.run, re
         lane["focus_restored"] = focus_restored
         topology_problem: str | None = None if focus_restored else "controller focus could not be restored and verified"
         try:
-            tabs, panes = _tab_inventory(args.workspace, runner)
-            interactive, managed_ui = _interactive_pane_check(tab_id, pane_id, tabs, panes)
+            interactive, managed_ui = _wait_for_tab_layout(args.workspace, tab_id, pane_id, runner=runner)
             if Path(interactive[0].get("cwd", "")).resolve() != cwd.resolve():
                 topology_problem = topology_problem or "new root pane CWD differs from assigned CWD"
             lane["interactive_pane_ids"] = [pane["pane_id"] for pane in interactive]
@@ -843,9 +875,8 @@ def spawn_agent(args: argparse.Namespace, *, runner: Runner = subprocess.run, re
             lane["status"] = "TOPOLOGY_FAILED"
             _write_registry(registry_path, registry)
             raise LaneError("controller focus could not be restored after role handshake")
-        final_tabs, final_panes = _tab_inventory(args.workspace, runner)
         try:
-            interactive, managed_ui = _interactive_pane_check(tab_id, pane_id, final_tabs, final_panes)
+            interactive, managed_ui = _wait_for_tab_layout(args.workspace, tab_id, pane_id, runner=runner)
         except LaneError:
             lane["status"] = "TOPOLOGY_FAILED"
             _write_registry(registry_path, registry)

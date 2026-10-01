@@ -26,7 +26,7 @@ SHA = "480d4e801e53480beced1a609622a027d3806828"
 
 
 class FakeHerdr:
-    def __init__(self, cwd: Path, *, panes: int = 2, extra_kind: str = "sidebar", focus_changes: bool = False, delayed_focus_change: bool = False, restore_fails: bool = False, fail_create: bool = False):
+    def __init__(self, cwd: Path, *, panes: int = 2, extra_kind: str = "sidebar", focus_changes: bool = False, delayed_focus_change: bool = False, restore_fails: bool = False, fail_create: bool = False, sidebar_metadata_delay: int = 0):
         self.cwd = cwd
         self.pane_count = panes
         self.extra_kind = extra_kind
@@ -34,6 +34,8 @@ class FakeHerdr:
         self.delayed_focus_change = delayed_focus_change
         self.restore_fails = restore_fails
         self.fail_create = fail_create
+        self.sidebar_metadata_delay = sidebar_metadata_delay
+        self.pane_list_calls = 0
         self.created = False
         self.focused_tab = "controller-tab"
         self.calls: list[list[str]] = []
@@ -66,6 +68,7 @@ class FakeHerdr:
                 tabs.append({"tab_id": "new-tab", "pane_count": self.pane_count})
             return subprocess.CompletedProcess(args, 0, json.dumps({"result": {"tabs": tabs}}), "")
         if args[:3] == ["herdr", "pane", "list"]:
+            self.pane_list_calls += 1
             if self.created and self.delayed_focus_change:
                 self.focused_tab = "new-tab"
                 self.delayed_focus_change = False
@@ -74,8 +77,10 @@ class FakeHerdr:
                 panes = [{"tab_id": "new-tab", "pane_id": "root-pane", "cwd": str(self.cwd)}]
                 for idx in range(1, self.pane_count):
                     extra = {"tab_id": "new-tab", "pane_id": f"extra-pane-{idx}", "cwd": str(self.cwd)}
-                    if self.extra_kind == "sidebar":
+                    if self.extra_kind == "sidebar" and self.pane_list_calls > self.sidebar_metadata_delay:
                         extra.update({"label": "Sidebar", "tokens": {"herdr-sidebar-explorer": "test"}})
+                    elif self.extra_kind == "sidebar":
+                        extra.update({"label": "Sidebar"})
                     elif self.extra_kind == "interactive":
                         extra.update({"agent": f"worker-{idx}", "agent_status": "idle"})
                     else:
@@ -413,6 +418,23 @@ else:
         self.assertEqual(version.returncode, 0)
         self.assertIn("0.99.1", version.stdout)
         self.assertFalse(any(call[:2] == ["herdr", "pane"] and "split" in call for call in fake.calls))
+
+    def test_spawn_waits_for_sidebar_ownership_metadata_before_agent_start(self):
+        fake = FakeHerdr(self.cwd, sidebar_metadata_delay=1)
+        with patch.object(time, "sleep", return_value=None):
+            lane = zhoor_herdr.spawn_agent(spawn_args(self.cwd, self.scratch), runner=fake, registry_path=self.registry)
+        self.assertEqual(lane["status"], "ROLE_HANDSHAKE_PENDING")
+        self.assertGreaterEqual(fake.pane_list_calls, 2)
+
+    def test_spawn_fails_closed_when_sidebar_ownership_metadata_never_arrives(self):
+        fake = FakeHerdr(self.cwd, sidebar_metadata_delay=100)
+        with patch.object(time, "sleep", return_value=None):
+            with self.assertRaisesRegex(zhoor_herdr.LaneError, "not positively identified as Herdr UI"):
+                zhoor_herdr.spawn_agent(spawn_args(self.cwd, self.scratch), runner=fake, registry_path=self.registry)
+        lane = json.loads(self.registry.read_text())["lanes"][0]
+        self.assertEqual(lane["status"], "TOPOLOGY_FAILED")
+        self.assertEqual(fake.pane_list_calls, zhoor_herdr.SIDEBAR_METADATA_WAIT_ATTEMPTS)
+        self.assertFalse(any(call[:3] == ["herdr", "agent", "start"] for call in fake.calls))
 
     def test_unreviewed_pi_version_fails_before_reviewer_runtime_setup(self):
         fake_pi = self.root / "pi-newer"

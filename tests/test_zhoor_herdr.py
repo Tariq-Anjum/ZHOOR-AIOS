@@ -96,7 +96,7 @@ def spawn_args(cwd: Path, scratch: Path) -> SimpleNamespace:
         scratch=str(scratch),
         starting_sha=SHA,
         label="ARCH · Pi · Sol-high",
-        agent_args=["--", "--provider", "openai", "--model", "gpt-6.1-sol", "--thinking", "high", "--no-extensions", "--no-skills", "--no-prompt-templates", "--no-themes", "--no-context-files", "--no-approve", "--tools", "read,grep,find,ls", "--name", "pro01-arch-review", "--system-prompt", "Role-only handshake; inspect no source."],
+        agent_args=["--", "--provider", "openai", "--model", "gpt-6.1-sol", "--thinking", "high", "--no-extensions", "--no-skills", "--no-prompt-templates", "--no-themes", "--no-context-files", "--no-approve", "--tools", "read,grep,find,ls", "--name", "pro01-arch-review"],
     )
 
 
@@ -154,6 +154,10 @@ class ZhoorHerdrTopologyTests(unittest.TestCase):
         self.assertIn(f"PI_CODING_AGENT_DIR={self.scratch}/pi-config", create)
         self.assertIn(f"PI_CODING_AGENT_SESSION_DIR={self.scratch}/pi-sessions", create)
         start_args = start[start.index("--") + 1:]
+        self.assertEqual(
+            start_args[start_args.index("--system-prompt") + 1],
+            zhoor_herdr.REVIEW_SYSTEM_PROMPT,
+        )
         guard_index = start_args.index("--extension")
         guard_path = Path(start_args[guard_index + 1])
         wrapper = self.scratch / "bin" / "pi"
@@ -181,6 +185,35 @@ class ZhoorHerdrTopologyTests(unittest.TestCase):
         with self.assertRaisesRegex(zhoor_herdr.LaneError, "OpenAI ChatGPT OAuth credential is missing or invalid"):
             zhoor_herdr.spawn_agent(spawn_args(self.cwd, self.scratch), runner=fake, registry_path=self.registry)
         self.assertFalse(any(call[:3] == ["herdr", "tab", "create"] for call in fake.calls))
+
+    def test_caller_cannot_supply_system_prompt_or_open_fd_as_prompt_file(self):
+        args = spawn_args(self.cwd, self.scratch)
+        args.agent_args += ["--system-prompt", "/proc/self/fd/3"]
+        fake = FakeHerdr(self.cwd)
+        with self.assertRaisesRegex(zhoor_herdr.LaneError, "unapproved Pi launch option"):
+            zhoor_herdr.spawn_agent(args, runner=fake, registry_path=self.registry)
+        self.assertFalse(any(call[:3] == ["herdr", "tab", "create"] for call in fake.calls))
+
+    def test_nonempty_scratch_cannot_be_reused(self):
+        marker = self.scratch / "stale-lane-data"
+        marker.write_text("preserve this file")
+        fake = FakeHerdr(self.cwd)
+        with self.assertRaisesRegex(zhoor_herdr.LaneError, "fresh empty scratch"):
+            zhoor_herdr.spawn_agent(spawn_args(self.cwd, self.scratch), runner=fake, registry_path=self.registry)
+        self.assertEqual(marker.read_text(), "preserve this file")
+        self.assertEqual(fake.calls, [])
+
+    def test_symlink_scratch_root_is_rejected_without_writing_through_it(self):
+        outside = self.root / "outside-scratch"
+        outside.mkdir(mode=0o700)
+        alias = self.root / "scratch-alias"
+        alias.symlink_to(outside, target_is_directory=True)
+        args = spawn_args(self.cwd, alias)
+        fake = FakeHerdr(self.cwd)
+        with self.assertRaisesRegex(zhoor_herdr.LaneError, "scratch directory must not contain symlink components"):
+            zhoor_herdr.spawn_agent(args, runner=fake, registry_path=self.registry)
+        self.assertEqual(list(outside.iterdir()), [])
+        self.assertEqual(fake.calls, [])
 
     def test_legacy_openai_codex_provider_is_rejected(self):
         auth = json.loads(self.auth_store.read_text())
@@ -464,8 +497,9 @@ print(json.dumps({
         evidence = self.root / "containment.md"
         evidence.write_text("sanitized test evidence")
         zhoor_herdr.set_containment("ARCH", "PASS", evidence=str(evidence), registry_path=self.registry)
-        zhoor_herdr.send_prompt("ARCH", "adjudication packet", runner=fake, registry_path=self.registry)
+        zhoor_herdr.send_prompt("ARCH", "/thinking low", runner=fake, registry_path=self.registry)
         self.assertEqual(fake.calls[-1][:3], ["herdr", "agent", "prompt"])
+        self.assertTrue(fake.calls[-1][-1].startswith("ZHOOR reviewer task text follows as literal user content:\n\n/thinking low"))
 
 
 class ZhoorInstalledPiAuthTests(unittest.TestCase):
@@ -759,7 +793,6 @@ class ZhoorInstalledPiCliTests(unittest.TestCase):
             "--no-approve",
             "--tools", "read,grep,find,ls",
             "--name", f"zhoor-user-bash-regression-{self.scratch_runs}",
-            "--system-prompt", "Installed Pi user shell containment regression.",
         ]
         sandbox_args, _ = zhoor_herdr._prepare_pi_containment(
             args,
@@ -931,7 +964,6 @@ class ZhoorAuditRoutingTests(unittest.TestCase):
             "--no-themes", "--no-context-files", "--no-approve",
             "--tools", "read,grep,find,ls",
             "--name", "typed-audit-review",
-            "--system-prompt", "Read-only independent review.",
             *extra,
         ]
 

@@ -28,6 +28,12 @@ TERMINAL_LANE_STATES = {
     "AGENT_START_FAILED", "ROLE_HANDSHAKE_FAILED", "QUARANTINED",
 }
 OPENAI_CHATGPT_DIRECT_SCOPE = "chatgpt.tokens.use.direct"
+REVIEW_SYSTEM_PROMPT = (
+    "You are an independent ZHOOR reviewer working in a read-only lane. "
+    "Use only the provided read-only file tools, and base claims about repository "
+    "contents or command outcomes on their results."
+)
+PROMPT_ENVELOPE = "ZHOOR reviewer task text follows as literal user content:\n\n"
 Runner = Callable[..., subprocess.CompletedProcess[str]]
 AuditTier = Literal["primary", "secondary"]
 
@@ -83,7 +89,6 @@ def _validate_pi_launch_args(agent_args: list[str], route: AuditRoute) -> None:
         "--thinking": route.reasoning,
         "--tools": "read,grep,find,ls",
         "--name": None,
-        "--system-prompt": None,
     }
     required_flags = {
         "--no-extensions", "--no-skills", "--no-prompt-templates",
@@ -123,6 +128,63 @@ def _validate_pi_launch_args(agent_args: list[str], route: AuditRoute) -> None:
         raise LaneError("Pi containment requires exactly the read-only file tools")
 
 
+def _validate_scratch_directory(path: str | Path) -> Path:
+    scratch = Path(path).absolute()
+    try:
+        resolved = scratch.resolve(strict=True)
+        scratch_stat = scratch.lstat()
+    except OSError:
+        raise LaneError("assigned scratch directory does not exist or cannot be inspected") from None
+    if resolved != scratch:
+        raise LaneError("scratch directory must not contain symlink components")
+    if not stat.S_ISDIR(scratch_stat.st_mode):
+        raise LaneError("assigned scratch path is not a real directory")
+    if scratch_stat.st_uid != os.getuid() or stat.S_IMODE(scratch_stat.st_mode) & 0o077:
+        raise LaneError("assigned scratch directory must be owned by the controller user and private")
+    try:
+        with os.scandir(scratch) as entries:
+            if next(entries, None) is not None:
+                raise LaneError("assigned scratch directory must be fresh empty scratch")
+    except OSError:
+        raise LaneError("assigned scratch directory cannot be inspected") from None
+    return scratch
+
+
+def _claim_fresh_scratch(scratch: Path) -> None:
+    flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC
+    try:
+        directory_fd = os.open(scratch, flags)
+    except OSError:
+        raise LaneError("scratch directory changed or contains symlink components") from None
+    try:
+        opened = os.fstat(directory_fd)
+        current = scratch.lstat()
+        if (
+            not stat.S_ISDIR(opened.st_mode)
+            or opened.st_dev != current.st_dev
+            or opened.st_ino != current.st_ino
+            or opened.st_uid != os.getuid()
+            or stat.S_IMODE(opened.st_mode) & 0o077
+            or scratch.resolve(strict=True) != scratch
+        ):
+            raise LaneError("scratch directory changed or is not private")
+        if os.listdir(directory_fd):
+            raise LaneError("assigned scratch directory must be fresh empty scratch")
+        claim_fd = os.open(
+            ".zhoor-lane-claim",
+            os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW | os.O_CLOEXEC,
+            0o600,
+            dir_fd=directory_fd,
+        )
+        os.close(claim_fd)
+    except FileExistsError:
+        raise LaneError("assigned scratch directory has already been claimed") from None
+    except OSError:
+        raise LaneError("assigned scratch directory could not be claimed safely") from None
+    finally:
+        os.close(directory_fd)
+
+
 def _prepare_pi_containment(
     agent_args: list[str], *, route: AuditRoute, scratch: Path,
 ) -> tuple[list[str], dict[str, str]]:
@@ -152,17 +214,33 @@ def _prepare_pi_containment(
     guard_source = Path(__file__).with_name("zhoor_pi_readonly_guard.ts")
     if not guard_source.is_file():
         raise LaneError("controller-authored Pi read-only guard is missing")
+    private_directories = (
+        scratch / "home",
+        scratch / "tmp",
+        scratch / "xdg",
+        scratch / "pi-config",
+        scratch / "pi-sessions",
+        scratch / "bin",
+        scratch / "xdg" / "config",
+        scratch / "xdg" / "cache",
+        scratch / "xdg" / "state",
+    )
+    try:
+        for directory in private_directories:
+            directory.mkdir(mode=0o700)
+            os.chmod(directory, 0o700)
+    except OSError:
+        raise LaneError("fresh reviewer runtime directories could not be created safely") from None
+
     pi_config = scratch / "pi-config"
     extension_dir = pi_config / "extensions"
-    extension_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
+    extension_dir.mkdir(mode=0o700)
     os.chmod(extension_dir, 0o700)
     guard_path = extension_dir / "zhoor-readonly-guard.ts"
     shutil.copyfile(guard_source, guard_path)
     os.chmod(guard_path, 0o400)
 
     bin_dir = scratch / "bin"
-    bin_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
-    os.chmod(bin_dir, 0o700)
     wrapper = bin_dir / "pi"
     isolated = {
         "HOME": scratch / "home",
@@ -181,11 +259,7 @@ def _prepare_pi_containment(
         "PI_TELEMETRY": "0",
     }
     auth_link = pi_config / "auth.json"
-    if auth_link.exists() or auth_link.is_symlink():
-        if not auth_link.is_symlink() or os.readlink(auth_link) != "/proc/self/fd/3":
-            raise LaneError("isolated Pi auth path already exists with an unexpected type")
-    else:
-        auth_link.symlink_to("/proc/self/fd/3")
+    auth_link.symlink_to("/proc/self/fd/3")
 
     # Herdr starts the executable found in the lane PATH. This small launcher
     # reads only the approved provider entry, copies it to an anonymous memfd,
@@ -248,7 +322,7 @@ except Exception:
 """.replace("__CONFIG__", repr(launcher_config))
     wrapper.write_text(wrapper_text)
     os.chmod(wrapper, 0o700)
-    sandbox_args = ["--extension", str(guard_path)]
+    sandbox_args = ["--system-prompt", REVIEW_SYSTEM_PROMPT, "--extension", str(guard_path)]
     launch_env = {
         "PATH": f"{bin_dir}:/usr/bin:/bin",
         "HOME": str(scratch / "home"),
@@ -395,12 +469,7 @@ def spawn_agent(args: argparse.Namespace, *, runner: Runner = subprocess.run, re
         raise LaneError("agent name is not valid for Herdr")
     if not args.cwd or not args.worktree or not args.scratch or not args.starting_sha:
         raise LaneError("CWD, worktree, scratch directory, and starting SHA are required")
-    scratch = Path(args.scratch).resolve()
-    if not scratch.is_dir():
-        raise LaneError("assigned scratch directory does not exist")
-    scratch_stat = scratch.stat()
-    if scratch_stat.st_uid != os.getuid() or stat.S_IMODE(scratch_stat.st_mode) & 0o077:
-        raise LaneError("assigned scratch directory must be owned by the controller user and private")
+    scratch = _validate_scratch_directory(args.scratch)
     if args.kind != "pi":
         raise LaneError("no verified containment profile is installed for this agent harness")
     agent_args = list(args.agent_args)
@@ -408,6 +477,7 @@ def spawn_agent(args: argparse.Namespace, *, runner: Runner = subprocess.run, re
         agent_args = agent_args[1:]
     if not agent_args:
         raise LaneError("explicit native agent launch arguments are required")
+    _validate_pi_launch_args(agent_args, route)
 
     registry_path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
     lock_path = registry_path.with_suffix(registry_path.suffix + ".lock")
@@ -436,9 +506,7 @@ def spawn_agent(args: argparse.Namespace, *, runner: Runner = subprocess.run, re
             "PI_CODING_AGENT_DIR": scratch / "pi-config",
             "PI_CODING_AGENT_SESSION_DIR": scratch / "pi-sessions",
         })
-        for runtime_path in runtime_paths.values():
-            runtime_path.mkdir(mode=0o700, parents=True, exist_ok=True)
-            os.chmod(runtime_path, 0o700)
+        _claim_fresh_scratch(scratch)
         lane_env = [f"{key}={value}" for key, value in runtime_paths.items()]
         containment_args, launch_env = _prepare_pi_containment(agent_args, route=route, scratch=scratch)
         lane_env.append(f"PATH={launch_env['PATH']}")
@@ -688,7 +756,10 @@ def send_prompt(role: str, text: str, *, runner: Runner = subprocess.run, regist
     lane = lanes[0]
     if lane.get("containment_status") != "PASS":
         raise LaneError("prompt refused before AGENT_CONTAINMENT=PASS")
-    return run(["herdr", "agent", "prompt", lane["agent_name"], text], runner=runner)
+    return run(
+        ["herdr", "agent", "prompt", lane["agent_name"], f"{PROMPT_ENVELOPE}{text}"],
+        runner=runner,
+    )
 
 
 def wait_agent(role: str, timeout_ms: int | None = None, *, runner: Runner = subprocess.run, registry_path: Path = REGISTRY) -> str:

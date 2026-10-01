@@ -991,7 +991,7 @@ console.log(JSON.stringify({
         profile_dir = self.profile_dir
         server_state = self.root / "fake-oauth-server.json"
         server_state.write_text(json.dumps({
-            "accepted_generation": "R1",
+            "accepted_refresh": "synthetic-refresh-R1",
             "refresh_attempts": [],
         }))
         self.auth_store.write_text(json.dumps({"openai": {
@@ -1001,7 +1001,6 @@ console.log(JSON.stringify({
             "expires": 1,
             "clientId": "synthetic-client",
             "scopes": ["openid", "chatgpt.tokens.use.direct"],
-            "test_generation": "R1",
         }}))
         os.chmod(self.auth_store, 0o600)
 
@@ -1020,20 +1019,29 @@ const provider = {
     refresh: async (credential) => {
       refreshAttempted = true;
       const server = JSON.parse(readFileSync(serverPath, "utf8"));
-      server.refresh_attempts.push(credential.test_generation);
-      if (credential.test_generation !== server.accepted_generation) {
+      server.refresh_attempts.push(credential.refresh);
+      if (credential.refresh !== server.accepted_refresh) {
         providerRejection = "invalid_grant";
         writeFileSync(serverPath, JSON.stringify(server));
         const error = new Error("invalid_grant");
         error.code = "invalid_grant";
         throw error;
       }
-      const currentGeneration = Number(credential.test_generation.slice(1));
-      const nextGeneration = `R${currentGeneration + 1}`;
-      server.accepted_generation = nextGeneration;
+      const match = /^synthetic-refresh-R([1-9][0-9]*)$/.exec(credential.refresh);
+      if (!match) {
+        providerRejection = "invalid_grant";
+        writeFileSync(serverPath, JSON.stringify(server));
+        const error = new Error("invalid_grant");
+        error.code = "invalid_grant";
+        throw error;
+      }
+      const nextGeneration = `R${Number(match[1]) + 1}`;
+      const nextRefresh = `synthetic-refresh-${nextGeneration}`;
+      const nextAccess = `synthetic-access-${nextGeneration}`;
+      server.accepted_refresh = nextRefresh;
       writeFileSync(serverPath, JSON.stringify(server));
-      return { ...credential, access: "synthetic-access-R2", refresh: "synthetic-refresh-R2",
-        expires: Date.now() + 3600000, test_generation: nextGeneration };
+      return { ...credential, access: nextAccess, refresh: nextRefresh,
+        expires: Date.now() + 3600000 };
     },
     toAuth: async (credential) => ({ token: credential.access }),
   } },
@@ -1052,7 +1060,8 @@ console.log(JSON.stringify({
   status,
   error_code: errorCode,
   refresh_attempted: refreshAttempted,
-  persisted_generation: persisted?.test_generation,
+  persisted_refresh: persisted?.refresh,
+  persisted_access: persisted?.access,
   session_dir: process.env.PI_CODING_AGENT_SESSION_DIR,
   auth_target: (() => { try { return readlinkSync(authPath); } catch { return null; } })(),
 }));
@@ -1103,16 +1112,20 @@ console.log(JSON.stringify({
         server = json.loads(server_state.read_text())
         source = json.loads(self.auth_store.read_text())["openai"]
         self.assertEqual(lane_a["status"], "ready")
-        self.assertEqual(lane_a["persisted_generation"], "R2")
+        self.assertTrue(lane_a["refresh_attempted"])
+        self.assertEqual(lane_a["persisted_refresh"], "synthetic-refresh-R2")
+        self.assertEqual(lane_a["persisted_access"], "synthetic-access-R2")
         self.assertEqual(lane_b["status"], "ready", "lane B attempted stale R1 and got invalid_grant")
-        self.assertEqual(lane_b["persisted_generation"], "R2")
+        self.assertEqual(lane_b["persisted_refresh"], "synthetic-refresh-R2")
+        self.assertEqual(lane_b["persisted_access"], "synthetic-access-R2")
         self.assertFalse(lane_b["refresh_attempted"], "fresh lane B must reuse R2 without refreshing R1")
         self.assertNotEqual(lane_a["session_dir"], lane_b["session_dir"])
         self.assertEqual(lane_a["auth_target"], str(self.auth_store))
         self.assertEqual(lane_b["auth_target"], str(self.auth_store))
-        self.assertEqual(server["accepted_generation"], "R2")
-        self.assertEqual(server["refresh_attempts"], ["R1"])
-        self.assertEqual(source["test_generation"], "R2")
+        self.assertEqual(server["accepted_refresh"], "synthetic-refresh-R2")
+        self.assertEqual(server["refresh_attempts"], ["synthetic-refresh-R1"])
+        self.assertEqual(source["refresh"], "synthetic-refresh-R2")
+        self.assertEqual(source["access"], "synthetic-access-R2")
 
         scratch_c = self.root / "scratch-c"
         scratch_c.mkdir(mode=0o700)
@@ -1124,21 +1137,22 @@ console.log(JSON.stringify({
         source = json.loads(self.auth_store.read_text())["openai"]
         self.assertEqual(lane_c["status"], "ready")
         self.assertTrue(lane_c["refresh_attempted"])
-        self.assertEqual(lane_c["persisted_generation"], "R3")
-        self.assertEqual(server["accepted_generation"], "R3")
-        self.assertEqual(server["refresh_attempts"], ["R1", "R2"])
-        self.assertEqual(source["test_generation"], "R3")
+        self.assertEqual(lane_c["persisted_refresh"], "synthetic-refresh-R3")
+        self.assertEqual(lane_c["persisted_access"], "synthetic-access-R3")
+        self.assertEqual(server["accepted_refresh"], "synthetic-refresh-R3")
+        self.assertEqual(server["refresh_attempts"], ["synthetic-refresh-R1", "synthetic-refresh-R2"])
+        self.assertEqual(source["refresh"], "synthetic-refresh-R3")
+        self.assertEqual(source["access"], "synthetic-access-R3")
 
         # Reproduce the pre-fix design: both private stores begin with R1.
         # Lane A rotates the server's credential to R2 but can persist only to
         # its copy. Lane B's stale R1 is then rejected with invalid_grant.
-        server_state.write_text(json.dumps({"accepted_generation": "R1", "refresh_attempts": []}))
+        server_state.write_text(json.dumps({"accepted_refresh": "synthetic-refresh-R1", "refresh_attempts": []}))
         stale_r1 = {
             "type": "oauth", "access": "synthetic-access-R1",
             "refresh": "synthetic-refresh-R1", "expires": 1,
             "clientId": "synthetic-client",
             "scopes": ["openid", "chatgpt.tokens.use.direct"],
-            "test_generation": "R1",
         }
         self.auth_store.write_text(json.dumps({"openai": stale_r1}))
 
@@ -1165,14 +1179,14 @@ console.log(JSON.stringify({
         server = json.loads(server_state.read_text())
         source = json.loads(self.auth_store.read_text())["openai"]
         self.assertEqual(copy_a["status"], "ready")
-        self.assertEqual(copy_a["persisted_generation"], "R2")
+        self.assertEqual(copy_a["persisted_refresh"], "synthetic-refresh-R2")
         self.assertEqual(copy_b["status"], "error")
         self.assertEqual(copy_b["error_code"], "invalid_grant")
         self.assertTrue(copy_b["refresh_attempted"])
-        self.assertEqual(copy_b["persisted_generation"], "R1")
-        self.assertEqual(server["accepted_generation"], "R2")
-        self.assertEqual(server["refresh_attempts"], ["R1", "R1"])
-        self.assertEqual(source["test_generation"], "R1")
+        self.assertEqual(copy_b["persisted_refresh"], "synthetic-refresh-R1")
+        self.assertEqual(server["accepted_refresh"], "synthetic-refresh-R2")
+        self.assertEqual(server["refresh_attempts"], ["synthetic-refresh-R1", "synthetic-refresh-R1"])
+        self.assertEqual(source["refresh"], "synthetic-refresh-R1")
 
     def test_installed_pi_auth_storage_refreshes_concurrently_at_authority(self):
         report = self.run_installed_auth_resolution()

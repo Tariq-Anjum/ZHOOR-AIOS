@@ -164,6 +164,96 @@ def _validate_reviewer_auth_profile(assigned_worktree: Path | None = None) -> Pa
         ) from None
 
 
+def _lock_reviewer_auth_store(auth_path: Path) -> int:
+    """Acquire the shared reviewer lock on the authoritative auth-file inode."""
+    lock_fd = -1
+    try:
+        path_info = auth_path.lstat()
+        lock_fd = os.open(
+            auth_path,
+            os.O_RDONLY | os.O_NOFOLLOW | os.O_CLOEXEC,
+        )
+        lock_info = os.fstat(lock_fd)
+        if (
+            not stat.S_ISREG(path_info.st_mode)
+            or not stat.S_ISREG(lock_info.st_mode)
+            or path_info.st_uid != os.getuid()
+            or lock_info.st_uid != os.getuid()
+            or stat.S_IMODE(path_info.st_mode) != 0o600
+            or stat.S_IMODE(lock_info.st_mode) != 0o600
+            or path_info.st_nlink != 1
+            or lock_info.st_nlink != 1
+            or (path_info.st_dev, path_info.st_ino) != (lock_info.st_dev, lock_info.st_ino)
+        ):
+            raise ValueError
+        try:
+            fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            raise LaneError("reviewer OAuth store is already active") from None
+        return lock_fd
+    except LaneError:
+        if lock_fd >= 0:
+            os.close(lock_fd)
+        raise
+    except (OSError, ValueError):
+        if lock_fd >= 0:
+            os.close(lock_fd)
+        raise LaneError("reviewer OAuth store is insecure or cannot be locked") from None
+
+
+def check_reviewer_auth(
+    *, no_refresh: bool = False, runner: Runner = subprocess.run,
+) -> dict[str, str]:
+    """Check reviewer OAuth readiness while holding the same store lock as lanes."""
+    auth_path = _validate_reviewer_auth_profile()
+    lock_fd = _lock_reviewer_auth_store(auth_path)
+    try:
+        pi_executable = shutil.which("pi")
+        if not pi_executable:
+            raise LaneError("Pi executable cannot be resolved")
+        pi_path = Path(pi_executable).resolve()
+        _require_audited_pi_version(pi_path)
+        command = [str(pi_path), "auth", "check", "--provider", "openai", "--json"]
+        if no_refresh:
+            command.append("--no-refresh")
+        env = {
+            "HOME": str(Path.home()),
+            "LANG": "C.UTF-8",
+            "PATH": f"{pi_path.parent}:/usr/bin:/bin",
+            "PI_CODING_AGENT_DIR": str(REVIEWER_PROFILE_DIR),
+            "PI_SKIP_VERSION_CHECK": "1",
+            "PI_TELEMETRY": "0",
+        }
+        result = runner(
+            command,
+            env=env,
+            stdin=subprocess.DEVNULL,
+            text=True,
+            capture_output=True,
+            check=False,
+            pass_fds=(lock_fd,),
+        )
+        if result.returncode:
+            details = f"{result.stdout}\n{result.stderr}"
+            if "invalid_grant" in details:
+                raise LaneError("dedicated reviewer OAuth profile refresh failed: invalid_grant")
+            raise LaneError("dedicated reviewer OAuth readiness check failed")
+        try:
+            payload = json.loads(result.stdout)
+        except json.JSONDecodeError:
+            raise LaneError("dedicated reviewer OAuth readiness check returned invalid status") from None
+        if (
+            not isinstance(payload, dict)
+            or payload.get("status") != "ready"
+            or payload.get("provider") != "openai"
+            or payload.get("authType") != "oauth"
+        ):
+            raise LaneError("dedicated reviewer OAuth readiness check did not report ready/openai/oauth")
+        return {"status": "ready", "provider": "openai", "authType": "oauth"}
+    finally:
+        os.close(lock_fd)
+
+
 def _validate_pi_launch_args(agent_args: list[str], route: AuditRoute) -> None:
     route_values = {
         "--provider": route.provider,
@@ -942,6 +1032,14 @@ def complete_lane(role: str, evidence: str, candidate_sha: str | None = None, *,
 def parser() -> argparse.ArgumentParser:
     root = argparse.ArgumentParser(description=__doc__)
     sub = root.add_subparsers(dest="command", required=True)
+    auth_check = sub.add_parser(
+        "auth-check",
+        help="check dedicated reviewer OAuth readiness under the shared store lock",
+    )
+    auth_check.add_argument(
+        "--no-refresh", action="store_true",
+        help="check without allowing Pi to refresh the OAuth credential",
+    )
     spawn = sub.add_parser("spawn", help="create a dedicated no-focus one-pane tab and start one named agent")
     for flag in ("role", "name", "kind", "workspace", "cwd", "worktree", "scratch", "starting-sha", "label"):
         spawn.add_argument("--" + flag, required=True)
@@ -976,7 +1074,9 @@ def parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     args = parser().parse_args(argv)
     try:
-        if args.command == "spawn":
+        if args.command == "auth-check":
+            value = check_reviewer_auth(no_refresh=args.no_refresh)
+        elif args.command == "spawn":
             value = spawn_agent(args)
         elif args.command == "prompt":
             print(send_prompt(args.role, args.text), end="")

@@ -227,13 +227,15 @@ created. Before lane setup, the helper rejects a reviewer profile or auth file
 inside either the controller repository or the assigned reviewer worktree,
 which the model's read guard can access. Never print or copy credential values.
 
-Before either route starts, resolve the helper's exact profile path with
-`reviewer_profile="$(python3.14 -c 'from scripts import zhoor_herdr; print(zhoor_herdr.REVIEWER_PROFILE_DIR)')"`.
-Then verify it with
-`PI_CODING_AGENT_DIR="$reviewer_profile" pi auth check --provider openai --json --no-refresh`;
-it must report `ready`, `openai`, and `oauth`. When ready, repeat the normal
-readiness check without `--no-refresh` or `--credentials` so Pi can refresh its
-credential in the authoritative profile. Verify the installed Pi catalog
+Before either route starts, run the helper's no-refresh readiness check:
+`python3.14 scripts/zhoor_herdr.py auth-check --no-refresh`;
+it must report `ready`, `openai`, and `oauth`. Then run
+`python3.14 scripts/zhoor_herdr.py auth-check` so Pi can refresh if needed.
+Both commands select the dedicated profile, hold a nonblocking exclusive lock
+on the authoritative auth-file inode for the Pi process lifetime, and print
+only sanitized readiness metadata. They fail closed if a reviewer or another
+helper readiness check already holds the store. Do not run a raw refresh-capable
+`pi auth check` against this profile. Verify the installed Pi catalog
 exposes `openai/gpt-6.1-sol` and supports the tier's reasoning effort. If auth
 or model availability fails, stop; do not fall back to an API key,
 `openai-codex`, or weaker containment.

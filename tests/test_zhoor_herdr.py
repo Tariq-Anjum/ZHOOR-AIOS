@@ -141,6 +141,222 @@ class ZhoorHerdrTopologyTests(unittest.TestCase):
             zhoor_herdr.spawn_agent(spawn_args(self.cwd, self.scratch), runner=fake, registry_path=self.registry)
         self.assertFalse(any(call[:3] == ["herdr", "tab", "create"] for call in fake.calls))
 
+    def test_refreshing_auth_check_uses_authoritative_lock_and_sanitizes_output(self):
+        fake_pi = self.root / "fake-pi-auth-check"
+        report_path = self.root / "auth-check-report.json"
+        fake_pi.write_text(f'''#!/usr/bin/python3
+import fcntl
+import json
+import os
+import sys
+from pathlib import Path
+if sys.argv[1:] == ["--version"]:
+    print("0.99.1")
+    raise SystemExit(0)
+auth_path = Path(os.environ["PI_CODING_AGENT_DIR"]) / "auth.json"
+probe = auth_path.open("rb")
+try:
+    fcntl.flock(probe.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+    lock_held = False
+except BlockingIOError:
+    lock_held = True
+Path({str(report_path)!r}).write_text(json.dumps({{
+    "lock_held": lock_held,
+    "profile": os.environ.get("PI_CODING_AGENT_DIR"),
+    "api_key_env": "OPENAI_API_KEY" in os.environ,
+    "credentials_flag": "--credentials" in sys.argv,
+    "no_refresh_flag": "--no-refresh" in sys.argv,
+}}))
+print(json.dumps({{
+    "status": "ready", "provider": "openai", "authType": "oauth",
+    "syntheticCredential": "SYNTHETIC_AUTH_VALUE_MUST_NOT_ESCAPE",
+}}))
+''')
+        fake_pi.chmod(0o700)
+        with patch.object(zhoor_herdr.shutil, "which", return_value=str(fake_pi)):
+            for no_refresh in (True, False):
+                with self.subTest(no_refresh=no_refresh):
+                    result = zhoor_herdr.check_reviewer_auth(no_refresh=no_refresh)
+                    report = json.loads(report_path.read_text())
+                    self.assertEqual(result, {"status": "ready", "provider": "openai", "authType": "oauth"})
+                    self.assertTrue(report["lock_held"])
+                    self.assertEqual(report["profile"], str(self.profile_dir))
+                    self.assertFalse(report["api_key_env"])
+                    self.assertFalse(report["credentials_flag"])
+                    self.assertEqual(report["no_refresh_flag"], no_refresh)
+                    self.assertNotIn("SYNTHETIC_AUTH_VALUE_MUST_NOT_ESCAPE", json.dumps(result))
+        probe = self.auth_store.open("rb")
+        try:
+            fcntl.flock(probe.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        finally:
+            probe.close()
+
+    def test_refreshing_auth_check_fails_closed_when_reviewer_store_is_locked(self):
+        lock = self.auth_store.open("rb")
+        fcntl.flock(lock.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        calls = []
+        try:
+            with self.assertRaisesRegex(zhoor_herdr.LaneError, "reviewer OAuth store is already active"):
+                zhoor_herdr.check_reviewer_auth(
+                    no_refresh=False,
+                    runner=lambda *args, **kwargs: calls.append((args, kwargs)),
+                )
+        finally:
+            lock.close()
+        self.assertEqual(calls, [])
+
+    def test_refreshing_auth_check_process_cannot_bypass_live_reviewer_lock(self):
+        fake_pi = self.root / "fake-pi-auth-check-overlap"
+        lane_started = self.root / "reviewer-lane-started"
+        auth_called = self.root / "auth-check-invoked-pi"
+        release = self.root / "release-reviewer-lane"
+        fake_pi.write_text(f'''#!/usr/bin/python3
+import os
+import sys
+import time
+from pathlib import Path
+if sys.argv[1:] == ["--version"]:
+    print("0.99.1")
+    raise SystemExit(0)
+if sys.argv[1:3] == ["auth", "check"]:
+    Path({str(auth_called)!r}).write_text("called")
+    print('{{"status":"ready","provider":"openai","authType":"oauth"}}')
+    raise SystemExit(0)
+Path({str(lane_started)!r}).write_text("started")
+while not Path({str(release)!r}).exists():
+    time.sleep(0.01)
+''')
+        fake_pi.chmod(0o700)
+        scratch = self.root / "scratch-auth-overlap-lane"
+        scratch.mkdir(mode=0o700)
+        args = spawn_args(self.cwd, scratch)
+        with patch.object(zhoor_herdr.shutil, "which", return_value=str(fake_pi)):
+            zhoor_herdr._prepare_pi_containment(
+                args.agent_args[1:],
+                route=zhoor_herdr.resolve_audit_route(args.audit_tier),
+                scratch=scratch,
+            )
+        lane = subprocess.Popen(
+            [str(scratch / "bin" / "pi")],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        deadline = time.monotonic() + 5
+        while not lane_started.exists() and lane.poll() is None and time.monotonic() < deadline:
+            time.sleep(0.01)
+        self.assertTrue(lane_started.exists(), f"reviewer Pi did not start: {lane.poll()}")
+
+        check_script = self.root / "run-auth-check.py"
+        check_script.write_text(f'''import sys
+from pathlib import Path
+from scripts import zhoor_herdr
+auth_store = Path(sys.argv[1])
+zhoor_herdr.REVIEWER_PROFILE_DIR = auth_store.parent
+zhoor_herdr.REVIEWER_AUTH_STORE = auth_store
+zhoor_herdr.shutil.which = lambda name: sys.argv[2]
+try:
+    zhoor_herdr.check_reviewer_auth(no_refresh=False)
+except zhoor_herdr.LaneError as exc:
+    print("blocked" if "already active" in str(exc) else "failed")
+else:
+    print("unexpected-ready")
+''')
+        repo_root = str(Path(__file__).resolve().parents[1])
+        check_env = {"PATH": "/usr/bin:/bin", "PYTHONPATH": repo_root, "LANG": "C.UTF-8"}
+        try:
+            check = subprocess.run(
+                ["python3.14", str(check_script), str(self.auth_store), str(fake_pi)],
+                env=check_env, text=True, capture_output=True, check=False,
+            )
+            self.assertEqual(check.returncode, 0, check.stderr)
+            self.assertEqual(check.stdout.strip(), "blocked")
+            self.assertFalse(auth_called.exists())
+        finally:
+            release.touch()
+            lane.communicate(timeout=5)
+
+    def test_profile_lock_excludes_competing_process_and_releases_after_exit_signals(self):
+        def make_fake_pi(name, *, wait_for_release=None):
+            executable = self.root / name
+            started = self.root / f"{name}.started"
+            release = self.root / f"{name}.release"
+            wait_code = (
+                f"while not Path({str(release)!r}).exists(): time.sleep(0.01)\n"
+                if wait_for_release else ""
+            )
+            executable.write_text(
+                "#!/usr/bin/python3\n"
+                "import json, os, sys, time, fcntl\n"
+                "from pathlib import Path\n"
+                "if sys.argv[1:] == ['--version']:\n"
+                "    print('0.99.1')\n"
+                "    raise SystemExit(0)\n"
+                f"Path({str(started)!r}).write_text('started')\n"
+                "auth_path = Path(os.environ['PI_CODING_AGENT_DIR']) / 'auth.json'\n"
+                "probe = auth_path.open('rb')\n"
+                "try:\n"
+                "    fcntl.flock(probe.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)\n"
+                "    held = False\n"
+                "except BlockingIOError:\n"
+                "    held = True\n"
+                f"{wait_code}"
+                "print(json.dumps({'lock_held': held}))\n"
+            )
+            executable.chmod(0o700)
+            return executable, started, release
+
+        def prepare_lane(tag, fake_pi):
+            scratch = self.root / f"scratch-{tag}"
+            scratch.mkdir(mode=0o700)
+            args = spawn_args(self.cwd, scratch)
+            with patch.object(zhoor_herdr.shutil, "which", return_value=str(fake_pi)):
+                zhoor_herdr._prepare_pi_containment(
+                    args.agent_args[1:],
+                    route=zhoor_herdr.resolve_audit_route(args.audit_tier),
+                    scratch=scratch,
+                )
+            return scratch / "bin" / "pi"
+
+        def wait_for(path, process):
+            deadline = time.monotonic() + 5
+            while not path.exists() and time.monotonic() < deadline:
+                if process.poll() is not None:
+                    break
+                time.sleep(0.01)
+            self.assertTrue(path.exists(), f"fake Pi did not start: {process.poll()}")
+
+        for exit_mode, termination_signal in (
+            ("normal", None), ("sigterm", signal.SIGTERM), ("sigkill", signal.SIGKILL)
+        ):
+            with self.subTest(exit_mode=exit_mode):
+                blocker, started, release = make_fake_pi(f"fake-blocker-{exit_mode}", wait_for_release=True)
+                blocker_lane = prepare_lane(f"blocker-{exit_mode}", blocker)
+                process = subprocess.Popen([str(blocker_lane)], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+                wait_for(started, process)
+
+                competing_fake, competing_started, _ = make_fake_pi(f"fake-competing-{exit_mode}")
+                competing_lane = prepare_lane(f"competing-{exit_mode}", competing_fake)
+                competing = subprocess.run([str(competing_lane)], capture_output=True, text=True, check=False)
+                self.assertEqual(competing.returncode, 125)
+                self.assertFalse(competing_started.exists())
+
+                if termination_signal is None:
+                    release.touch()
+                    stdout, stderr = process.communicate(timeout=5)
+                    self.assertEqual(process.returncode, 0, stderr)
+                    self.assertIn('"lock_held": true', stdout)
+                else:
+                    process.send_signal(termination_signal)
+                    process.communicate(timeout=5)
+
+                successor_fake, successor_started, _ = make_fake_pi(f"fake-successor-{exit_mode}")
+                successor_lane = prepare_lane(f"successor-{exit_mode}", successor_fake)
+                successor = subprocess.run([str(successor_lane)], capture_output=True, text=True, check=False)
+                self.assertEqual(successor.returncode, 0, successor.stderr)
+                self.assertTrue(successor_started.exists())
+                self.assertIn('"lock_held": true', successor.stdout)
+
     def test_spawn_uses_no_focus_tab_and_accepts_sidebar_as_managed_ui(self):
         fake = FakeHerdr(self.cwd)
         lane = zhoor_herdr.spawn_agent(spawn_args(self.cwd, self.scratch), runner=fake, registry_path=self.registry)
@@ -790,7 +1006,8 @@ const provider = {
         error.code = "invalid_grant";
         throw error;
       }
-      const nextGeneration = "R2";
+      const currentGeneration = Number(credential.test_generation.slice(1));
+      const nextGeneration = `R${currentGeneration + 1}`;
       server.accepted_generation = nextGeneration;
       writeFileSync(serverPath, JSON.stringify(server));
       return { ...credential, access: "synthetic-access-R2", refresh: "synthetic-refresh-R2",
@@ -874,6 +1091,66 @@ console.log(JSON.stringify({
         self.assertEqual(server["accepted_generation"], "R2")
         self.assertEqual(server["refresh_attempts"], ["R1"])
         self.assertEqual(source["test_generation"], "R2")
+
+        scratch_c = self.root / "scratch-c"
+        scratch_c.mkdir(mode=0o700)
+        expired_r2 = json.loads(self.auth_store.read_text())["openai"]
+        expired_r2["expires"] = 1
+        self.auth_store.write_text(json.dumps({"openai": expired_r2}))
+        lane_c = run_lane(scratch_c, "c")
+        server = json.loads(server_state.read_text())
+        source = json.loads(self.auth_store.read_text())["openai"]
+        self.assertEqual(lane_c["status"], "ready")
+        self.assertTrue(lane_c["refresh_attempted"])
+        self.assertEqual(lane_c["persisted_generation"], "R3")
+        self.assertEqual(server["accepted_generation"], "R3")
+        self.assertEqual(server["refresh_attempts"], ["R1", "R2"])
+        self.assertEqual(source["test_generation"], "R3")
+
+        # Reproduce the pre-fix design: both private stores begin with R1.
+        # Lane A rotates the server's credential to R2 but can persist only to
+        # its copy. Lane B's stale R1 is then rejected with invalid_grant.
+        server_state.write_text(json.dumps({"accepted_generation": "R1", "refresh_attempts": []}))
+        stale_r1 = {
+            "type": "oauth", "access": "synthetic-access-R1",
+            "refresh": "synthetic-refresh-R1", "expires": 1,
+            "clientId": "synthetic-client",
+            "scopes": ["openid", "chatgpt.tokens.use.direct"],
+            "test_generation": "R1",
+        }
+        self.auth_store.write_text(json.dumps({"openai": stale_r1}))
+
+        def run_private_copy(config_dir: Path, role: str) -> dict:
+            config_dir.mkdir(mode=0o700)
+            copied_auth = config_dir / "auth.json"
+            copied_auth.write_text(json.dumps({"openai": stale_r1}))
+            os.chmod(copied_auth, 0o600)
+            env = {
+                "PATH": "/usr/bin:/bin",
+                "PI_CODING_AGENT_DIR": str(config_dir),
+                "PI_CODING_AGENT_SESSION_DIR": str(self.root / f"copy-session-{role}"),
+                "ZHOOR_TEST_SERVER": str(server_state),
+            }
+            result = subprocess.run(
+                [shutil.which("node"), str(node_script)],
+                env=env, text=True, capture_output=True, check=False,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            return json.loads(result.stdout)
+
+        copy_a = run_private_copy(self.root / "private-copy-a", "a")
+        copy_b = run_private_copy(self.root / "private-copy-b", "b")
+        server = json.loads(server_state.read_text())
+        source = json.loads(self.auth_store.read_text())["openai"]
+        self.assertEqual(copy_a["status"], "ready")
+        self.assertEqual(copy_a["persisted_generation"], "R2")
+        self.assertEqual(copy_b["status"], "error")
+        self.assertEqual(copy_b["error_code"], "invalid_grant")
+        self.assertTrue(copy_b["refresh_attempted"])
+        self.assertEqual(copy_b["persisted_generation"], "R1")
+        self.assertEqual(server["accepted_generation"], "R2")
+        self.assertEqual(server["refresh_attempts"], ["R1", "R1"])
+        self.assertEqual(source["test_generation"], "R1")
 
     def test_installed_pi_auth_storage_refreshes_concurrently_at_authority(self):
         report = self.run_installed_auth_resolution()

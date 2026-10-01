@@ -223,7 +223,9 @@ inode for the full Pi process lifetime, while Pi retains its normal
 credential-store lock around refresh and persistence. Reviewers run
 sequentially so a rotated refresh token is persisted to the sole authoritative
 profile before the next process starts. No per-lane credential snapshot is
-created. Never print or copy credential values.
+created. Before lane setup, the helper rejects a reviewer profile or auth file
+inside either the controller repository or the assigned reviewer worktree,
+which the model's read guard can access. Never print or copy credential values.
 
 Before either route starts, resolve the helper's exact profile path with
 `reviewer_profile="$(python3.14 -c 'from scripts import zhoor_herdr; print(zhoor_herdr.REVIEWER_PROFILE_DIR)')"`.

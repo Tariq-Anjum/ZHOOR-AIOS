@@ -120,7 +120,7 @@ def _is_valid_openai_chatgpt_oauth(provider: str, credential: Any) -> bool:
     )
 
 
-def _validate_reviewer_auth_profile() -> Path:
+def _validate_reviewer_auth_profile(assigned_worktree: Path | None = None) -> Path:
     """Require one private, dedicated OpenAI OAuth credential store."""
     try:
         profile = REVIEWER_PROFILE_DIR
@@ -129,7 +129,9 @@ def _validate_reviewer_auth_profile() -> Path:
         auth_stat = auth_path.lstat()
         resolved_profile = profile.resolve(strict=True)
         resolved_auth = auth_path.resolve(strict=True)
-        repo_root = Path(__file__).resolve().parent.parent
+        restricted_roots = [Path(__file__).resolve().parent.parent]
+        if assigned_worktree is not None:
+            restricted_roots.append(Path(assigned_worktree).resolve(strict=True))
         if (
             not stat.S_ISDIR(profile_stat.st_mode)
             or profile_stat.st_uid != os.getuid()
@@ -137,8 +139,12 @@ def _validate_reviewer_auth_profile() -> Path:
             or resolved_profile != profile.absolute()
             or auth_path.parent != profile
             or resolved_auth != resolved_profile / "auth.json"
-            or repo_root == resolved_profile
-            or repo_root in resolved_profile.parents
+            or any(
+                root == candidate
+                or root in candidate.parents
+                for root in restricted_roots
+                for candidate in (resolved_profile, resolved_auth)
+            )
             or not stat.S_ISREG(auth_stat.st_mode)
             or auth_stat.st_uid != os.getuid()
             or stat.S_IMODE(auth_stat.st_mode) != 0o600
@@ -263,6 +269,7 @@ def _claim_fresh_scratch(scratch: Path) -> None:
 
 def _prepare_pi_containment(
     agent_args: list[str], *, route: AuditRoute, scratch: Path,
+    assigned_worktree: Path | None = None,
 ) -> tuple[list[str], dict[str, str]]:
     """Install a clean-environment Pi launcher and a read-only path guard."""
     if route not in (PRIMARY_AUDIT_ROUTE, SECONDARY_AUDIT_ROUTE):
@@ -272,7 +279,7 @@ def _prepare_pi_containment(
 
     # The dedicated reviewer profile contains the sole authoritative OAuth file.
     # Pi's per-lane config root remains private; only its auth.json path is linked.
-    auth_store = _validate_reviewer_auth_profile()
+    auth_store = _validate_reviewer_auth_profile(assigned_worktree=assigned_worktree)
 
     pi_executable = shutil.which("pi")
     if not pi_executable:
@@ -598,6 +605,7 @@ def spawn_agent(args: argparse.Namespace, *, runner: Runner = subprocess.run, re
         cwd, worktree = Path(args.cwd), Path(args.worktree)
         _validate_checkout(cwd, worktree, args.starting_sha, runner)
         real_worktree = worktree.resolve()
+        _validate_reviewer_auth_profile(assigned_worktree=real_worktree)
         if scratch == real_worktree or scratch in real_worktree.parents or real_worktree in scratch.parents:
             raise LaneError("assigned scratch directory must be separate from the worktree")
         runtime_paths = {
@@ -613,7 +621,12 @@ def spawn_agent(args: argparse.Namespace, *, runner: Runner = subprocess.run, re
         })
         _claim_fresh_scratch(scratch)
         lane_env = [f"{key}={value}" for key, value in runtime_paths.items()]
-        containment_args, launch_env = _prepare_pi_containment(agent_args, route=route, scratch=scratch)
+        containment_args, launch_env = _prepare_pi_containment(
+            agent_args,
+            route=route,
+            scratch=scratch,
+            assigned_worktree=real_worktree,
+        )
         lane_env.append(f"PATH={launch_env['PATH']}")
         lane_env += ["PI_OFFLINE=1", "PI_TELEMETRY=0", "PI_SKIP_VERSION_CHECK=1"]
         before = _snapshot(runner)

@@ -301,6 +301,26 @@ class ZhoorHerdrTopologyTests(unittest.TestCase):
             zhoor_herdr.spawn_agent(spawn_args(self.cwd, self.scratch), runner=fake, registry_path=self.registry)
         self.assertFalse(any(call[:3] == ["herdr", "tab", "create"] for call in fake.calls))
 
+    def test_reviewer_profile_inside_assigned_worktree_is_rejected_before_tab_creation(self):
+        profile_dir = self.cwd / ".reviewer-profile"
+        profile_dir.mkdir(mode=0o700)
+        auth_store = profile_dir / "auth.json"
+        auth_store.write_text(json.dumps({"openai": self.oauth_credential}))
+        os.chmod(profile_dir, 0o700)
+        os.chmod(auth_store, 0o600)
+        fake = FakeHerdr(self.cwd)
+        with patch.object(zhoor_herdr, "REVIEWER_PROFILE_DIR", profile_dir), patch.object(
+            zhoor_herdr, "REVIEWER_AUTH_STORE", auth_store
+        ):
+            with self.assertRaisesRegex(zhoor_herdr.LaneError, "dedicated reviewer OAuth profile.*invalid"):
+                zhoor_herdr.spawn_agent(
+                    spawn_args(self.cwd, self.scratch),
+                    runner=fake,
+                    registry_path=self.registry,
+                )
+        self.assertFalse(any(call[:3] == ["herdr", "tab", "create"] for call in fake.calls))
+        self.assertEqual(list(self.scratch.iterdir()), [])
+
     def test_reviewer_profile_requires_private_directory_and_file_modes(self):
         os.chmod(self.profile_dir, 0o755)
         with self.assertRaisesRegex(zhoor_herdr.LaneError, "dedicated reviewer OAuth profile.*invalid"):

@@ -179,6 +179,18 @@ class ZhoorHerdrTopologyTests(unittest.TestCase):
         self.assertIn("0.99.1", version.stdout)
         self.assertFalse(any(call[:2] == ["herdr", "pane"] and "split" in call for call in fake.calls))
 
+    def test_unreviewed_pi_version_fails_before_reviewer_runtime_setup(self):
+        fake_pi = self.root / "pi-newer"
+        fake_pi.write_text("#!/bin/sh\nprintf '0.99.2\\n'\n")
+        fake_pi.chmod(0o700)
+        args = spawn_args(self.cwd, self.scratch)
+        fake = FakeHerdr(self.cwd)
+        with patch.object(zhoor_herdr.shutil, "which", return_value=str(fake_pi)):
+            with self.assertRaisesRegex(zhoor_herdr.LaneError, "Pi version is not the audited 0.99.1 baseline"):
+                zhoor_herdr.spawn_agent(args, runner=fake, registry_path=self.registry)
+        self.assertFalse(any(call[:3] == ["herdr", "tab", "create"] for call in fake.calls))
+        self.assertFalse((self.scratch / "home").exists())
+
     def test_missing_approved_provider_auth_fails_before_tab_creation(self):
         self.auth_store.unlink()
         fake = FakeHerdr(self.cwd)
@@ -267,6 +279,9 @@ import json
 import os
 import sys
 from pathlib import Path
+if sys.argv[1:] == ["--version"]:
+    print("0.99.1")
+    raise SystemExit(0)
 auth_path = Path(os.environ["PI_CODING_AGENT_DIR"]) / "auth.json"
 credential = json.loads(auth_path.read_text())["openai"]
 print(json.dumps({
@@ -313,7 +328,11 @@ print(json.dumps({
         fake_pi.write_text('''#!/usr/bin/python3
 import json
 import os
+import sys
 from pathlib import Path
+if sys.argv[1:] == ["--version"]:
+    print("0.99.1")
+    raise SystemExit(0)
 auth_path = Path(os.environ["PI_CODING_AGENT_DIR"]) / "auth.json"
 auth = json.loads(auth_path.read_text())
 credential = auth["openai"]
@@ -350,7 +369,14 @@ print(json.dumps({
     def test_launcher_rechecks_oauth_structure_before_exec(self):
         fake_pi = self.root / "fake-pi"
         executed = self.root / "fake-pi-executed"
-        fake_pi.write_text(f"#!/usr/bin/python3\nfrom pathlib import Path\nPath({str(executed)!r}).write_text('executed')\n")
+        fake_pi.write_text(
+            "#!/usr/bin/python3\nimport sys\n"
+            "if sys.argv[1:] == ['--version']:\n"
+            "    print('0.99.1')\n"
+            "    raise SystemExit(0)\n"
+            "from pathlib import Path\n"
+            f"Path({str(executed)!r}).write_text('executed')\n"
+        )
         fake_pi.chmod(0o700)
         args = spawn_args(self.cwd, self.scratch)
         with patch.object(zhoor_herdr.shutil, "which", return_value=str(fake_pi)):
@@ -600,6 +626,9 @@ console.log(JSON.stringify({
         fake_pi.write_text(
             "#!/usr/bin/python3\n"
             "import os, subprocess, sys\n"
+            "if sys.argv[1:] == ['--version']:\n"
+            "    print('0.99.1')\n"
+            "    raise SystemExit(0)\n"
             f"{chmod_fd}\n"
             f"result = subprocess.run(['node', {str(node_script)!r}], "
             "text=True, capture_output=True, pass_fds=(3,), check=False)\n"
@@ -756,6 +785,162 @@ console.log(JSON.stringify({{ registered: [...handlers.keys()], result: result ?
             "input": {"path": "escape.txt"},
         })
         self.assertTrue(report["result"]["block"])
+
+
+class ZhoorInstalledFileToolIntegrationTests(unittest.TestCase):
+    """Exercise the guard with the actual installed Pi 0.99.1 file tools."""
+
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.root = Path(self.temp.name)
+        self.worktree = self.root / "worktree"
+        self.home = self.root / "home"
+        self.config = self.root / "pi-config"
+        self.worktree.mkdir()
+        self.home.mkdir()
+        self.config.mkdir()
+        node = shutil.which("node")
+        pi = shutil.which("pi")
+        if not node or not pi:
+            self.skipTest("installed Node.js and Pi are required for Pi file-tool integration")
+        self.node = node
+        package_root = Path(pi).resolve().parents[2]
+        tools_module = package_root / "dist/core/tools/index.js"
+        if not tools_module.is_file():
+            self.skipTest("installed Pi file-tool module is unavailable")
+        self.tools_module = tools_module.as_uri()
+        self.guard_module = (Path(__file__).parents[1] / "scripts/zhoor_pi_readonly_guard.ts").as_uri()
+
+    def tearDown(self):
+        self.temp.cleanup()
+
+    def run_installed_tools(self, cases):
+        script = f'''import guard from {json.dumps(self.guard_module)};
+import {{ createReadToolDefinition, createGrepToolDefinition, createFindToolDefinition, createLsToolDefinition }} from {json.dumps(self.tools_module)};
+import {{ readFileSync }} from "node:fs";
+const input = JSON.parse(readFileSync(0, "utf8"));
+const handlers = new Map();
+guard({{ on: (name, handler) => handlers.set(name, handler) }});
+const definitions = new Map([
+  ["read", createReadToolDefinition(input.cwd)],
+  ["grep", createGrepToolDefinition(input.cwd)],
+  ["find", createFindToolDefinition(input.cwd)],
+  ["ls", createLsToolDefinition(input.cwd)],
+]);
+const guardToolCall = handlers.get("tool_call");
+const reports = [];
+for (const item of input.cases) {{
+  const decision = await guardToolCall({{ type: "tool_call", toolName: item.tool, input: item.input }});
+  if (decision?.block) {{
+    reports.push({{ blocked: true, expectedFound: false, forbiddenFound: false }});
+    continue;
+  }}
+  try {{
+    const result = await definitions.get(item.tool).execute("zhoor-integration", item.input, undefined, undefined, {{ cwd: input.cwd }});
+    const text = (result?.content ?? []).filter((part) => typeof part.text === "string").map((part) => part.text).join("\\n");
+    reports.push({{
+      blocked: false,
+      expectedFound: item.expectedText === undefined ? null : text.includes(item.expectedText),
+      forbiddenFound: item.forbiddenText === undefined ? false : text.includes(item.forbiddenText),
+    }});
+  }} catch (error) {{
+    reports.push({{ blocked: false, toolError: error instanceof Error ? error.name : "unknown" }});
+  }}
+}}
+console.log(JSON.stringify(reports));
+'''
+        tool_directories = []
+        for tool in ("rg", "fd"):
+            tool_path = shutil.which(tool)
+            if tool_path:
+                tool_directories.append(str(Path(tool_path).parent))
+        path = os.pathsep.join(dict.fromkeys([*tool_directories, "/usr/bin", "/bin"]))
+        env = {
+            "PATH": path,
+            "HOME": str(self.home),
+            "TMPDIR": str(self.root),
+            "PI_CODING_AGENT_DIR": str(self.config),
+            "PI_OFFLINE": "1",
+            "LANG": "C.UTF-8",
+        }
+        result = subprocess.run(
+            [self.node, "--experimental-strip-types", "--input-type=module", "-e", script],
+            cwd=self.worktree,
+            input=json.dumps({"cwd": str(self.worktree), "cases": cases}),
+            text=True,
+            capture_output=True,
+            env=env,
+            timeout=20,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        return json.loads(result.stdout)
+
+    def test_installed_read_tool_cannot_escape_via_pi_path_normalization(self):
+        at_outside = self.root / "outside-at.txt"
+        at_outside.write_text("ZHOOR_AT_PREFIX_OUTSIDE_SENTINEL\n")
+        at_path = "@" + str(at_outside)
+        at_decoy = self.worktree / at_path
+        at_decoy.parent.mkdir(parents=True)
+        at_decoy.write_text("inside decoy\n")
+
+        tilde_outside = self.home / "outside-tilde.txt"
+        tilde_outside.write_text("ZHOOR_TILDE_OUTSIDE_SENTINEL\n")
+        tilde_decoy = self.worktree / "~" / "outside-tilde.txt"
+        tilde_decoy.parent.mkdir()
+        tilde_decoy.write_text("inside decoy\n")
+
+        url_outside = self.root / "outside-url.txt"
+        url_outside.write_text("ZHOOR_FILE_URL_OUTSIDE_SENTINEL\n")
+        url_path = url_outside.as_uri()
+        url_decoy = self.worktree / ("file:" + str(url_outside))
+        url_decoy.parent.mkdir(parents=True)
+        url_decoy.write_text("inside decoy\n")
+
+        cases = [
+            {"tool": "read", "input": {"path": at_path}, "forbiddenText": "ZHOOR_AT_PREFIX_OUTSIDE_SENTINEL"},
+            {"tool": "read", "input": {"path": "~/outside-tilde.txt"}, "forbiddenText": "ZHOOR_TILDE_OUTSIDE_SENTINEL"},
+            {"tool": "read", "input": {"path": url_path}, "forbiddenText": "ZHOOR_FILE_URL_OUTSIDE_SENTINEL"},
+        ]
+        reports = self.run_installed_tools(cases)
+        self.assertEqual(
+            [item["blocked"] for item in reports],
+            [True, True, True],
+            "installed Pi path normalization must not turn an in-worktree-looking input into an outside read",
+        )
+        self.assertFalse(any(item.get("forbiddenFound", False) for item in reports))
+
+    def test_installed_readonly_tools_allow_inside_and_block_outside_symlink_traversal(self):
+        inside = self.worktree / "inside.txt"
+        inside.write_text("installed-tool-inside-marker\n")
+        outside_dir = self.root / "outside-dir"
+        outside_dir.mkdir()
+        outside_file = outside_dir / "outside.txt"
+        outside_file.write_text("ZHOOR_DIRECT_OUTSIDE_SENTINEL\n")
+        nested_file = outside_dir / "nested-marker.txt"
+        nested_file.write_text("ZHOOR_RECURSIVE_SYMLINK_SENTINEL\n")
+        (self.worktree / "escape.txt").symlink_to(outside_file)
+        (self.worktree / "escape-dir").symlink_to(outside_dir, target_is_directory=True)
+
+        if not shutil.which("rg") or not shutil.which("fd"):
+            self.skipTest("installed ripgrep and fd are required for recursive Pi file-tool integration")
+
+        cases = [
+            {"tool": "read", "input": {"path": "inside.txt"}, "expectedText": "installed-tool-inside-marker"},
+            {"tool": "grep", "input": {"path": "inside.txt", "pattern": "installed-tool-inside-marker"}, "expectedText": "installed-tool-inside-marker"},
+            {"tool": "find", "input": {"path": ".", "pattern": "inside.txt"}, "expectedText": "inside.txt"},
+            {"tool": "ls", "input": {"path": "."}, "expectedText": "inside.txt"},
+            {"tool": "read", "input": {"path": str(outside_file)}, "forbiddenText": "ZHOOR_DIRECT_OUTSIDE_SENTINEL"},
+            {"tool": "read", "input": {"path": "escape.txt"}, "forbiddenText": "ZHOOR_DIRECT_OUTSIDE_SENTINEL"},
+            {"tool": "grep", "input": {"path": ".", "pattern": "ZHOOR_RECURSIVE_SYMLINK_SENTINEL"}, "forbiddenText": "ZHOOR_RECURSIVE_SYMLINK_SENTINEL"},
+            {"tool": "find", "input": {"path": ".", "pattern": "nested-marker.txt"}, "forbiddenText": "nested-marker.txt"},
+        ]
+        reports = self.run_installed_tools(cases)
+        self.assertEqual([item["blocked"] for item in reports[:4]], [False] * 4)
+        self.assertTrue(all(item.get("expectedFound") for item in reports[:4]))
+        self.assertEqual([item["blocked"] for item in reports[4:6]], [True, True])
+        self.assertEqual([item["blocked"] for item in reports[6:]], [False, False])
+        self.assertFalse(any(item.get("forbiddenFound", False) for item in reports[4:]))
 
 
 class ZhoorInstalledPiCliTests(unittest.TestCase):

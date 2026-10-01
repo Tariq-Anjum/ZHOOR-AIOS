@@ -28,6 +28,7 @@ TERMINAL_LANE_STATES = {
     "AGENT_START_FAILED", "ROLE_HANDSHAKE_FAILED", "QUARANTINED",
 }
 OPENAI_CHATGPT_DIRECT_SCOPE = "chatgpt.tokens.use.direct"
+PINNED_PI_VERSION = "0.99.1"
 REVIEW_SYSTEM_PROMPT = (
     "You are an independent ZHOOR reviewer working in a read-only lane. "
     "Use only the provided read-only file tools, and base claims about repository "
@@ -52,6 +53,21 @@ SECONDARY_AUDIT_ROUTE = AuditRoute("secondary", "openai", "gpt-6.1-sol", "xhigh"
 
 class LaneError(RuntimeError):
     pass
+
+
+def _require_audited_pi_version(executable: Path) -> None:
+    try:
+        version = subprocess.run(
+            [str(executable), "--version"],
+            text=True,
+            capture_output=True,
+            check=False,
+            env={"PATH": os.defpath, "LANG": "C.UTF-8"},
+        )
+    except OSError:
+        raise LaneError("Pi version is not the audited 0.99.1 baseline") from None
+    if version.returncode != 0 or version.stdout.strip() != PINNED_PI_VERSION:
+        raise LaneError("Pi version is not the audited 0.99.1 baseline")
 
 
 def resolve_audit_route(audit_tier: str) -> AuditRoute:
@@ -210,6 +226,7 @@ def _prepare_pi_containment(
     pi_executable_path = Path(pi_executable).resolve()
     if not pi_executable_path.is_file() or not os.access(pi_executable_path, os.X_OK):
         raise LaneError("resolved Pi executable is not runnable")
+    _require_audited_pi_version(pi_executable_path)
 
     guard_source = Path(__file__).with_name("zhoor_pi_readonly_guard.ts")
     if not guard_source.is_file():

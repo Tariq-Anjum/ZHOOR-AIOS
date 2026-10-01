@@ -184,7 +184,22 @@ file tools, and a controller-managed guard that blocks paths outside the
 assigned worktree. The helper fails closed for harnesses without a verified
 containment profile. Reviewer CWD must equal the assigned worktree root,
 because the guard takes its boundary from Pi's process CWD; descendant CWDs are
-rejected to avoid narrowing the readable worktree.
+rejected to avoid narrowing the readable worktree. The guard applies Pi 0.99.1's
+`@`, `~`, `file://`, and Unicode-space path normalization before resolving and
+checking the canonical target against that root.
+
+Before recording `AGENT_CONTAINMENT=PASS`, verify the startup shows only the
+controller-managed guard extension and the exact read-only tool set, then run a
+harmless interactive `! /usr/bin/printf ZHOOR_USER_BASH_SENTINEL`. Require the
+bounded ZHOOR denial and exit 126, with the sentinel not emitted as command
+output (ignore the terminal's input echo). Also verify there is no MCP/server
+process in the lane. Do not send source or other task content until these
+checks pass.
+
+The helper accepts only the audited Pi `0.99.1` binary and rejects other
+versions before preparing the reviewer runtime or creating a tab. A Pi version
+change requires a separate owner-approved rebaseline of the event/auth/model
+interfaces, guard behavior, and live containment probes.
 
 For permanent reviewer lanes, select only an explicit helper tier:
 `--audit-tier primary` launches Pi with `openai` / ChatGPT subscription OAuth,

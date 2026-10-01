@@ -35,3 +35,27 @@
 - Reviews are read-only. Exact-SHA audits use a detached checkout pinned to the
   candidate commit. Follow the runbook for Herdr discovery, handshakes, writer
   isolation, and recovery.
+
+## Shared-memory lifecycle
+
+- The global and AI-Tools shared-memory lifecycle applies to ZHOOR controller
+  sessions. The controller/orchestrator owns bootstrap and closeout, recalling
+  only relevant durable ZHOOR decisions, project state, orchestration policy,
+  environment, and tool/provider context.
+- Bounded implementation workers, auditors, reviewers, and challengers do not
+  write shared memory. They stay within their assigned source scope and report
+  durable findings to the controller, which independently verifies them before
+  persistence.
+- Canonical memory remains `/mnt/MD/AI-tools/my-ai-brain`; OB1/`open-brain` is a
+  searchable mirror only. Controller-owned memory writes, validation,
+  canonical-repository synchronization, and mirroring are control-plane work
+  outside the ZHOOR product candidate and do not expand a card's product write
+  scope. These operations must not mutate the reviewed candidate.
+- At verified card or maintenance closeout, persist and synchronize durable
+  changed state, or record `MEMORY_CLOSEOUT=NO_CHANGE`.
+- If canonical memory write, validation, or synchronization fails, preserve the
+  verified ZHOOR state and do not start another owner-assigned product card
+  until reconciled. If only OB1 mirroring fails, preserve canonical memory,
+  report `MEMORY_SYNC_DEGRADED`, and do not silently start another card.
+- A current explicit owner instruction `NO_MEMORY_SYNC` overrides this
+  lifecycle for that task.
